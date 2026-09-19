@@ -30,9 +30,9 @@ router.post('/', async (req, res) => {
       endereco, numero, origem, observacoes, congregacao_id
     } = req.body;
 
-    if (!nome || !cpf || !foto || !telefone || !congregacao_id || !origem || !endereco || !numero) {
+    if (!nome || !cpf || !telefone || !congregacao_id || !origem || !endereco || !numero) {
       return res.status(400).json({
-        erro: 'Preencha os campos obrigatórios: foto, nome, CPF, WhatsApp, congregação, origem, endereço e número.'
+        erro: 'Preencha os campos obrigatórios: nome, CPF, WhatsApp, congregação, origem, endereço e número.'
       });
     }
 
@@ -57,7 +57,7 @@ router.post('/', async (req, res) => {
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
       RETURNING *
     `, [
-      req.user.denominacao_id, congregacao_id, nome.trim(), cpfLimpo, foto,
+      req.user.denominacao_id, congregacao_id, nome.trim(), cpfLimpo, foto || null,
       telefone.trim(), email || null, data_nascimento || null, cidade || null,
       bairro || null, endereco.trim(), String(numero).trim(), origem, observacoes || null
     ]);
