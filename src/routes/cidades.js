@@ -18,6 +18,17 @@ router.get('/', async (req,res) => {
   } catch(e){ console.error(e); res.status(500).json({erro:'Erro ao listar cidades.'}); }
 });
 
+router.put('/:id', async (req,res) => {
+  try {
+    const {nome,estado}=req.body;
+    if(!nome) return res.status(400).json({erro:'Informe o nome da cidade.'});
+    const q=await db.query('UPDATE cidades_ministeriais SET nome=$1,estado=$2 WHERE id=$3 AND denominacao_id=$4 AND ativo=TRUE RETURNING *',[nome.trim(),estado?estado.trim().toUpperCase():null,req.params.id,req.user.denominacao_id]);
+    if(!q.rowCount) return res.status(404).json({erro:'Cidade não encontrada.'});
+    await db.query('UPDATE congregacoes SET cidade=$1,estado=$2 WHERE cidade_ministerial_id=$3 AND denominacao_id=$4',[q.rows[0].nome,q.rows[0].estado,req.params.id,req.user.denominacao_id]);
+    res.json(q.rows[0]);
+  } catch(e){if(e.code==='23505')return res.status(409).json({erro:'Esta cidade já está cadastrada.'});console.error(e);res.status(500).json({erro:'Erro ao alterar cidade.'});}
+});
+
 router.delete('/:id', async (req,res) => {
   try {
     const uso=await db.query('SELECT COUNT(*)::int total FROM congregacoes WHERE cidade_ministerial_id=$1 AND denominacao_id=$2 AND ativo=TRUE',[req.params.id,req.user.denominacao_id]);
