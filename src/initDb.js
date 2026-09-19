@@ -55,6 +55,7 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS ix_pessoas_denominacao ON pessoas(denominacao_id);
     ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
     ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS foto TEXT;
+    ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS numero VARCHAR(30);
     CREATE UNIQUE INDEX IF NOT EXISTS ux_pessoas_cpf_denominacao ON pessoas(denominacao_id, cpf) WHERE cpf IS NOT NULL;
   `);
 }
