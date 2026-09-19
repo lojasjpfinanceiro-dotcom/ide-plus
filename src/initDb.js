@@ -53,6 +53,29 @@ async function initDb() {
       atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS ix_pessoas_denominacao ON pessoas(denominacao_id);
+
+    -- Hierarquia nativa do IDE+: Denominação -> Cidade -> Congregação -> Usuários/Funções.
+    CREATE TABLE IF NOT EXISTS cidades_ministeriais (
+      id BIGSERIAL PRIMARY KEY,
+      denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+      nome VARCHAR(120) NOT NULL,
+      estado VARCHAR(2),
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(denominacao_id, nome, estado)
+    );
+    CREATE INDEX IF NOT EXISTS ix_cidades_ministeriais_denominacao ON cidades_ministeriais(denominacao_id);
+
+    ALTER TABLE congregacoes ADD COLUMN IF NOT EXISTS cidade_ministerial_id BIGINT REFERENCES cidades_ministeriais(id) ON DELETE SET NULL;
+    ALTER TABLE congregacoes ADD COLUMN IF NOT EXISTS sede BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cidade_ministerial_id BIGINT REFERENCES cidades_ministeriais(id) ON DELETE SET NULL;
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS congregacao_id BIGINT REFERENCES congregacoes(id) ON DELETE SET NULL;
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cargo VARCHAR(80);
+    ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS escopo VARCHAR(30) NOT NULL DEFAULT 'DENOMINACAO';
+
+    CREATE INDEX IF NOT EXISTS ix_congregacoes_cidade_ministerial ON congregacoes(cidade_ministerial_id);
+    CREATE INDEX IF NOT EXISTS ix_usuarios_cidade_ministerial ON usuarios(cidade_ministerial_id);
+    CREATE INDEX IF NOT EXISTS ix_usuarios_congregacao ON usuarios(congregacao_id);
     ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
     ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS foto TEXT;
     ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS numero VARCHAR(30);
