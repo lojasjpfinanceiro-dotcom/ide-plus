@@ -68,6 +68,12 @@ async function initDb() {
 
     ALTER TABLE congregacoes ADD COLUMN IF NOT EXISTS cidade_ministerial_id BIGINT REFERENCES cidades_ministeriais(id) ON DELETE SET NULL;
     ALTER TABLE congregacoes ADD COLUMN IF NOT EXISTS sede BOOLEAN NOT NULL DEFAULT FALSE;
+    ALTER TABLE congregacoes ADD COLUMN IF NOT EXISTS tipo VARCHAR(30) NOT NULL DEFAULT 'CONGREGACAO';
+    ALTER TABLE denominacoes ADD COLUMN IF NOT EXISTS sede_mae_nome VARCHAR(160);
+    ALTER TABLE denominacoes ADD COLUMN IF NOT EXISTS sede_mae_cidade VARCHAR(120);
+    ALTER TABLE denominacoes ADD COLUMN IF NOT EXISTS sede_mae_estado VARCHAR(2);
+    ALTER TABLE denominacoes ADD COLUMN IF NOT EXISTS pastor_presidente VARCHAR(160);
+    ALTER TABLE denominacoes ADD COLUMN IF NOT EXISTS pastor_vice_presidente VARCHAR(160);
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cidade_ministerial_id BIGINT REFERENCES cidades_ministeriais(id) ON DELETE SET NULL;
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS congregacao_id BIGINT REFERENCES congregacoes(id) ON DELETE SET NULL;
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cargo VARCHAR(80);
