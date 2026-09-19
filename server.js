@@ -25,6 +25,17 @@ app.use((req, res, next) => {
 
 app.use((req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 
+app.use((err, req, res, next) => {
+  console.error('Erro HTTP:', err);
+  if (err && err.type === 'entity.too.large') {
+    return res.status(413).json({ erro: 'A foto ficou muito grande para envio. Tire uma nova foto de identificação e tente novamente.' });
+  }
+  if (req.path && req.path.startsWith('/api/')) {
+    return res.status(err.status || 500).json({ erro: 'Erro ao processar a solicitação.' });
+  }
+  next(err);
+});
+
 async function start() {
   try {
     if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL não configurada.');
