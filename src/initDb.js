@@ -38,6 +38,21 @@ async function initDb() {
       ativo BOOLEAN NOT NULL DEFAULT TRUE,
       criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS pessoas (
+      id BIGSERIAL PRIMARY KEY,
+      denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+      congregacao_id BIGINT REFERENCES congregacoes(id) ON DELETE SET NULL,
+      nome VARCHAR(180) NOT NULL,
+      telefone VARCHAR(30), email VARCHAR(180), data_nascimento DATE,
+      cidade VARCHAR(100), bairro VARCHAR(100), endereco TEXT,
+      origem VARCHAR(100), observacoes TEXT,
+      status VARCHAR(40) NOT NULL DEFAULT 'NOVO_CONTATO',
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS ix_pessoas_denominacao ON pessoas(denominacao_id);
   `);
 }
 
