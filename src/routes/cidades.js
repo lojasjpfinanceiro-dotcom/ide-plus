@@ -18,6 +18,16 @@ router.get('/', async (req,res) => {
   } catch(e){ console.error(e); res.status(500).json({erro:'Erro ao listar cidades.'}); }
 });
 
+router.delete('/:id', async (req,res) => {
+  try {
+    const uso=await db.query('SELECT COUNT(*)::int total FROM congregacoes WHERE cidade_ministerial_id=$1 AND denominacao_id=$2 AND ativo=TRUE',[req.params.id,req.user.denominacao_id]);
+    if(uso.rows[0].total>0) return res.status(409).json({erro:'Esta cidade possui sede/congregações ativas. Exclua ou transfira essas igrejas primeiro.'});
+    const q=await db.query('UPDATE cidades_ministeriais SET ativo=FALSE WHERE id=$1 AND denominacao_id=$2 AND ativo=TRUE RETURNING id',[req.params.id,req.user.denominacao_id]);
+    if(!q.rowCount) return res.status(404).json({erro:'Cidade não encontrada.'});
+    res.json({ok:true});
+  } catch(e){console.error(e);res.status(500).json({erro:'Erro ao excluir cidade.'});}
+});
+
 router.post('/', async (req,res) => {
   try {
     const {nome,estado}=req.body;
