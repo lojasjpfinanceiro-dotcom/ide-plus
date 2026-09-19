@@ -1,0 +1,3 @@
+const express=require('express'); const db=require('../db'); const auth=require('../middleware/auth'); const router=express.Router(); router.use(auth);
+router.get('/',async(req,res)=>{const q=await db.query('SELECT * FROM congregacoes WHERE denominacao_id=$1 ORDER BY nome',[req.user.denominacao_id]);res.json(q.rows);});
+router.post('/',async(req,res)=>{const {nome,cidade,estado,endereco}=req.body;if(!nome)return res.status(400).json({erro:'Informe o nome da congregação.'});const q=await db.query('INSERT INTO congregacoes(denominacao_id,nome,cidade,estado,endereco) VALUES($1,$2,$3,$4,$5) RETURNING *',[req.user.denominacao_id,nome,cidade||null,estado||null,endereco||null]);res.status(201).json(q.rows[0]);}); module.exports=router;
