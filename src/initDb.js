@@ -82,6 +82,53 @@ async function initDb() {
     CREATE INDEX IF NOT EXISTS ix_congregacoes_cidade_ministerial ON congregacoes(cidade_ministerial_id);
     CREATE INDEX IF NOT EXISTS ix_usuarios_cidade_ministerial ON usuarios(cidade_ministerial_id);
     CREATE INDEX IF NOT EXISTS ix_usuarios_congregacao ON usuarios(congregacao_id);
+
+    -- Cargos e permissões configuráveis. Nenhuma tabela existente é apagada.
+    CREATE TABLE IF NOT EXISTS cargos (
+      id BIGSERIAL PRIMARY KEY,
+      denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+      nome VARCHAR(120) NOT NULL,
+      nivel VARCHAR(30) NOT NULL DEFAULT 'CONGREGACAO',
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(denominacao_id,nome,nivel)
+    );
+    CREATE TABLE IF NOT EXISTS permissoes (
+      id BIGSERIAL PRIMARY KEY,
+      codigo VARCHAR(100) NOT NULL UNIQUE,
+      nome VARCHAR(160) NOT NULL,
+      modulo VARCHAR(60) NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS cargo_permissoes (
+      cargo_id BIGINT NOT NULL REFERENCES cargos(id) ON DELETE CASCADE,
+      permissao_id BIGINT NOT NULL REFERENCES permissoes(id) ON DELETE CASCADE,
+      PRIMARY KEY(cargo_id,permissao_id)
+    );
+    CREATE TABLE IF NOT EXISTS usuario_cargos (
+      usuario_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+      cargo_id BIGINT NOT NULL REFERENCES cargos(id) ON DELETE CASCADE,
+      cidade_ministerial_id BIGINT REFERENCES cidades_ministeriais(id) ON DELETE CASCADE,
+      congregacao_id BIGINT REFERENCES congregacoes(id) ON DELETE CASCADE,
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      PRIMARY KEY(usuario_id,cargo_id)
+    );
+    INSERT INTO permissoes(codigo,nome,modulo) VALUES
+      ('cidades.visualizar','Visualizar cidades','CIDADES'),
+      ('cidades.inserir','Inserir cidades','CIDADES'),
+      ('cidades.editar','Editar cidades','CIDADES'),
+      ('cidades.excluir','Excluir/desativar cidades','CIDADES'),
+      ('congregacoes.visualizar','Visualizar congregações','CONGREGACOES'),
+      ('congregacoes.inserir','Inserir congregações','CONGREGACOES'),
+      ('congregacoes.editar','Editar congregações','CONGREGACOES'),
+      ('congregacoes.excluir','Excluir/desativar congregações','CONGREGACOES'),
+      ('pessoas.visualizar','Visualizar pessoas','PESSOAS'),
+      ('pessoas.inserir','Inserir pessoas','PESSOAS'),
+      ('pessoas.editar','Editar pessoas','PESSOAS'),
+      ('pessoas.excluir','Excluir/desativar pessoas','PESSOAS'),
+      ('usuarios.liberar','Liberar acessos de usuários','USUARIOS'),
+      ('relatorios.visualizar','Visualizar relatórios','RELATORIOS')
+    ON CONFLICT(codigo) DO NOTHING;
     ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
     ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS foto TEXT;
     ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS numero VARCHAR(30);
