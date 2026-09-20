@@ -24,6 +24,11 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+  const inicio = Date.now();
+  const reqId = String(req.get('X-Request-Id') || ('pessoa-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)));
+  res.set('X-Request-Id', reqId);
+  const log = (etapa, extra='') => console.log('[PESSOA]['+reqId+'] '+etapa+' +'+(Date.now()-inicio)+'ms'+(extra?' '+extra:''));
+  log('POST recebido');
   try {
     const {
       nome, cpf, foto, telefone, email, data_nascimento, cidade, bairro,
@@ -41,14 +46,18 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ erro: 'Informe um CPF válido com 11 dígitos.' });
     }
 
+    log('validacao concluida');
+    log('consulta congregacao iniciada');
     const congregacao = await db.query(
       'SELECT id FROM congregacoes WHERE id=$1 AND denominacao_id=$2 AND ativo=TRUE',
       [congregacao_id, req.user.denominacao_id]
     );
+    log('consulta congregacao concluida');
     if (!congregacao.rowCount) {
       return res.status(400).json({ erro: 'Congregação inválida.' });
     }
 
+    log('insert pessoa iniciado');
     const q = await db.query(`
       INSERT INTO pessoas (
         denominacao_id, congregacao_id, nome, cpf, foto, telefone, email,
@@ -62,9 +71,11 @@ router.post('/', async (req, res) => {
       bairro || null, endereco.trim(), String(numero).trim(), origem, observacoes || null
     ]);
 
-    res.status(201).json(q.rows[0]);
+    log('insert pessoa concluido');
+    log('respondendo 201');
+    res.status(201).json({...q.rows[0], request_id:reqId, tempo_ms:Date.now()-inicio});
   } catch (e) {
-    console.error('Erro ao cadastrar pessoa:', e);
+    console.error('[PESSOA]['+reqId+'] ERRO +'+(Date.now()-inicio)+'ms', e);
     if (e.code === '23505') {
       return res.status(400).json({ erro: 'Este CPF já está cadastrado nesta denominação.' });
     }
