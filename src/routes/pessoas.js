@@ -30,14 +30,14 @@ router.post('/', async (req, res) => {
       endereco, numero, origem, observacoes, congregacao_id
     } = req.body;
 
-    if (!nome || !cpf || !telefone || !congregacao_id || !origem || !endereco || !numero) {
+    if (!nome || !congregacao_id || !origem || !endereco || !numero) {
       return res.status(400).json({
-        erro: 'Preencha os campos obrigatórios: nome, CPF, WhatsApp, congregação, origem, endereço e número.'
+        erro: 'Preencha os campos obrigatórios: nome, congregação, origem, endereço e número.'
       });
     }
 
-    const cpfLimpo = String(cpf).replace(/\D/g, '');
-    if (cpfLimpo.length !== 11) {
+    const cpfLimpo = cpf ? String(cpf).replace(/\D/g, '') : null;
+    if (cpfLimpo && cpfLimpo.length !== 11) {
       return res.status(400).json({ erro: 'Informe um CPF válido com 11 dígitos.' });
     }
 
@@ -58,7 +58,7 @@ router.post('/', async (req, res) => {
       RETURNING *
     `, [
       req.user.denominacao_id, congregacao_id, nome.trim(), cpfLimpo, foto || null,
-      telefone.trim(), email || null, data_nascimento || null, cidade || null,
+      telefone ? telefone.trim() : null, email || null, data_nascimento || null, cidade || null,
       bairro || null, endereco.trim(), String(numero).trim(), origem, observacoes || null
     ]);
 
