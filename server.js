@@ -6,6 +6,7 @@ const auth = require('./src/routes/auth');
 const congregacoes = require('./src/routes/congregacoes');
 const cidades = require('./src/routes/cidades');
 const pessoas = require('./src/routes/pessoas');
+const configuracoes = require('./src/routes/configuracoes');
 const initDb = require('./src/initDb');
 
 const app = express();
@@ -17,6 +18,7 @@ app.use('/api/auth', auth);
 app.use('/api/congregacoes', congregacoes);
 app.use('/api/cidades', cidades);
 app.use('/api/pessoas', pessoas);
+app.use('/api/configuracoes', configuracoes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true, app: 'IDE+' }));
 

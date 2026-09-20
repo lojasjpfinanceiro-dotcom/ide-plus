@@ -129,7 +129,17 @@ async function initDb() {
       ('usuarios.liberar','Liberar acessos de usuários','USUARIOS'),
       ('relatorios.visualizar','Visualizar relatórios','RELATORIOS')
     ON CONFLICT(codigo) DO NOTHING;
-    ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
+    CREATE TABLE IF NOT EXISTS tipos_congregacao (
+ id BIGSERIAL PRIMARY KEY, denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+ cidade_ministerial_id BIGINT REFERENCES cidades_ministeriais(id) ON DELETE CASCADE,
+ nome VARCHAR(120) NOT NULL, codigo VARCHAR(60) NOT NULL, ativo BOOLEAN NOT NULL DEFAULT TRUE, criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_tipos_congregacao_contexto ON tipos_congregacao(denominacao_id, COALESCE(cidade_ministerial_id,0), LOWER(nome)) WHERE ativo=TRUE;
+INSERT INTO permissoes(codigo,nome,modulo) VALUES
+ ('configuracoes.visualizar','Visualizar configurações locais','CONFIGURACOES'),
+ ('configuracoes.tipos_congregacao','Cadastrar/editar tipos de congregação','CONFIGURACOES')
+ON CONFLICT(codigo) DO NOTHING;
+ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
     ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS foto TEXT;
     ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS numero VARCHAR(30);
     CREATE UNIQUE INDEX IF NOT EXISTS ux_pessoas_cpf_denominacao ON pessoas(denominacao_id, cpf) WHERE cpf IS NOT NULL;
