@@ -1,1 +1,77 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Usuários e Permissões • IDE+</title><link rel="stylesheet" href="/css/app.css"></head><body><div class="shell"><aside class="side"><div class="brand">IDE<b>+</b></div><nav><a href="/home.html">⌂ Início</a><a class="active">🔐 Usuários e Permissões</a></nav></aside><main class="main"><header class="top"><div><h1>Usuários e Permissões</h1><p>Cadastre a liderança da Convenção e defina a autonomia de cada usuário.</p></div><button onclick="location.href='/home.html'">Voltar</button></header><section class="card panel"><h2>👑 Pastor Presidente</h2><p id="presidente">Carregando...</p></section><section class="card panel" style="margin-top:18px"><h2>Novo usuário da Convenção</h2><form id="formUsuario"><div class="form-grid"><label>Nome *<input name="nome" required></label><label>Cargo *<select name="cargo" required><option value="">Selecione</option><option value="VICE_PRESIDENTE">Vice-Presidente</option><option value="SECRETARIO">Secretário</option><option value="OUTRO">Outro membro da liderança</option></select></label><label>E-mail *<input name="email" type="email" required></label><label>WhatsApp<input name="telefone" inputmode="tel"></label><label>Senha inicial *<input name="senha" type="password" minlength="6" required></label></div><h3>Permissões</h3><p><small>Marque somente o que este usuário poderá fazer. O Pastor Presidente continua com acesso total.</small></p><div id="permissoes">Carregando permissões...</div><p id="msg"></p><button id="salvar" type="submit">Salvar e liberar acesso</button></form></section><section class="card panel" style="margin-top:18px"><h2>Equipe da Convenção</h2><div id="listaUsuarios">Carregando...</div></section></main></div><script src="/js/usuarios.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Usuários e Permissões • IDE+</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="shell usuarios-shell">
+  <aside class="side usuarios-side">
+    <div class="brand">IDE<b>+</b></div>
+    <nav>
+      <a href="/home.html">⌂ Início</a>
+      <a class="active">🔐 Usuários e Permissões</a>
+    </nav>
+  </aside>
+
+  <main class="main usuarios-main">
+    <header class="top usuarios-top">
+      <div>
+        <h1>Usuários e Permissões</h1>
+        <p>Cadastre a liderança da Convenção e defina a autonomia de cada usuário.</p>
+      </div>
+      <button class="usuarios-voltar" onclick="location.href='/home.html'">Voltar</button>
+    </header>
+
+    <section class="card panel presidente-card">
+      <h2>👑 Pastor Presidente</h2>
+      <p id="presidente">Carregando...</p>
+    </section>
+
+    <section class="card panel usuario-card">
+      <div class="usuario-title">
+        <div class="usuario-title-icon">👤<b>+</b></div>
+        <div>
+          <h2>Novo usuário da Convenção</h2>
+          <p>Cadastre um novo usuário e defina suas permissões.</p>
+        </div>
+      </div>
+
+      <form id="formUsuario">
+        <div class="usuario-section">
+          <h3><span>👤</span> 1. Dados do Usuário</h3>
+          <div class="form-grid usuario-form-grid">
+            <label>Nome completo *<input name="nome" placeholder="Digite o nome completo" required></label>
+            <label>WhatsApp<input name="telefone" inputmode="tel" placeholder="(00) 00000-0000"></label>
+            <label>Cargo *<select name="cargo" required><option value="">Selecione</option><option value="VICE_PRESIDENTE">Vice-Presidente</option><option value="SECRETARIO">Secretário</option><option value="OUTRO">Outro membro da liderança</option></select></label>
+            <label>Senha inicial *<input name="senha" type="password" minlength="6" placeholder="Digite a senha inicial" required></label>
+            <label>E-mail *<input name="email" type="email" placeholder="exemplo@dominio.com" required></label>
+            <div class="senha-info">ⓘ <span>O usuário poderá alterar a senha após o primeiro acesso.</span></div>
+          </div>
+        </div>
+
+        <div class="usuario-section permissoes-section">
+          <h3><span>⚙️</span> 2. Permissões</h3>
+          <p class="permissoes-help">Marque somente o que este usuário poderá fazer.<br>O Pastor Presidente continua com acesso total.</p>
+          <div id="permissoes">Carregando permissões...</div>
+        </div>
+
+        <p id="msg"></p>
+        <div class="usuario-actions">
+          <button class="btn-cancelar" type="button" onclick="location.href='/home.html'">‹ &nbsp; Cancelar</button>
+          <button id="salvar" class="btn-salvar" type="submit">▣ &nbsp; Salvar e liberar acesso</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card panel equipe-card">
+      <h2>Equipe da Convenção</h2>
+      <div id="listaUsuarios">Carregando...</div>
+    </section>
+  </main>
+</div>
+<script src="/js/usuarios.js"></script>
+</body>
+</html>
