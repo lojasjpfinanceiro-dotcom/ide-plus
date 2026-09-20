@@ -7,6 +7,8 @@ const congregacoes = require('./src/routes/congregacoes');
 const cidades = require('./src/routes/cidades');
 const pessoas = require('./src/routes/pessoas');
 const configuracoes = require('./src/routes/configuracoes');
+const acessos = require('./src/routes/acessos');
+const resultados = require('./src/routes/resultados');
 const initDb = require('./src/initDb');
 
 const app = express();
@@ -19,6 +21,8 @@ app.use('/api/congregacoes', congregacoes);
 app.use('/api/cidades', cidades);
 app.use('/api/pessoas', pessoas);
 app.use('/api/configuracoes', configuracoes);
+app.use('/api/acessos', acessos);
+app.use('/api/resultados', resultados);
 
 app.get('/api/health', (req, res) => res.json({ ok: true, app: 'IDE+' }));
 
