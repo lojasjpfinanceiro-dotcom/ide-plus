@@ -132,7 +132,24 @@ async function initDb() {
       ('usuarios.liberar','Liberar acessos de usuários','USUARIOS'),
       ('relatorios.visualizar','Visualizar relatórios','RELATORIOS')
     ON CONFLICT(codigo) DO NOTHING;
-    CREATE TABLE IF NOT EXISTS tipos_congregacao (
+    CREATE TABLE IF NOT EXISTS usuario_permissoes (
+ usuario_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+ permissao_id BIGINT NOT NULL REFERENCES permissoes(id) ON DELETE CASCADE,
+ concedido_por BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+ ativo BOOLEAN NOT NULL DEFAULT TRUE,
+ criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+ PRIMARY KEY(usuario_id,permissao_id)
+);
+INSERT INTO permissoes(codigo,nome,modulo) VALUES
+ ('pastores_locais.cadastrar','Cadastrar/liberar Pastor Local','CONVENCAO'),
+ ('resultados.cidades','Visualizar resultados por cidade','RESULTADOS'),
+ ('congregacoes.gerenciar','Cadastrar e administrar congregações da cidade','GESTAO_LOCAL'),
+ ('campanhas.gerenciar','Cadastrar e administrar campanhas evangelizadoras','CAMPANHAS'),
+ ('campanhas.equipe','Cadastrar equipe da campanha','CAMPANHAS'),
+ ('discipulado.gerenciar','Administrar acompanhamento e discipulado','DISCIPULADO')
+ON CONFLICT(codigo) DO NOTHING;
+
+CREATE TABLE IF NOT EXISTS tipos_congregacao (
  id BIGSERIAL PRIMARY KEY, denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
  cidade_ministerial_id BIGINT REFERENCES cidades_ministeriais(id) ON DELETE CASCADE,
  nome VARCHAR(120) NOT NULL, codigo VARCHAR(60) NOT NULL, ativo BOOLEAN NOT NULL DEFAULT TRUE, criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
