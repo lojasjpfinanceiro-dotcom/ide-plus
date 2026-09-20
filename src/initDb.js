@@ -78,6 +78,9 @@ async function initDb() {
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS congregacao_id BIGINT REFERENCES congregacoes(id) ON DELETE SET NULL;
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cargo VARCHAR(80);
     ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS escopo VARCHAR(30) NOT NULL DEFAULT 'DENOMINACAO';
+    UPDATE usuarios u SET perfil='PASTOR_PRESIDENTE', cargo='PASTOR_PRESIDENTE', escopo='DENOMINACAO'
+    WHERE u.id=(SELECT u2.id FROM usuarios u2 WHERE u2.denominacao_id=u.denominacao_id AND u2.ativo=TRUE AND u2.perfil IN ('ADMIN','MASTER','PASTOR_PRESIDENTE') ORDER BY u2.criado_em,u2.id LIMIT 1)
+      AND u.perfil IN ('ADMIN','MASTER','PASTOR_PRESIDENTE');
 
     CREATE INDEX IF NOT EXISTS ix_congregacoes_cidade_ministerial ON congregacoes(cidade_ministerial_id);
     CREATE INDEX IF NOT EXISTS ix_usuarios_cidade_ministerial ON usuarios(cidade_ministerial_id);
