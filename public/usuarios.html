@@ -15,63 +15,43 @@
       <a class="active">🔐 Usuários e Permissões</a>
     </nav>
   </aside>
-
   <main class="main usuarios-main">
     <header class="top usuarios-top">
-      <div>
-        <h1>Usuários e Permissões</h1>
-        <p>Cadastre a liderança da Convenção e defina a autonomia de cada usuário.</p>
-      </div>
-      <button class="usuarios-voltar" onclick="location.href='/home.html'">Voltar</button>
+      <div><h1 id="tituloPagina">Usuários e Permissões</h1><p id="subtituloPagina">Cadastre a liderança da Convenção e defina a autonomia de cada usuário.</p></div>
+      <button class="usuarios-voltar" id="btnVoltar">Voltar</button>
     </header>
-
     <section class="card panel presidente-card">
-      <h2>👑 Pastor Presidente</h2>
-      <p id="presidente">Carregando...</p>
+      <h2>👑 Pastor Presidente</h2><p id="presidente">Carregando...</p>
     </section>
-
     <section class="card panel usuario-card">
-      <div class="usuario-title">
-        <div class="usuario-title-icon">👤<b>+</b></div>
-        <div>
-          <h2>Novo usuário da Convenção</h2>
-          <p>Cadastre um novo usuário e defina suas permissões.</p>
-        </div>
-      </div>
-
+      <div class="usuario-title"><div class="usuario-title-icon">👤<b>+</b></div><div><h2 id="tituloForm">Novo usuário da Convenção</h2><p id="descricaoForm">Cadastre um novo usuário e defina suas permissões.</p></div></div>
       <form id="formUsuario">
         <div class="usuario-section">
           <h3><span>👤</span> 1. Dados do Usuário</h3>
           <div class="form-grid usuario-form-grid">
             <label>Nome completo *<input name="nome" placeholder="Digite o nome completo" required></label>
             <label>WhatsApp<input name="telefone" inputmode="tel" placeholder="(00) 00000-0000"></label>
-            <label>Cargo *<select name="cargo" required><option value="">Selecione</option><option value="VICE_PRESIDENTE">Vice-Presidente</option><option value="SECRETARIO">Secretário</option><option value="OUTRO">Outro membro da liderança</option></select></label>
+            <label>Cargo *<select name="cargo" id="cargo" required><option value="">Selecione</option><option value="VICE_PRESIDENTE">Vice-Presidente</option><option value="SECRETARIO">Secretário</option><option value="OUTRO">Outro membro da liderança</option></select></label>
             <label>Senha inicial *<input name="senha" type="password" minlength="6" placeholder="Digite a senha inicial" required></label>
             <label>E-mail *<input name="email" type="email" placeholder="exemplo@dominio.com" required></label>
+            <label id="campoCidade" style="display:none">Cidade do Pastor Local *<select name="cidade_ministerial_id" id="cidadeMinisterial"><option value="">Selecione a cidade</option></select></label>
             <div class="senha-info">ⓘ <span>O usuário poderá alterar a senha após o primeiro acesso.</span></div>
           </div>
         </div>
-
-        <div class="usuario-section permissoes-section">
+        <div class="usuario-section permissoes-section" id="secaoPermissoes">
           <h3><span>⚙️</span> 2. Permissões</h3>
           <p class="permissoes-help">Marque somente o que este usuário poderá fazer.<br>O Pastor Presidente continua com acesso total.</p>
           <div id="permissoes">Carregando permissões...</div>
         </div>
-
         <p id="msg"></p>
         <div class="usuario-actions">
-          <button class="btn-cancelar" type="button" onclick="location.href='/home.html'">‹ &nbsp; Cancelar</button>
+          <button class="btn-cancelar" type="button" id="cancelar">‹ &nbsp; Cancelar</button>
           <button id="salvar" class="btn-salvar" type="submit">▣ &nbsp; Salvar e liberar acesso</button>
         </div>
       </form>
     </section>
-
-    <section class="card panel equipe-card">
-      <h2>Equipe da Convenção</h2>
-      <div id="listaUsuarios">Carregando...</div>
-    </section>
+    <section class="card panel equipe-card"><h2 id="tituloEquipe">Equipe da Convenção</h2><div id="listaUsuarios">Carregando...</div></section>
   </main>
 </div>
 <script src="/js/usuarios.js"></script>
-</body>
-</html>
+</body></html>
