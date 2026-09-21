@@ -1,0 +1,21 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Equipe Local • IDE+</title><link rel="stylesheet" href="/css/app.css"></head><body>
+<div class="shell usuarios-shell"><aside class="side usuarios-side"><div class="brand">IDE<b>+</b></div><nav><a href="/home.html">⌂ Início</a><a href="/gestao-local.html">⛪ Gestão local</a><a class="active">👥 Equipe e Responsáveis</a></nav></aside>
+<main class="main usuarios-main"><header class="top usuarios-top"><div><h1>Equipe e Responsáveis da Cidade</h1><p>O Pastor Local define quem poderá cadastrar congregações e atuar nos demais módulos.</p></div><button class="usuarios-voltar" onclick="location.href='/home.html'">Voltar</button></header>
+<section class="card panel usuario-card"><div class="usuario-title"><div class="usuario-title-icon">👤<b>+</b></div><div><h2>Novo responsável local</h2><p>Cadastre a pessoa, informe o cargo e marque somente as autonomias que ela terá.</p></div></div>
+<form id="form"><div class="usuario-section"><h3>1. Dados do responsável</h3><div class="form-grid usuario-form-grid">
+<label>Nome completo *<input name="nome" required></label><label>WhatsApp<input name="telefone" inputmode="tel" placeholder="(00) 00000-0000"></label>
+<label>Cargo *<select name="cargo" required><option value="">Selecione</option><option value="SUPERINTENDENTE">Superintendente</option><option value="VICE_SUPERINTENDENTE">Vice-Superintendente</option><option value="SECRETARIO_LOCAL">Secretário</option><option value="COORDENADOR">Coordenador</option><option value="OUTRO">Outro responsável</option></select></label>
+<label>Senha inicial *<input name="senha" type="password" minlength="6" required></label><label>E-mail *<input name="email" type="email" required></label></div></div>
+<div class="usuario-section permissoes-section"><h3>2. Autonomias</h3><p class="permissoes-help">O Pastor Local continua com acesso total à cidade. Marque apenas o que este responsável poderá fazer.</p>
+<div id="permissoes">
+<label><input type="checkbox" value="congregacoes.gerenciar"> Cadastrar e administrar congregações</label><br>
+<label><input type="checkbox" value="usuarios.liberar"> Liberar usuários da cidade</label><br>
+<label><input type="checkbox" value="pessoas.inserir"> Cadastrar pessoas</label><br>
+<label><input type="checkbox" value="pessoas.editar"> Alterar pessoas</label><br>
+<label><input type="checkbox" value="campanhas.gerenciar"> Administrar campanhas evangelizadoras</label><br>
+<label><input type="checkbox" value="campanhas.equipe"> Cadastrar equipe de campanha</label><br>
+<label><input type="checkbox" value="discipulado.gerenciar"> Administrar discipulado</label><br>
+<label><input type="checkbox" value="configuracoes.tipos_congregacao"> Configurar tipos de congregação</label><br>
+<label><input type="checkbox" value="relatorios.visualizar"> Visualizar relatórios</label>
+</div></div><p id="msg"></p><div class="usuario-actions"><button class="btn-cancelar" type="button" onclick="location.href='/home.html'">‹ Cancelar</button><button id="salvar" class="btn-salvar">Salvar e liberar acesso</button></div></form></section>
+<section class="card panel equipe-card"><h2>Equipe da cidade</h2><div id="lista">Carregando...</div></section></main></div><script src="/js/equipe-local.js"></script></body></html>
