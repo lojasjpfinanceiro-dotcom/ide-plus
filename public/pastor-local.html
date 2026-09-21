@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pastores Locais • IDE+</title>
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<div class="shell usuarios-shell">
+  <aside class="side usuarios-side">
+    <div class="brand">IDE<b>+</b></div>
+    <nav>
+      <a href="/home.html">⌂ Início</a>
+      <a href="/estrutura.html">🏙 Cidades</a>
+      <a class="active">⛪ Pastores Locais</a>
+    </nav>
+  </aside>
+  <main class="main usuarios-main">
+    <header class="top usuarios-top">
+      <div><h1>Pastores das Cidades</h1><p>Cadastre o Pastor Local e vincule-o à cidade sob sua responsabilidade.</p></div>
+      <button class="usuarios-voltar" id="btnVoltar">Voltar</button>
+    </header>
+    <section class="card panel presidente-card">
+      <h2>👑 Pastor Presidente</h2><p id="presidente">Carregando...</p>
+    </section>
+    <section class="card panel usuario-card">
+      <div class="usuario-title"><div class="usuario-title-icon">⛪<b>+</b></div><div><h2>Novo Pastor Local</h2><p>O cargo e o nível de acesso são definidos automaticamente como Pastor Local.</p></div></div>
+      <form id="formPastor">
+        <div class="usuario-section">
+          <h3>1. Dados do Pastor Local</h3>
+          <div class="form-grid usuario-form-grid">
+            <label>Nome completo *<input name="nome" placeholder="Digite o nome completo" required></label>
+            <label>WhatsApp<input name="telefone" inputmode="tel" placeholder="(00) 00000-0000"></label>
+            <label>Cargo *<input value="Pastor Local" disabled></label>
+            <label>Cidade *<select name="cidade_ministerial_id" id="cidadeMinisterial" required><option value="">Selecione a cidade</option></select></label>
+            <label>E-mail *<input name="email" type="email" placeholder="exemplo@dominio.com" required></label>
+            <label>Senha inicial *<input name="senha" type="password" minlength="6" placeholder="Digite a senha inicial" required></label>
+          </div>
+        </div>
+        <p id="msg"></p>
+        <div class="usuario-actions">
+          <button class="btn-cancelar" type="button" id="cancelar">‹ &nbsp; Cancelar</button>
+          <button id="salvar" class="btn-salvar" type="submit">▣ &nbsp; Salvar Pastor Local</button>
+        </div>
+      </form>
+    </section>
+    <section class="card panel equipe-card"><h2>Pastores Locais cadastrados</h2><div id="listaPastores">Carregando...</div></section>
+  </main>
+</div>
+<script src="/js/pastor-local.js"></script>
+</body></html>
