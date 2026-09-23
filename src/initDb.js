@@ -269,6 +269,14 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
       ('discipulado.estrutura.visualizar','Visualizar planos e aulas','DISCIPULADO_ESTRUTURA'),
       ('discipulado.estrutura.gerenciar','Criar e alterar planos e aulas','DISCIPULADO_ESTRUTURA')
     ON CONFLICT(codigo) DO NOTHING;
+    UPDATE permissoes SET nome='Visualizar categorias e tipos de campanha'
+      WHERE codigo='atividades.visualizar';
+    UPDATE permissoes SET nome='Configurar categorias e tipos de campanha'
+      WHERE codigo='atividades.gerenciar';
+    UPDATE permissoes SET nome='Visualizar categorias, tipos, planos e aulas de discipulado'
+      WHERE codigo='discipulado.estrutura.visualizar';
+    UPDATE permissoes SET nome='Configurar categorias, tipos, planos e aulas de discipulado'
+      WHERE codigo='discipulado.estrutura.gerenciar';
   `);
 }
 
