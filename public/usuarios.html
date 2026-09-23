@@ -1,57 +1,44 @@
 <!doctype html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Usuários e Permissões • IDE+</title>
-<link rel="stylesheet" href="/css/app.css">
-</head>
-<body>
-<div class="shell usuarios-shell">
-  <aside class="side usuarios-side">
-    <div class="brand">IDE<b>+</b></div>
-    <nav>
-      <a href="/home.html">⌂ Início</a>
-      <a class="active">🔐 Usuários e Permissões</a>
-    </nav>
-  </aside>
-  <main class="main usuarios-main">
-    <header class="top usuarios-top">
-      <div><h1 id="tituloPagina">Usuários e Permissões</h1><p id="subtituloPagina">Cadastre a liderança da Convenção e defina a autonomia de cada usuário.</p></div>
-      <button class="usuarios-voltar" id="btnVoltar">Voltar</button>
-    </header>
-    <section class="card panel presidente-card">
-      <h2>👑 Pastor Presidente</h2><p id="presidente">Carregando...</p>
-    </section>
-    <section class="card panel usuario-card">
-      <div class="usuario-title"><div class="usuario-title-icon">👤<b>+</b></div><div><h2 id="tituloForm">Novo usuário da Convenção</h2><p id="descricaoForm">Cadastre um novo usuário e defina suas permissões.</p></div></div>
-      <form id="formUsuario">
-        <div class="usuario-section">
-          <h3><span>👤</span> 1. Dados do Usuário</h3>
-          <div class="form-grid usuario-form-grid">
-            <label>Nome completo *<input name="nome" placeholder="Digite o nome completo" required></label>
-            <label>WhatsApp<input name="telefone" inputmode="tel" placeholder="(00) 00000-0000"></label>
-            <label>Cargo *<select name="cargo" id="cargo" required><option value="">Selecione</option><option value="VICE_PRESIDENTE">Vice-Presidente</option><option value="SECRETARIO">Secretário</option><option value="OUTRO">Outro membro da liderança</option></select></label>
-            <label>Senha inicial *<input name="senha" type="password" minlength="6" placeholder="Digite a senha inicial" required></label>
-            <label>E-mail *<input name="email" type="email" placeholder="exemplo@dominio.com" required></label>
-            <label id="campoCidade" style="display:none">Cidade do Pastor Local *<select name="cidade_ministerial_id" id="cidadeMinisterial"><option value="">Selecione a cidade</option></select></label>
-            <div class="senha-info">ⓘ <span>O usuário poderá alterar a senha após o primeiro acesso.</span></div>
-          </div>
-        </div>
-        <div class="usuario-section permissoes-section" id="secaoPermissoes">
-          <h3><span>⚙️</span> 2. Permissões</h3>
-          <p class="permissoes-help">Marque somente o que este usuário poderá fazer.<br>O Pastor Presidente continua com acesso total.</p>
-          <div id="permissoes">Carregando permissões...</div>
-        </div>
-        <p id="msg"></p>
-        <div class="usuario-actions">
-          <button class="btn-cancelar" type="button" id="cancelar">‹ &nbsp; Cancelar</button>
-          <button id="salvar" class="btn-salvar" type="submit">▣ &nbsp; Salvar e liberar acesso</button>
-        </div>
-      </form>
-    </section>
-    <section class="card panel equipe-card"><h2 id="tituloEquipe">Equipe da Convenção</h2><div id="listaUsuarios">Carregando...</div></section>
-  </main>
-</div>
-<script src="/js/usuarios.js"></script>
-</body></html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Acessos • IDE+</title><link rel="stylesheet" href="/css/app.css"></head>
+<body><div class="shell usuarios-shell"><aside class="side usuarios-side"><div class="brand">IDE<b>+</b></div>
+<nav><a href="/home.html">⌂ Início</a><a href="/estrutura.html">🏙 Cidades</a><a class="active">🔐 Acessos</a></nav></aside>
+<main class="main usuarios-main"><header class="top usuarios-top"><div><h1>Acessos da denominação</h1>
+<p>O Pastor Presidente cria os logins e libera o trabalho de cada pessoa.</p></div>
+<button class="usuarios-voltar" onclick="location.href='/home.html'">Voltar</button></header>
+<section class="card panel presidente-card"><h2>👑 Pastor Presidente</h2><p id="presidente"></p>
+<p>O cargo identifica a função. O vínculo define onde a pessoa atua. As permissões definem o que ela pode fazer.</p></section>
+<section class="card panel usuario-card"><div class="usuario-title"><div class="usuario-title-icon">👤<b>+</b></div>
+<div><h2>Novo acesso</h2><p>Escolha o cargo e a área antes de liberar os módulos.</p></div></div>
+<form id="formUsuario"><div class="usuario-section"><h3>1. Pessoa e área</h3>
+<div class="form-grid usuario-form-grid">
+<label>Nome completo *<input name="nome" required></label>
+<label>WhatsApp<input name="telefone" inputmode="tel"></label>
+<label>Cargo *<select name="cargo" id="cargo" required><option value="">Selecione</option>
+<optgroup label="Convenção"><option value="VICE_PRESIDENTE">Vice-Presidente</option><option value="SECRETARIO">Secretário</option><option value="OUTRO">Outro membro da liderança</option></optgroup>
+<optgroup label="Cidade"><option value="PASTOR_LOCAL">Pastor Local</option>
+<option value="SUPERINTENDENTE_CAMPANHAS">Superintendente de Campanhas</option>
+<option value="VICE_SUPERINTENDENTE_CAMPANHAS">Vice-Superintendente de Campanhas</option>
+<option value="SUPERINTENDENTE_DISCIPULADO">Superintendente de Discipulado</option>
+<option value="VICE_SUPERINTENDENTE_DISCIPULADO">Vice-Superintendente de Discipulado</option></optgroup>
+<optgroup label="Congregação"><option value="DIRIGENTE">Dirigente</option>
+<option value="VICE_DIRIGENTE">Vice-Dirigente</option>
+<option value="SECRETARIO_CAMPANHA">Secretário de Campanha</option></optgroup></select></label>
+<label id="campoCidade" style="display:none">Cidade *<select name="cidade_ministerial_id" id="cidadeMinisterial"><option value="">Selecione a cidade</option></select></label>
+<label id="campoCongregacao" style="display:none">Congregação *<select name="congregacao_id" id="congregacao"><option value="">Selecione a congregação</option></select></label>
+<label>E-mail *<input name="email" type="email" required></label>
+<label>Senha inicial *<input name="senha" type="password" minlength="8" autocomplete="new-password" required></label>
+</div></div>
+<div class="usuario-section permissoes-section"><h3>2. Módulos e ações</h3>
+<p class="permissoes-help" id="ajudaPermissoes">Marque somente as ações necessárias. O Pastor Local tem acesso operacional à própria cidade.</p>
+<div id="permissoes">Escolha um cargo para ver as opções.</div></div>
+<p id="msg" role="status"></p><div class="usuario-actions">
+<button class="btn-cancelar" type="reset">Limpar</button>
+<button id="salvar" class="btn-salvar" type="submit">Salvar e liberar acesso</button></div></form></section>
+<section class="card panel equipe-card"><h2>Pessoas com acesso</h2><div id="listaUsuarios">Carregando...</div></section>
+<dialog id="editorPermissoes" class="card panel"><form method="dialog"><h2>Permissões deste acesso</h2>
+<p>Escolha as ações liberadas para esta pessoa.</p><div id="editorLista"></div>
+<p id="editorMsg" role="status"></p><div class="usuario-actions">
+<button type="submit">Cancelar</button><button type="button" id="editorSalvar" class="btn-salvar">Gravar permissões</button>
+</div></form></dialog>
+</main></div><script src="/js/usuarios.js"></script></body></html>

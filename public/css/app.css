@@ -59,3 +59,11 @@
  .usuario-actions{flex-direction:column-reverse}
  .usuario-actions button{width:100%}
 }
+.access-group{border:1px solid #dce4ea;border-radius:10px;margin:12px 0;padding:12px}
+.access-group legend{font-weight:700;padding:0 6px}
+.access-group label{display:block;margin:8px 0;line-height:1.4}
+.access-row{display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid #e5e9ec;padding:14px 0}
+.access-row button{margin:3px}
+#editorPermissoes{max-width:min(620px,94vw);max-height:85vh;overflow:auto;border:0;border-radius:14px;padding:24px}
+#editorPermissoes::backdrop{background:rgba(0,0,0,.55)}
+@media(max-width:680px){.access-row{display:block}.access-row>div+div{margin-top:10px}}
