@@ -270,42 +270,61 @@ router.delete('/tipos/:id',async(req,res,next)=>{
     res.json({ok:true});
   }catch(e){next(e);}
 });
-async function tipoAulaAcessivel(req,res,value,target){
-  if(!id(value)){res.status(400).json({erro:'Escolha um tipo de aula.'});return null;}
+async function tipoDiscipuladoAcessivel(req,res,value,target){
+  if(!id(value)){res.status(400).json({erro:'Escolha um tipo de discipulado.'});return null;}
   const s=visible(req.user,'t',3);
   const q=await db.query(`SELECT t.*,c.estrutura_aulas FROM tipos_atividades t
     JOIN categorias_ministeriais c ON c.id=t.categoria_id
     WHERE t.id=$1 AND t.denominacao_id=$2 AND t.ativo=TRUE AND c.ativo=TRUE
-      AND c.modulo='DISCIPULADO' AND c.estrutura_aulas=TRUE${s.sql}`,
+      AND c.modulo='DISCIPULADO'${s.sql}`,
     [id(value),req.user.denominacao_id,...s.params]);
-  if(!q.rowCount){res.status(400).json({erro:'Selecione um tipo vinculado a uma categoria de aulas.'});return null;}
+  if(!q.rowCount){res.status(400).json({erro:'Selecione um tipo de discipulado cadastrado.'});return null;}
   if(!categoriaCompativel(q.rows[0],target)){
-    res.status(400).json({erro:'Este tipo de aula pertence a outra área.'});return null;
+    res.status(400).json({erro:'Este tipo de discipulado pertence a outra área.'});return null;
   }
   return q.rows[0];
 }
 router.get('/planos',requirePermission('discipulado.estrutura.visualizar'),async(req,res,next)=>{
   try{
     const s=visible(req.user,'p');
-    const q=await db.query(`SELECT p.*,t.nome AS tipo_nome,c.nome AS categoria_nome,COUNT(a.id)::int AS total_aulas
+    const q=await db.query(`SELECT p.*,t.nome AS tipo_nome,c.nome AS categoria_nome,c.estrutura_aulas,
+        (p.tipo_atividade_id IS NULL OR COALESCE(c.estrutura_aulas,FALSE)) AS permite_aulas,
+        COUNT(a.id)::int AS total_aulas
       FROM planos_discipulado p LEFT JOIN aulas_discipulado a ON a.plano_id=p.id AND a.ativo=TRUE
       LEFT JOIN tipos_atividades t ON t.id=p.tipo_atividade_id
       LEFT JOIN categorias_ministeriais c ON c.id=t.categoria_id
       WHERE p.denominacao_id=$1 AND p.ativo=TRUE${s.sql}
-      GROUP BY p.id,t.nome,c.nome ORDER BY p.nome`,[req.user.denominacao_id,...s.params]);
+      GROUP BY p.id,t.nome,c.nome,c.estrutura_aulas ORDER BY p.nome`,[req.user.denominacao_id,...s.params]);
     res.json(q.rows.map(x=>({...x,pode_editar:canEdit(req.user,x)})));
   }catch(e){next(e);}
 });
+function programacaoBody(body){
+  const data=clean(body.data_prevista),hora=clean(body.hora_prevista);
+  const local=clean(body.local),roteiro=clean(body.roteiro);
+  if(local.length>200||(data&&!/^\d{4}-\d{2}-\d{2}$/.test(data))||
+      (hora&&!/^\d{2}:\d{2}$/.test(hora)))return null;
+  if(data){
+    const d=new Date(data+'T00:00:00Z');
+    if(!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==data)return null;
+  }
+  if(hora&&(Number(hora.slice(0,2))>23||Number(hora.slice(3,5))>59))return null;
+  return {data:data||null,hora:hora||null,local:local||null,roteiro:roteiro||null};
+}
 router.post('/planos',requirePermission('discipulado.estrutura.gerenciar'),async(req,res,next)=>{
   try{
     const s=scope(req.user),nome=clean(req.body.nome);
     if(!s)return res.status(403).json({erro:'Seu acesso precisa de uma área definida.'});
     if(!nome||nome.length>160)return res.status(400).json({erro:'Informe um nome de até 160 caracteres.'});
-    const tipo=await tipoAulaAcessivel(req,res,req.body.tipo_atividade_id,s);if(!tipo)return;
+    const tipo=await tipoDiscipuladoAcessivel(req,res,req.body.tipo_atividade_id,s);if(!tipo)return;
+    const p=tipo.estrutura_aulas?{data:null,hora:null,local:null,roteiro:null}:programacaoBody(req.body);
+    if(!p||(!tipo.estrutura_aulas&&!p.data))return res.status(400).json({erro:'Informe uma data válida para a visita.'});
     const q=await db.query(`INSERT INTO planos_discipulado
-      (denominacao_id,cidade_ministerial_id,congregacao_id,nome,descricao,tipo_atividade_id,criado_por)
-      VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [req.user.denominacao_id,s.city,s.church,nome,clean(req.body.descricao)||null,tipo.id,req.user.id]);
+      (denominacao_id,cidade_ministerial_id,congregacao_id,nome,descricao,tipo_atividade_id,
+       data_prevista,hora_prevista,local,roteiro,criado_por)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [req.user.denominacao_id,s.city,s.church,nome,clean(req.body.descricao)||null,tipo.id,
+        tipo.estrutura_aulas?null:p.data,tipo.estrutura_aulas?null:p.hora,
+        tipo.estrutura_aulas?null:p.local,tipo.estrutura_aulas?null:p.roteiro,req.user.id]);
     res.status(201).json(q.rows[0]);
   }catch(e){error(e,res,next);}
 });
@@ -315,14 +334,25 @@ router.put('/planos/:id',requirePermission('discipulado.estrutura.gerenciar'),as
     const nome=clean(req.body.nome);
     if(!nome||nome.length>160)return res.status(400).json({erro:'Informe um nome de até 160 caracteres.'});
     const typeId=req.body.tipo_atividade_id||row.tipo_atividade_id;
+    let tipo=null;
     if(typeId){
-      const tipo=await tipoAulaAcessivel(req,res,typeId,
+      tipo=await tipoDiscipuladoAcessivel(req,res,typeId,
         {city:row.cidade_ministerial_id,church:row.congregacao_id});
       if(!tipo)return;
     }
-    const q=await db.query(`UPDATE planos_discipulado SET nome=$1,descricao=$2,tipo_atividade_id=$3
-      WHERE id=$4 AND denominacao_id=$5 RETURNING *`,
-      [nome,clean(req.body.descricao)||null,typeId||null,row.id,req.user.denominacao_id]);
+    if(tipo&&!tipo.estrutura_aulas){
+      const aulas=await db.query('SELECT 1 FROM aulas_discipulado WHERE plano_id=$1 AND ativo=TRUE LIMIT 1',[row.id]);
+      if(aulas.rowCount)return res.status(409).json({erro:'Esta programação já tem lições. Exclua as lições antes de mudar para visita.'});
+    }
+    const p=tipo?.estrutura_aulas?{data:null,hora:null,local:null,roteiro:null}:programacaoBody(req.body);
+    if(!p||(tipo&&!tipo.estrutura_aulas&&!p.data))return res.status(400).json({erro:'Informe uma data válida para a visita.'});
+    const q=await db.query(`UPDATE planos_discipulado SET nome=$1,descricao=$2,tipo_atividade_id=$3,
+      data_prevista=$4,hora_prevista=$5,local=$6,roteiro=$7
+      WHERE id=$8 AND denominacao_id=$9 RETURNING *`,
+      [nome,clean(req.body.descricao)||null,typeId||null,
+        tipo?.estrutura_aulas?null:p.data,tipo?.estrutura_aulas?null:p.hora,
+        tipo?.estrutura_aulas?null:p.local,tipo?.estrutura_aulas?null:p.roteiro,
+        row.id,req.user.denominacao_id]);
     res.json(q.rows[0]);
   }catch(e){error(e,res,next);}
 });
@@ -336,12 +366,19 @@ router.delete('/planos/:id',requirePermission('discipulado.estrutura.gerenciar')
 });
 router.get('/planos/:id/aulas',requirePermission('discipulado.estrutura.visualizar'),async(req,res,next)=>{
   try{
-    if(!await readablePlan(req,res,req.params.id))return;
+    const plan=await readablePlan(req,res,req.params.id);if(!plan)return;
+    if(!await planAllowsLessons(plan))return res.status(400).json({erro:'Este tipo de discipulado não tem lições.'});
     const q=await db.query('SELECT * FROM aulas_discipulado WHERE plano_id=$1 AND ativo=TRUE ORDER BY ordem,id',
       [id(req.params.id)]);
     res.json(q.rows);
   }catch(e){next(e);}
 });
+async function planAllowsLessons(plan){
+  if(!plan.tipo_atividade_id)return true; // Planos antigos com lições seguem acessíveis.
+  const q=await db.query(`SELECT c.estrutura_aulas FROM tipos_atividades t
+    JOIN categorias_ministeriais c ON c.id=t.categoria_id WHERE t.id=$1`,[plan.tipo_atividade_id]);
+  return !!q.rows[0]?.estrutura_aulas;
+}
 function lessonBody(body){
   const titulo=clean(body.titulo),ordem=Number(body.ordem);
   const duracao=clean(body.duracao_minutos)?Number(body.duracao_minutos):null;
@@ -363,6 +400,7 @@ function lessonBody(body){
 router.post('/planos/:id/aulas',requirePermission('discipulado.estrutura.gerenciar'),async(req,res,next)=>{
   try{
     const plan=await owned(req,res,'planos_discipulado',req.params.id);if(!plan)return;
+    if(!await planAllowsLessons(plan))return res.status(400).json({erro:'Este tipo de discipulado não tem lições.'});
     const a=lessonBody(req.body);
     if(!a)return res.status(400).json({erro:'Informe número e título da aula; duração deve ser positiva.'});
     const q=await db.query(`INSERT INTO aulas_discipulado
