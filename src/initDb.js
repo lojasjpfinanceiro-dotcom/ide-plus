@@ -251,6 +251,10 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
     );
     ALTER TABLE planos_discipulado ADD COLUMN IF NOT EXISTS tipo_atividade_id BIGINT
       REFERENCES tipos_atividades(id) ON DELETE SET NULL;
+    ALTER TABLE planos_discipulado ADD COLUMN IF NOT EXISTS data_prevista DATE;
+    ALTER TABLE planos_discipulado ADD COLUMN IF NOT EXISTS hora_prevista TIME;
+    ALTER TABLE planos_discipulado ADD COLUMN IF NOT EXISTS local VARCHAR(200);
+    ALTER TABLE planos_discipulado ADD COLUMN IF NOT EXISTS roteiro TEXT;
     CREATE UNIQUE INDEX IF NOT EXISTS ux_planos_discipulado_ativos
       ON planos_discipulado(denominacao_id,COALESCE(cidade_ministerial_id,0),
         COALESCE(congregacao_id,0),LOWER(nome)) WHERE ativo=TRUE;
