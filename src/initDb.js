@@ -211,6 +211,19 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
       CHECK (congregacao_id IS NULL OR cidade_ministerial_id IS NOT NULL)
     );
     ALTER TABLE categorias_ministeriais ADD COLUMN IF NOT EXISTS estrutura_aulas BOOLEAN NOT NULL DEFAULT FALSE;
+    -- Preferências locais: ocultar uma categoria recebida da denominação ou cidade.
+    CREATE TABLE IF NOT EXISTS categorias_ocultas (
+      id BIGSERIAL PRIMARY KEY,
+      denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+      cidade_ministerial_id BIGINT REFERENCES cidades_ministeriais(id) ON DELETE CASCADE,
+      congregacao_id BIGINT REFERENCES congregacoes(id) ON DELETE CASCADE,
+      categoria_id BIGINT NOT NULL REFERENCES categorias_ministeriais(id) ON DELETE CASCADE,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CHECK (cidade_ministerial_id IS NOT NULL)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_categorias_ocultas_contexto
+      ON categorias_ocultas(denominacao_id,cidade_ministerial_id,
+        COALESCE(congregacao_id,0),categoria_id);
     CREATE UNIQUE INDEX IF NOT EXISTS ux_categorias_ministeriais_ativas
       ON categorias_ministeriais(denominacao_id,COALESCE(cidade_ministerial_id,0),
         COALESCE(congregacao_id,0),modulo,LOWER(nome)) WHERE ativo=TRUE;
