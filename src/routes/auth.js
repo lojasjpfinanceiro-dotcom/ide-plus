@@ -25,7 +25,7 @@ router.post('/esqueci-senha',async(req,res)=>{
 router.post('/confirmar-codigo-senha',async(req,res)=>{
   try{
     const email=String(req.body.email||'').trim().toLowerCase(), codigo=String(req.body.codigo||'').trim();
-    if(!email||!/^\\d{6}$/.test(codigo)) return res.status(400).json({erro:'E-mail ou código inválido.'});
+    if(!email||!/^\d{6}$/.test(codigo)) return res.status(400).json({erro:'E-mail ou código inválido.'});
     const q=await db.query("SELECT r.id,r.codigo_hash,r.tentativas,u.id usuario_id FROM recuperacoes_senha r JOIN usuarios u ON u.id=r.usuario_id WHERE LOWER(u.email)=LOWER($1) AND u.ativo=TRUE AND r.usado=FALSE AND r.expira_em>NOW() ORDER BY r.criado_em DESC LIMIT 1",[email]);
     if(!q.rowCount) return res.status(400).json({erro:'Código inválido ou expirado. Solicite um novo código.'});
     const r=q.rows[0];
