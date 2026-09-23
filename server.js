@@ -9,6 +9,7 @@ const pessoas = require('./src/routes/pessoas');
 const configuracoes = require('./src/routes/configuracoes');
 const acessos = require('./src/routes/acessos');
 const resultados = require('./src/routes/resultados');
+const estruturaMinisterial = require('./src/routes/estrutura-ministerial');
 const initDb = require('./src/initDb');
 
 const app = express();
@@ -23,6 +24,7 @@ app.use('/api/pessoas', pessoas);
 app.use('/api/configuracoes', configuracoes);
 app.use('/api/acessos', acessos);
 app.use('/api/resultados', resultados);
+app.use('/api/estrutura-ministerial', estruturaMinisterial);
 
 app.get('/api/health', (req, res) => res.json({ ok: true, app: 'IDE+' }));
 

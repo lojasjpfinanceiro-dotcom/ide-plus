@@ -21,7 +21,7 @@ function scope() {
   return cityRoles.includes(cargo.value)?'CIDADE':churchRoles.includes(cargo.value)?'CONGREGACAO':'DENOMINACAO';
 }
 function allowed(p) {
-  if(!['CIDADES','CONGREGACOES','GESTAO_LOCAL','PESSOAS','CONFIGURACOES'].includes(p.modulo))return false;
+  if(!['CIDADES','CONGREGACOES','GESTAO_LOCAL','PESSOAS','CONFIGURACOES','ATIVIDADES','DISCIPULADO_ESTRUTURA'].includes(p.modulo))return false;
   if(scope()==='DENOMINACAO')return true;
   if(p.codigo.startsWith('cidades.')||p.codigo==='pastores_locais.cadastrar'||p.codigo==='usuarios.liberar')return false;
   if(scope()==='CONGREGACAO' && (p.modulo==='CONFIGURACOES'||p.modulo==='RESULTADOS'))return false;
@@ -36,7 +36,7 @@ function drawPermissions(selected=[]) {
     items.map(p=>'<label><input type="checkbox" name="permissao" value="'+p.id+'" '+
       (selected.includes(p.id)?'checked':'')+'> '+esc(p.nome)+'</label>').join('')+'</fieldset>').join('');
   if(cargo.value==='PASTOR_LOCAL') {
-    ajudaPermissoes.textContent='O Pastor Local já pode administrar congregações e pessoas da sua cidade. Marque somente funções adicionais.';
+    ajudaPermissoes.textContent='O Pastor Local já pode administrar congregações, pessoas e modelos ministeriais da sua cidade. Marque somente funções adicionais.';
   } else ajudaPermissoes.textContent='Marque somente as ações necessárias para esta pessoa.';
 }
 function changeScope(){
@@ -93,12 +93,12 @@ listaUsuarios.addEventListener('click',async e=>{
       const rows=await api('/api/acessos/usuarios/'+edit.dataset.edit+'/permissoes');
       editingId=edit.dataset.edit;
       hiddenEditingIds=rows.filter(p=>p.liberada &&
-        !['CIDADES','CONGREGACOES','GESTAO_LOCAL','PESSOAS','CONFIGURACOES'].includes(p.modulo) &&
+        !['CIDADES','CONGREGACOES','GESTAO_LOCAL','PESSOAS','CONFIGURACOES','ATIVIDADES','DISCIPULADO_ESTRUTURA'].includes(p.modulo) &&
         (userScopes[editingId]==='DENOMINACAO' ||
           !(p.codigo.startsWith('cidades.')||p.codigo==='usuarios.liberar'||p.codigo==='pastores_locais.cadastrar'))).map(p=>p.id);
       const groups={};
       for(const p of rows) {
-        if(!['CIDADES','CONGREGACOES','GESTAO_LOCAL','PESSOAS','CONFIGURACOES'].includes(p.modulo))continue;
+        if(!['CIDADES','CONGREGACOES','GESTAO_LOCAL','PESSOAS','CONFIGURACOES','ATIVIDADES','DISCIPULADO_ESTRUTURA'].includes(p.modulo))continue;
         if(userScopes[editingId]!=='DENOMINACAO' &&
           (p.codigo.startsWith('cidades.') || p.codigo==='pastores_locais.cadastrar' || p.codigo==='usuarios.liberar')) continue;
         (groups[p.modulo]??=[]).push(p);

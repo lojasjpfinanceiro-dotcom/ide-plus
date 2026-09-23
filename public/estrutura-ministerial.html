@@ -1,0 +1,51 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Estrutura ministerial • IDE+</title><link rel="stylesheet" href="/css/app.css">
+<style>
+  .ministry-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .ministry-item{padding:14px 0;border-bottom:1px solid #e4e8ee}
+  .ministry-item:last-child{border-bottom:0}
+  .ministry-item small{display:block;margin:4px 0;color:#576c7f}
+  .ministry-item button{margin:6px 6px 0 0}
+  .ministry-card input,.ministry-card textarea,.ministry-card select{width:100%;margin:5px 0 12px}
+  .ministry-card textarea{min-height:80px}
+  .ministry-card label{display:block}
+  .ministry-actions{display:flex;gap:8px;flex-wrap:wrap}
+  #aulasArea{margin-top:18px}
+  .ministry-tag{font-weight:600;color:#2d6584}
+  @media(max-width:760px){.ministry-grid{grid-template-columns:1fr}.ministry-actions button{width:auto}}
+</style></head><body><div class="shell"><aside class="side"><div class="brand">IDE<b>+</b></div>
+<nav><a href="/home.html">⌂ Início</a><a class="active">📚 Estrutura ministerial</a></nav></aside>
+<main class="main"><header class="top"><div><h1>Estrutura ministerial</h1>
+<p id="escopoTexto">Carregando seu acesso...</p></div><button onclick="location.href='/home.html'">Voltar</button></header>
+<section class="card panel"><h2>Configure a sua forma de trabalhar</h2>
+<p>Cadastre os tipos de culto e evento e monte os planos com as aulas de discipulado.
+A equipe usa essas definições nos módulos de acompanhamento.</p></section>
+<div class="ministry-grid">
+<section class="card panel ministry-card" id="areaTipos" hidden><h2>Tipos de culto e evento</h2>
+<form id="formTipo" hidden><input type="hidden" id="tipoId">
+<label>Categoria *<select id="tipoCategoria" required><option value="CULTO">Culto</option><option value="EVENTO">Evento</option></select></label>
+<label>Nome *<input id="tipoNome" maxlength="120" placeholder="Ex.: Culto de ensino" required></label>
+<label>Descrição<textarea id="tipoDescricao" placeholder="Como essa atividade é usada"></textarea></label>
+<div class="ministry-actions"><button type="submit" class="btn" id="salvarTipo">Gravar tipo</button>
+<button type="button" id="limparTipo">Limpar</button></div><p id="msgTipo" role="status"></p></form>
+<div id="listaTipos">Carregando...</div></section>
+<section class="card panel ministry-card" id="areaPlanos" hidden><h2>Planos de discipulado</h2>
+<form id="formPlano" hidden><input type="hidden" id="planoId">
+<label>Nome do plano *<input id="planoNome" maxlength="160" placeholder="Ex.: Primeiros passos na fé" required></label>
+<label>Objetivo do plano<textarea id="planoDescricao" placeholder="O que o discípulo aprenderá"></textarea></label>
+<div class="ministry-actions"><button type="submit" class="btn" id="salvarPlano">Gravar plano</button>
+<button type="button" id="limparPlano">Limpar</button></div><p id="msgPlano" role="status"></p></form>
+<div id="listaPlanos">Carregando...</div></section></div>
+<section class="card panel ministry-card" id="aulasArea" hidden><h2 id="tituloAulas">Aulas</h2>
+<p>Ordene as aulas pelo número. Cada aula pode ter objetivo, conteúdo e duração.</p>
+<form id="formAula" hidden><input type="hidden" id="aulaId">
+<div class="ministry-grid"><label>Número da aula *<input id="aulaOrdem" type="number" min="1" required></label>
+<label>Título *<input id="aulaTitulo" maxlength="180" required></label></div>
+<label>Objetivo<textarea id="aulaObjetivo"></textarea></label>
+<label>Conteúdo / roteiro<textarea id="aulaConteudo"></textarea></label>
+<label>Duração estimada em minutos<input id="aulaDuracao" type="number" min="1"></label>
+<div class="ministry-actions"><button type="submit" class="btn" id="salvarAula">Gravar aula</button>
+<button type="button" id="limparAula">Limpar</button></div><p id="msgAula" role="status"></p></form>
+<div id="listaAulas"></div></section>
+</main></div><script src="/js/estrutura-ministerial.js"></script></body></html>
