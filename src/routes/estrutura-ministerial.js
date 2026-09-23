@@ -174,6 +174,10 @@ router.put('/tipos/:id',async(req,res,next)=>{
     const categoria=await categoriaAcessivel(req,res,req.body.categoria_id);if(!categoria)return;
     if(categoria.modulo!==oldCategory.modulo)
       return res.status(400).json({erro:'Escolha uma categoria do mesmo módulo.'});
+    if(oldCategory.estrutura_aulas&&!categoria.estrutura_aulas){
+      const used=await db.query('SELECT 1 FROM planos_discipulado WHERE tipo_atividade_id=$1 AND ativo=TRUE LIMIT 1',[row.id]);
+      if(used.rowCount)return res.status(409).json({erro:'Este tipo está vinculado a um plano de aulas.'});
+    }
     if(!categoriaCompativel(categoria,{city:row.cidade_ministerial_id,church:row.congregacao_id}))
       return res.status(400).json({erro:'A categoria pertence a outra área.'});
     const nome=clean(req.body.nome);
@@ -276,6 +280,11 @@ function lessonBody(body){
   const data=clean(body.data_prevista),hora=clean(body.hora_prevista);
   if((data&&!/^\d{4}-\d{2}-\d{2}$/.test(data))||(hora&&!/^\d{2}:\d{2}$/.test(hora)))
     return null;
+  if(data){
+    const d=new Date(data+'T00:00:00Z');
+    if(!Number.isFinite(d.getTime())||d.toISOString().slice(0,10)!==data)return null;
+  }
+  if(hora&&(Number(hora.slice(0,2))>23||Number(hora.slice(3,5))>59))return null;
   return {titulo,ordem,duracao,data:data||null,hora:hora||null,
     objetivo:clean(body.objetivo)||null,conteudo:clean(body.conteudo)||null,
     metodologia:clean(body.metodologia)||null,materiais:clean(body.materiais)||null,
