@@ -83,6 +83,15 @@ async function categoriaAcessivel(req,res,value){
   if(!q.rowCount){res.status(404).json({erro:'Categoria não encontrada nesta área.'});return null;}
   return q.rows[0];
 }
+async function categoriaOculta(req,categoriaId){
+  const local=scope(req.user);
+  if(!local?.city)return false;
+  const q=await db.query(`SELECT 1 FROM categorias_ocultas
+    WHERE denominacao_id=$1 AND categoria_id=$2 AND cidade_ministerial_id=$3
+      AND (congregacao_id IS NULL OR congregacao_id IS NOT DISTINCT FROM $4::bigint)
+    LIMIT 1`,[req.user.denominacao_id,categoriaId,local.city,local.church]);
+  return !!q.rowCount;
+}
 router.get('/categorias',async(req,res,next)=>{
   try{
     const modulo=clean(req.query.modulo).toUpperCase();
@@ -199,6 +208,7 @@ router.post('/tipos',async(req,res,next)=>{
   try{
     const categoria=await categoriaAcessivel(req,res,req.body.categoria_id);if(!categoria)return;
     if(!await autorizado(req,res,categoria.modulo,'editar'))return;
+    if(await categoriaOculta(req,categoria.id))return res.status(400).json({erro:'Restaure a categoria nesta área antes de usá-la.'});
     const s=scope(req.user),nome=clean(req.body.nome);
     if(!s)return res.status(403).json({erro:'Seu acesso precisa de uma área definida.'});
     if(!categoriaCompativel(categoria,s))return res.status(400).json({erro:'A categoria pertence a outra área.'});
@@ -216,6 +226,7 @@ router.put('/tipos/:id',async(req,res,next)=>{
     const oldCategory=await categoriaAcessivel(req,res,row.categoria_id);if(!oldCategory)return;
     if(!await autorizado(req,res,oldCategory.modulo,'editar'))return;
     const categoria=await categoriaAcessivel(req,res,req.body.categoria_id);if(!categoria)return;
+    if(await categoriaOculta(req,categoria.id))return res.status(400).json({erro:'Restaure a categoria nesta área antes de usá-la.'});
     if(categoria.modulo!==oldCategory.modulo)
       return res.status(400).json({erro:'Escolha uma categoria do mesmo módulo.'});
     if(oldCategory.estrutura_aulas&&!categoria.estrutura_aulas){
