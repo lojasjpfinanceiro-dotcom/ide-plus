@@ -304,7 +304,7 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
   // Tipos existentes são preservados na categoria Campanha evangelizadora.
   const antigas = await db.query(`SELECT id FROM categorias_ministeriais
     WHERE modulo='CAMPANHA' AND LOWER(TRIM(nome))='evento'
-      AND criado_por IS NULL AND descricao IS NULL AND ativo=TRUE`);
+      AND ativo=TRUE`);
   for (const antiga of antigas.rows) {
     const client = await db.connect();
     try {
