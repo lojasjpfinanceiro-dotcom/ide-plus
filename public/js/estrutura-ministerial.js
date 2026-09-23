@@ -24,10 +24,20 @@ function resetType(){
   $('formTipo').hidden=true;
   $('formTipo').reset();$('tipoId').value='';$('salvarTipo').textContent='Gravar tipo';
 }
+function updatePlanFields(){
+  const tipo=types.find(x=>String(x.id)===String($('planoTipo').value));
+  const visita=!!tipo&&!tipo.estrutura_aulas;
+  $('camposVisita').hidden=!visita;
+  $('planoData').required=visita;
+  $('rotuloPlanoNome').textContent=tipo?.estrutura_aulas?'Nome da sequência de lições':visita?'Nome da visita ou acompanhamento':'Nome da programação';
+  $('planoNome').placeholder=tipo?.estrutura_aulas?'Ex.: Primeiros passos na fé':visita?'Ex.: Primeira visita à família':'Ex.: Primeiros passos na fé';
+}
+$('planoTipo').addEventListener('change',updatePlanFields);
 function resetPlan(){
   $('formPlano').hidden=true;
   $('planoTipo').required=true;
-  $('formPlano').reset();$('planoId').value='';$('salvarPlano').textContent='Gravar plano';
+  $('formPlano').reset();$('planoId').value='';$('salvarPlano').textContent='Gravar programação';
+  updatePlanFields();
 }
 function resetLesson(){
   $('formAula').hidden=true;
@@ -74,9 +84,12 @@ $('mostrarOcultas').onclick=async()=>{
 async function loadTypes(){
   types=await api('/tipos?modulo='+modulo);
   if(modulo==='DISCIPULADO'){
-    const aulas=types.filter(x=>x.estrutura_aulas);
-    $('planoTipo').innerHTML='<option value="">Selecione o tipo de aula</option>'+
-      aulas.map(x=>'<option value="'+x.id+'">'+esc(x.categoria_nome)+' • '+esc(x.nome)+'</option>').join('');
+    $('planoTipo').innerHTML='<option value="">Selecione o tipo de discipulado</option>'+
+      types.map(x=>'<option value="'+x.id+'">'+esc(x.categoria_nome)+' • '+esc(x.nome)+
+        (x.estrutura_aulas?' (lições)':' (visita / acompanhamento)')+'</option>').join('');
+    $('dicaPlanoTipo').hidden=!!types.length;
+    $('novoPlano').disabled=!types.length;
+    updatePlanFields();
   }
   $('listaTipos').innerHTML=types.length?types.map(x=>
     '<div class="ministry-item"><div class="item-info"><strong>'+esc(x.nome)+'</strong>'+
@@ -94,10 +107,10 @@ async function loadCatalog(){
   $('opcaoAulas').hidden=modulo!=='DISCIPULADO';
   $('dicaCategoria').textContent=modulo==='CAMPANHA'
     ?'Sugestões: Evangelismo nas ruas, Culto nas casas, Culto na praça, Culto ao ar livre e Célula. São exemplos, não cadastros automáticos.'
-    :'Sugestões: Acompanhamento do discípulo e Aulas de discipulado. Marque a opção de cronograma apenas na categoria de aulas.';
+     :'Sugestões: Aulas de discipulado e Visitas de acompanhamento. Marque “lições em sequência” apenas na categoria de aulas.';
   $('dicaTipo').textContent=modulo==='CAMPANHA'
     ?'Sugestões: evangelismo pessoal, abordagem em equipe, culto familiar e louvor na praça.'
-    :'Para acompanhamento: visita, conversa e contato por telefone. Para aulas: escola dominical, aula noturna ou aula individual.';
+     :'Para visitas: visita domiciliar, contato por telefone. Para aulas: escola dominical, aula noturna ou aula individual.';
   $('categoriaNome').placeholder=modulo==='CAMPANHA'?'Ex.: Evangelismo nas ruas':'Ex.: Aulas de discipulado';
   $('tipoNome').placeholder=modulo==='CAMPANHA'?'Ex.: Abordagem em equipe':'Ex.: Aula noturna';
   document.querySelectorAll('.moduloNome').forEach(x=>x.textContent=modulo==='CAMPANHA'?'Campanha':'Discipulado');
@@ -118,14 +131,19 @@ async function loadPlans(){
   plans=await api('/planos');
   $('listaPlanos').innerHTML=plans.length?plans.map(x=>
     '<div class="ministry-item"><div class="item-info"><strong>'+esc(x.nome)+'</strong>'+
-    '<small>'+esc(x.categoria_nome||'')+(x.tipo_nome?' • '+esc(x.tipo_nome):'Plano anterior')+' • '+x.total_aulas+' aula(s)</small>'+
-    (x.descricao?'<p>'+esc(x.descricao)+'</p>':'')+'</div>'+
-    '<div class="item-actions"><button type="button" data-plan-open="'+x.id+'">Ver aulas</button>'+
+    '<small>'+esc(x.categoria_nome||'')+(x.tipo_nome?' • '+esc(x.tipo_nome):'Programação anterior')+
+      (x.permite_aulas?' • '+x.total_aulas+' lição(ões)':' • Visita / acompanhamento')+'</small>'+
+    (x.descricao?'<p><b>Objetivo:</b> '+esc(x.descricao)+'</p>':'')+
+    (!x.permite_aulas&&x.data_prevista?'<p><b>Data:</b> '+esc(String(x.data_prevista).slice(0,10).split('-').reverse().join('/'))+
+      (x.hora_prevista?' às '+esc(String(x.hora_prevista).slice(0,5)):'')+'</p>':'')+
+    (!x.permite_aulas&&x.local?'<p><b>Local:</b> '+esc(x.local)+'</p>':'')+
+    (!x.permite_aulas&&x.roteiro?'<p><b>Roteiro:</b> '+esc(x.roteiro)+'</p>':'')+'</div>'+
+    '<div class="item-actions">'+(x.permite_aulas?'<button type="button" data-plan-open="'+x.id+'">Ver lições</button>':'')+
     (x.pode_editar&&can('discipulado.estrutura.gerenciar')?
       '<button type="button" data-plan-edit="'+x.id+'">Editar</button>'+
       '<button type="button" class="delete-button" data-plan-delete="'+x.id+'">Excluir</button>':'')+
     '</div></div>'
-  ).join(''):'Nenhum plano cadastrado. Crie o primeiro e acrescente suas aulas.';
+  ).join(''):'Nenhuma programação cadastrada. Cadastre uma categoria, um tipo e depois a programação.';
   if(selectedPlan){
     const p=plans.find(x=>String(x.id)===String(selectedPlan.id));
     if(p)selectedPlan=p;else{selectedPlan=null;$('aulasArea').hidden=true;}
@@ -133,9 +151,9 @@ async function loadPlans(){
 }
 async function openPlan(id){
   selectedPlan=plans.find(x=>String(x.id)===String(id));
-  if(!selectedPlan)return;
+  if(!selectedPlan||!selectedPlan.permite_aulas)return;
   $('aulasArea').hidden=false;
-  $('tituloAulas').textContent='Aulas • '+selectedPlan.nome;
+  $('tituloAulas').textContent='Lições • '+selectedPlan.nome;
   $('formAula').hidden=true;
   $('novaAula').hidden=!(selectedPlan.pode_editar&&can('discipulado.estrutura.gerenciar'));
   lessons=await api('/planos/'+selectedPlan.id+'/aulas');
@@ -152,7 +170,7 @@ async function openPlan(id){
     (selectedPlan.pode_editar&&can('discipulado.estrutura.gerenciar')?
       '<div class="item-actions"><button type="button" data-lesson-edit="'+x.id+'">Editar</button>'+
       '<button type="button" class="delete-button" data-lesson-delete="'+x.id+'">Excluir</button></div>':'')+'</div>'
-  ).join(''):'Este plano ainda não tem aulas.';
+  ).join('') :'Esta sequência ainda não tem lições.';
   resetLesson();
   $('aulasArea').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -183,9 +201,11 @@ $('formPlano').onsubmit=async e=>{
   e.preventDefault();$('salvarPlano').disabled=true;$('msgPlano').textContent='Gravando...';
   try{
     const id=$('planoId').value,body={nome:$('planoNome').value,descricao:$('planoDescricao').value,
-      tipo_atividade_id:$('planoTipo').value||null};
+      tipo_atividade_id:$('planoTipo').value||null,
+      data_prevista:$('planoData').value||null,hora_prevista:$('planoHora').value||null,
+      local:$('planoLocal').value,roteiro:$('planoRoteiro').value};
     await api(id?'/planos/'+id:'/planos',{method:id?'PUT':'POST',body:JSON.stringify(body)});
-    resetPlan();$('msgPlano').textContent='Plano gravado.';await loadPlans();
+    resetPlan();$('msgPlano').textContent='Programação gravada.';await loadPlans();
   }catch(err){$('msgPlano').textContent=err.message;}
   finally{$('salvarPlano').disabled=false;}
 };
@@ -200,7 +220,7 @@ $('formAula').onsubmit=async e=>{
       atividade:$('aulaAtividade').value};
     await api(id?'/aulas/'+id:'/planos/'+selectedPlan.id+'/aulas',
       {method:id?'PUT':'POST',body:JSON.stringify(body)});
-    $('msgAula').textContent='Aula gravada.';await loadPlans();await openPlan(selectedPlan.id);
+    $('msgAula').textContent='Lição gravada.';await loadPlans();await openPlan(selectedPlan.id);
   }catch(err){$('msgAula').textContent=err.message;}
   finally{$('salvarAula').disabled=false;}
 };
@@ -260,9 +280,13 @@ $('listaPlanos').onclick=async e=>{
       $('planoId').value=x.id;$('planoNome').value=x.nome;$('planoDescricao').value=x.descricao||'';
       $('planoTipo').value=x.tipo_atividade_id||'';
       $('planoTipo').required=!!x.tipo_atividade_id;
+      $('planoData').value=x.data_prevista?String(x.data_prevista).slice(0,10):'';
+      $('planoHora').value=x.hora_prevista?String(x.hora_prevista).slice(0,5):'';
+      $('planoLocal').value=x.local||'';$('planoRoteiro').value=x.roteiro||'';
+      updatePlanFields();
       $('formPlano').hidden=false;$('salvarPlano').textContent='Salvar alteração';$('formPlano').scrollIntoView({behavior:'smooth'});
     }
-    if(del&&confirm('Excluir este plano e ocultar suas aulas?')){
+    if(del&&confirm('Excluir esta programação e suas lições?')){
       await api('/planos/'+del.dataset.planDelete,{method:'DELETE'});await loadPlans();
     }
   }catch(err){$('msgPlano').textContent=err.message;}
