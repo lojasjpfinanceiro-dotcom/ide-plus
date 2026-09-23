@@ -27,6 +27,9 @@
   .ministry-actions .btn{width:auto;min-width:140px;background:#079be5;border-color:#079be5;color:white}
   .module-picker{display:block;max-width:360px;margin:16px 0 0;font-weight:700}
   .module-picker select{width:100%;padding:11px;margin-top:6px;border:1px solid #bcd4e6;border-radius:10px}
+  .guidance{font-size:14px;color:#536f85;background:#eef7ff;padding:10px 12px;border-radius:10px;line-height:1.4}
+  .check-option{display:flex!important;align-items:flex-start;gap:10px;padding:12px;background:#fff;border:1px solid #dceaf5;border-radius:10px}
+  .check-option input{width:20px!important;height:20px;margin:0!important;flex:0 0 auto}
   .aulas-inline{border-top:1px solid #dce9f5;margin-top:22px;padding-top:20px;scroll-margin-top:145px}
   .ministry-main .card{box-shadow:0 8px 26px #0b5b9412}
   .ministry-main .top{margin-bottom:16px}
@@ -50,37 +53,45 @@
 <label class="module-picker">Módulo<select id="modulo"><option value="CAMPANHA">Campanha / evangelismo</option><option value="DISCIPULADO">Discipulado</option></select></label></section>
 <div class="ministry-grid">
 <section class="card panel ministry-card" id="areaCategorias" hidden><div class="section-heading"><h2>Categorias de <span class="moduloNome"></span></h2><button class="add-button" type="button" id="novaCategoria" hidden>+ Categoria</button></div>
-<p>Exemplos: Evento, Culto, Visita, Aula. Você decide quais categorias usar.</p>
+<p id="dicaCategoria" class="guidance">Sugestões de categorias. Você escolhe os nomes usados na sua área.</p>
 <form id="formCategoria" hidden><input type="hidden" id="categoriaId">
-<label>Nome da categoria *<input id="categoriaNome" maxlength="120" placeholder="Ex.: Visita" required></label>
-<label>Descrição<textarea id="categoriaDescricao" placeholder="Como esta categoria é usada"></textarea></label>
+<label>Nome da categoria *<input id="categoriaNome" maxlength="120" placeholder="Ex.: Evangelismo nas ruas" required></label>
+<label>Descrição<textarea id="categoriaDescricao" placeholder="Ex.: Como esta categoria será usada"></textarea></label>
+<label class="check-option" id="opcaoAulas" hidden><input id="categoriaEstruturaAulas" type="checkbox"> Esta categoria terá planos e cronogramas de aulas</label>
 <div class="ministry-actions"><button type="submit" class="btn" id="salvarCategoria">Gravar categoria</button>
 <button type="button" id="limparCategoria">Cancelar</button></div></form><p id="msgCategoria" role="status"></p>
 <div id="listaCategorias">Carregando...</div></section>
 <section class="card panel ministry-card" id="areaTipos" hidden><div class="section-heading"><h2>Tipos de <span class="moduloNome"></span></h2><button class="add-button" type="button" id="novoTipo" hidden>+ Tipo</button></div>
-<p>Escolha uma categoria cadastrada e crie os tipos usados nela.</p>
+<p id="dicaTipo" class="guidance">Escolha uma categoria e cadastre seus próprios tipos.</p>
 <form id="formTipo" hidden><input type="hidden" id="tipoId">
 <label>Categoria *<select id="tipoCategoria" required></select></label>
-<label>Nome do tipo *<input id="tipoNome" maxlength="120" placeholder="Ex.: Culto de ensino" required></label>
+<label>Nome do tipo *<input id="tipoNome" maxlength="120" placeholder="Ex.: Abordagem em equipe" required></label>
 <label>Descrição<textarea id="tipoDescricao" placeholder="Como este tipo é usado"></textarea></label>
 <div class="ministry-actions"><button type="submit" class="btn" id="salvarTipo">Gravar tipo</button>
 <button type="button" id="limparTipo">Cancelar</button></div></form><p id="msgTipo" role="status"></p>
 <div id="listaTipos">Carregando...</div></section></div><div class="ministry-grid ministry-plans">
 <section class="card panel ministry-card" id="areaPlanos" hidden><div class="section-heading"><h2>Planos de discipulado</h2><button class="add-button" type="button" id="novoPlano" hidden>+ Plano</button></div>
+<p class="guidance">Escolha um tipo da categoria marcada para aulas e organize as aulas deste plano. Exemplos são apenas orientação.</p>
 <form id="formPlano" hidden><input type="hidden" id="planoId">
+<label>Tipo de aula *<select id="planoTipo" required></select></label>
 <label>Nome do plano *<input id="planoNome" maxlength="160" placeholder="Ex.: Primeiros passos na fé" required></label>
-<label>Objetivo do plano<textarea id="planoDescricao" placeholder="O que o discípulo aprenderá"></textarea></label>
+<label>Objetivo do plano<textarea id="planoDescricao" placeholder="Ex.: Acompanhar os primeiros passos na fé"></textarea></label>
 <div class="ministry-actions"><button type="submit" class="btn" id="salvarPlano">Gravar plano</button>
 <button type="button" id="limparPlano">Cancelar</button></div></form><p id="msgPlano" role="status"></p>
 <div id="listaPlanos">Carregando...</div>
 <section class="ministry-card aulas-inline" id="aulasArea" hidden><div class="section-heading"><h2 id="tituloAulas">Aulas</h2><button class="add-button" type="button" id="novaAula" hidden>+ Aula</button></div>
-<p>Ordene as aulas pelo número. Cada aula pode ter objetivo, conteúdo e duração.</p>
+<p class="guidance">Planeje a sequência, a data e como será cada aula. Os exemplos desaparecem quando você digita.</p>
 <form id="formAula" hidden><input type="hidden" id="aulaId">
 <div class="ministry-grid"><label>Número da aula *<input id="aulaOrdem" type="number" min="1" required></label>
-<label>Título *<input id="aulaTitulo" maxlength="180" required></label></div>
-<label>Objetivo<textarea id="aulaObjetivo"></textarea></label>
-<label>Conteúdo / roteiro<textarea id="aulaConteudo"></textarea></label>
-<label>Duração estimada em minutos<input id="aulaDuracao" type="number" min="1"></label>
+<label>Título *<input id="aulaTitulo" maxlength="180" placeholder="Ex.: Conhecendo a Bíblia" required></label></div>
+<div class="ministry-grid"><label>Data prevista<input id="aulaData" type="date"></label>
+<label>Horário previsto<input id="aulaHora" type="time"></label></div>
+<label>Objetivo<textarea id="aulaObjetivo" placeholder="Ex.: Ao final, reconhecer a estrutura da Bíblia"></textarea></label>
+<label>Conteúdo / roteiro<textarea id="aulaConteudo" placeholder="Ex.: Abertura, leitura e conversa sobre o tema"></textarea></label>
+<label>Como conduzir a aula<textarea id="aulaMetodologia" placeholder="Ex.: Conversa em grupo, leitura orientada e perguntas"></textarea></label>
+<label>Materiais necessários<textarea id="aulaMateriais" placeholder="Ex.: Bíblias, caderno e material de apoio"></textarea></label>
+<label>Atividade após a aula<textarea id="aulaAtividade" placeholder="Ex.: Ler um capítulo e anotar dúvidas"></textarea></label>
+<label>Duração estimada em minutos<input id="aulaDuracao" type="number" min="1" placeholder="Ex.: 45"></label>
 <div class="ministry-actions"><button type="submit" class="btn" id="salvarAula">Gravar aula</button>
 <button type="button" id="limparAula">Cancelar</button></div></form><p id="msgAula" role="status"></p>
 <div id="listaAulas"></div></section></section></div>
