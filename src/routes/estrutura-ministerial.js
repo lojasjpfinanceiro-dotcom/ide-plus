@@ -109,6 +109,19 @@ router.get('/categorias',async(req,res,next)=>{
       FROM categorias_ministeriais c
       WHERE c.denominacao_id=$1 AND c.ativo=TRUE AND c.modulo=$2
         AND NOT (c.modulo='CAMPANHA' AND LOWER(BTRIM(c.nome))='evento')${s.sql}
+        AND NOT (c.modulo='CAMPANHA' AND EXISTS (
+          SELECT 1 FROM categorias_ministeriais local_categoria
+          WHERE local_categoria.denominacao_id=c.denominacao_id
+            AND local_categoria.modulo=c.modulo AND local_categoria.ativo=TRUE
+            AND LOWER(BTRIM(local_categoria.nome))=LOWER(BTRIM(c.nome))
+            AND $3::bigint IS NOT NULL
+            AND local_categoria.cidade_ministerial_id=$3::bigint
+            AND (local_categoria.congregacao_id IS NULL
+              OR local_categoria.congregacao_id IS NOT DISTINCT FROM $4::bigint)
+            AND (CASE WHEN local_categoria.congregacao_id IS NOT NULL THEN 2 ELSE 1 END)
+              > (CASE WHEN c.congregacao_id IS NOT NULL THEN 2
+                      WHEN c.cidade_ministerial_id IS NOT NULL THEN 1 ELSE 0 END)
+        ))
       ORDER BY c.nome`,[req.user.denominacao_id,modulo,local?.city??null,local?.church??null,...s.params]);
     res.json(q.rows.map(x=>({...x,pode_editar:canEdit(req.user,x),
       pode_ocultar:!!local?.city&&!canEdit(req.user,x)&&!x.oculta,
