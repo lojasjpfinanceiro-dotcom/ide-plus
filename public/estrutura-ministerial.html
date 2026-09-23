@@ -13,6 +13,7 @@
   .section-heading .add-button{background:#079be5;border-color:#079be5;color:white}
   .ministry-item{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:13px 0;border-bottom:1px solid #e5edf4}
   .ministry-item:last-child{border-bottom:0}
+  .ministry-item.is-hidden{opacity:.7}
   .ministry-item .item-info{min-width:0;overflow-wrap:anywhere}
   .ministry-item strong{display:block;font-size:17px;line-height:1.3}
   .ministry-item small{display:block;margin-top:3px;color:#66798b}
@@ -52,7 +53,7 @@
 <p>Crie categorias e tipos próprios para Campanha e Discipulado. Organize também os planos e as aulas de discipulado.</p>
 <label class="module-picker">Módulo<select id="modulo"><option value="CAMPANHA">Campanha / evangelismo</option><option value="DISCIPULADO">Discipulado</option></select></label></section>
 <div class="ministry-grid">
-<section class="card panel ministry-card" id="areaCategorias" hidden><div class="section-heading"><h2>Categorias de <span class="moduloNome"></span></h2><button class="add-button" type="button" id="novaCategoria" hidden>+ Categoria</button></div>
+<section class="card panel ministry-card" id="areaCategorias" hidden><div class="section-heading"><h2>Categorias de <span class="moduloNome"></span></h2><div class="item-actions"><button type="button" id="mostrarOcultas" hidden>Ver ocultas</button><button class="add-button" type="button" id="novaCategoria" hidden>+ Categoria</button></div></div>
 <p id="dicaCategoria" class="guidance">Sugestões de categorias. Você escolhe os nomes usados na sua área.</p>
 <form id="formCategoria" hidden><input type="hidden" id="categoriaId">
 <label>Nome da categoria *<input id="categoriaNome" maxlength="120" placeholder="Ex.: Evangelismo nas ruas" required></label>
