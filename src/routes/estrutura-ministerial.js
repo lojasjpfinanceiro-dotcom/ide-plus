@@ -68,6 +68,12 @@ async function autorizado(req,res,modulo,acao){
   if(p.has('*')||p.has(permissao(modulo,acao)))return true;
   res.status(403).json({erro:'Você não tem permissão para este módulo.'});return false;
 }
+function categoriaCompativel(categoria,alvo){
+  return (!categoria.cidade_ministerial_id ||
+    String(categoria.cidade_ministerial_id)===String(alvo.city)) &&
+    (!categoria.congregacao_id ||
+    String(categoria.congregacao_id)===String(alvo.church));
+}
 async function categoriaAcessivel(req,res,value){
   if(!id(value)){res.status(400).json({erro:'Categoria inválida.'});return null;}
   const s=visible(req.user,'c',3);
@@ -143,6 +149,7 @@ router.post('/tipos',async(req,res,next)=>{
     if(!await autorizado(req,res,categoria.modulo,'editar'))return;
     const s=scope(req.user),nome=clean(req.body.nome);
     if(!s)return res.status(403).json({erro:'Seu acesso precisa de uma área definida.'});
+    if(!categoriaCompativel(categoria,s))return res.status(400).json({erro:'A categoria pertence a outra área.'});
     if(!nome||nome.length>120)return res.status(400).json({erro:'Informe um nome de até 120 caracteres.'});
     const q=await db.query(`INSERT INTO tipos_atividades
       (denominacao_id,cidade_ministerial_id,congregacao_id,categoria_id,nome,descricao,criado_por)
@@ -159,6 +166,8 @@ router.put('/tipos/:id',async(req,res,next)=>{
     const categoria=await categoriaAcessivel(req,res,req.body.categoria_id);if(!categoria)return;
     if(categoria.modulo!==oldCategory.modulo)
       return res.status(400).json({erro:'Escolha uma categoria do mesmo módulo.'});
+    if(!categoriaCompativel(categoria,{city:row.cidade_ministerial_id,church:row.congregacao_id}))
+      return res.status(400).json({erro:'A categoria pertence a outra área.'});
     const nome=clean(req.body.nome);
     if(!nome||nome.length>120)return res.status(400).json({erro:'Informe um nome de até 120 caracteres.'});
     const q=await db.query(`UPDATE tipos_atividades SET categoria_id=$1,categoria=NULL,nome=$2,descricao=$3
