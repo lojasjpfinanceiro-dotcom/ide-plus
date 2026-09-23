@@ -13,23 +13,36 @@
   .ministry-actions{display:flex;gap:8px;flex-wrap:wrap}
   #aulasArea{margin-top:18px}
   .ministry-tag{font-weight:600;color:#2d6584}
+  .ministry-card .btn{width:auto;min-width:130px}
+  .ministry-card button{cursor:pointer}
+  .module-picker{max-width:360px;margin:16px 0}
+  .module-picker select{width:100%;padding:12px;border:1px solid #bcd4e6;border-radius:10px}
   @media(max-width:760px){.ministry-grid{grid-template-columns:1fr}.ministry-actions button{width:auto}}
 </style></head><body><div class="shell"><aside class="side"><div class="brand">IDE<b>+</b></div>
 <nav><a href="/home.html">⌂ Início</a><a class="active">📚 Estrutura ministerial</a></nav></aside>
 <main class="main"><header class="top"><div><h1>Estrutura ministerial</h1>
 <p id="escopoTexto">Carregando seu acesso...</p></div><button onclick="location.href='/home.html'">Voltar</button></header>
 <section class="card panel"><h2>Configure a sua forma de trabalhar</h2>
-<p>Cadastre os tipos de culto e evento e monte os planos com as aulas de discipulado.
-A equipe usa essas definições nos módulos de acompanhamento.</p></section>
+<p>Crie categorias e tipos próprios para Campanha e Discipulado. Organize também os planos e as aulas de discipulado.</p>
+<label class="module-picker">Módulo<select id="modulo"><option value="CAMPANHA">Campanha / evangelismo</option><option value="DISCIPULADO">Discipulado</option></select></label></section>
 <div class="ministry-grid">
-<section class="card panel ministry-card" id="areaTipos" hidden><h2>Tipos de culto e evento</h2>
+<section class="card panel ministry-card" id="areaCategorias" hidden><h2>Categorias de <span class="moduloNome"></span></h2>
+<p>Exemplos: Evento, Culto, Visita, Aula. Você decide quais categorias usar.</p>
+<form id="formCategoria" hidden><input type="hidden" id="categoriaId">
+<label>Nome da categoria *<input id="categoriaNome" maxlength="120" placeholder="Ex.: Visita" required></label>
+<label>Descrição<textarea id="categoriaDescricao" placeholder="Como esta categoria é usada"></textarea></label>
+<div class="ministry-actions"><button type="submit" class="btn" id="salvarCategoria">Gravar categoria</button>
+<button type="button" id="limparCategoria">Limpar</button></div><p id="msgCategoria" role="status"></p></form>
+<div id="listaCategorias">Carregando...</div></section>
+<section class="card panel ministry-card" id="areaTipos" hidden><h2>Tipos de <span class="moduloNome"></span></h2>
+<p>Escolha uma categoria cadastrada e crie os tipos usados nela.</p>
 <form id="formTipo" hidden><input type="hidden" id="tipoId">
-<label>Categoria *<select id="tipoCategoria" required><option value="CULTO">Culto</option><option value="EVENTO">Evento</option></select></label>
-<label>Nome *<input id="tipoNome" maxlength="120" placeholder="Ex.: Culto de ensino" required></label>
-<label>Descrição<textarea id="tipoDescricao" placeholder="Como essa atividade é usada"></textarea></label>
+<label>Categoria *<select id="tipoCategoria" required></select></label>
+<label>Nome do tipo *<input id="tipoNome" maxlength="120" placeholder="Ex.: Culto de ensino" required></label>
+<label>Descrição<textarea id="tipoDescricao" placeholder="Como este tipo é usado"></textarea></label>
 <div class="ministry-actions"><button type="submit" class="btn" id="salvarTipo">Gravar tipo</button>
 <button type="button" id="limparTipo">Limpar</button></div><p id="msgTipo" role="status"></p></form>
-<div id="listaTipos">Carregando...</div></section>
+<div id="listaTipos">Carregando...</div></section></div><div class="ministry-grid">
 <section class="card panel ministry-card" id="areaPlanos" hidden><h2>Planos de discipulado</h2>
 <form id="formPlano" hidden><input type="hidden" id="planoId">
 <label>Nome do plano *<input id="planoNome" maxlength="160" placeholder="Ex.: Primeiros passos na fé" required></label>
