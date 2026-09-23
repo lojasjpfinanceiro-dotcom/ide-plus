@@ -57,10 +57,10 @@ async function loadCategories(){
     (x.pode_editar&&can(permissionFor(modulo,true))?
       '<div class="item-actions"><button type="button" data-category-edit="'+x.id+'">Editar</button>'+
       '<button type="button" class="delete-button" data-category-delete="'+x.id+'">Excluir</button></div>':
-      x.pode_ocultar&&can(permissionFor(modulo,true))?
+      (x.pode_ocultar||x.pode_restaurar)&&can(permissionFor(modulo,true))?
       '<div class="item-actions"><button type="button" data-category-'+
-      (x.oculta?'restore':'hide')+'="'+x.id+'">'+
-      (x.oculta?'Restaurar':'Ocultar nesta área')+'</button></div>':'')+'</div>'
+      (x.pode_restaurar?'restore':'hide')+'="'+x.id+'">'+
+      (x.pode_restaurar?'Restaurar':'Ocultar nesta área')+'</button></div>':'')+'</div>'
   ).join(''):'Nenhuma categoria visível neste módulo.';
   $('tipoCategoria').innerHTML='<option value="">Selecione a categoria</option>'+
     visiveis.map(x=>'<option value="'+x.id+'">'+esc(x.nome)+' • '+esc(area(x))+'</option>').join('');
