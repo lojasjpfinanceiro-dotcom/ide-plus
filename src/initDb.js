@@ -234,7 +234,7 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
     INSERT INTO categorias_ministeriais
       (denominacao_id,cidade_ministerial_id,congregacao_id,modulo,nome)
     SELECT DISTINCT denominacao_id,cidade_ministerial_id,congregacao_id,'CAMPANHA',
-      CASE categoria WHEN 'CULTO' THEN 'Culto' WHEN 'EVENTO' THEN 'Evento' END
+      CASE categoria WHEN 'CULTO' THEN 'Culto' WHEN 'EVENTO' THEN 'Campanha evangelizadora' END
     FROM tipos_atividades WHERE categoria_id IS NULL AND categoria IN ('CULTO','EVENTO')
     ON CONFLICT DO NOTHING;
     UPDATE tipos_atividades t SET categoria_id=c.id
@@ -243,7 +243,7 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
       AND c.cidade_ministerial_id IS NOT DISTINCT FROM t.cidade_ministerial_id
       AND c.congregacao_id IS NOT DISTINCT FROM t.congregacao_id
       AND c.modulo='CAMPANHA'
-      AND LOWER(c.nome)=CASE t.categoria WHEN 'CULTO' THEN 'culto' WHEN 'EVENTO' THEN 'evento' END;
+      AND LOWER(c.nome)=CASE t.categoria WHEN 'CULTO' THEN 'culto' WHEN 'EVENTO' THEN 'campanha evangelizadora' END;
     CREATE UNIQUE INDEX IF NOT EXISTS ux_tipos_atividades_categoria_ativos
       ON tipos_atividades(denominacao_id,COALESCE(cidade_ministerial_id,0),
         COALESCE(congregacao_id,0),categoria_id,LOWER(nome))
@@ -299,6 +299,54 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
     UPDATE permissoes SET nome='Configurar categorias, tipos, planos e aulas de discipulado'
       WHERE codigo='discipulado.estrutura.gerenciar';
   `);
+
+  // Remove a categoria genérica criada pela classificação antiga CULTO/EVENTO.
+  // Tipos existentes são preservados na categoria Campanha evangelizadora.
+  const antigas = await db.query(`SELECT id FROM categorias_ministeriais
+    WHERE modulo='CAMPANHA' AND LOWER(TRIM(nome))='evento'
+      AND criado_por IS NULL AND descricao IS NULL AND ativo=TRUE`);
+  for (const antiga of antigas.rows) {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const atual = await client.query(`SELECT * FROM categorias_ministeriais
+        WHERE id=$1 AND ativo=TRUE FOR UPDATE`, [antiga.id]);
+      if (!atual.rowCount) { await client.query('COMMIT'); continue; }
+      const origem = atual.rows[0];
+      const destino = await client.query(`SELECT id FROM categorias_ministeriais
+        WHERE denominacao_id=$1 AND cidade_ministerial_id IS NOT DISTINCT FROM $2::bigint
+          AND congregacao_id IS NOT DISTINCT FROM $3::bigint AND modulo='CAMPANHA'
+          AND LOWER(nome)='campanha evangelizadora' AND ativo=TRUE
+        ORDER BY id LIMIT 1 FOR UPDATE`,
+        [origem.denominacao_id, origem.cidade_ministerial_id, origem.congregacao_id]);
+      if (destino.rowCount) {
+        // Em caso de nomes iguais, mantém ambos os tipos e identifica o legado.
+        await client.query(`UPDATE tipos_atividades t
+          SET nome=LEFT(t.nome,90)||' (legado '||t.id||')'
+          WHERE t.categoria_id=$1 AND t.ativo=TRUE
+            AND EXISTS (SELECT 1 FROM tipos_atividades outro
+              WHERE outro.categoria_id=$2 AND outro.ativo=TRUE
+                AND LOWER(outro.nome)=LOWER(t.nome))`, [origem.id,destino.rows[0].id]);
+        await client.query('UPDATE tipos_atividades SET categoria_id=$1 WHERE categoria_id=$2',
+          [destino.rows[0].id,origem.id]);
+        await client.query('UPDATE categorias_ministeriais SET ativo=FALSE WHERE id=$1',[origem.id]);
+      } else {
+        const tipos = await client.query('SELECT 1 FROM tipos_atividades WHERE categoria_id=$1 AND ativo=TRUE LIMIT 1',[origem.id]);
+        if (tipos.rowCount) {
+          await client.query(`UPDATE categorias_ministeriais
+            SET nome='Campanha evangelizadora' WHERE id=$1`,[origem.id]);
+        } else {
+          await client.query('UPDATE categorias_ministeriais SET ativo=FALSE WHERE id=$1',[origem.id]);
+        }
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 module.exports = initDb;
