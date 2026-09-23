@@ -1,1 +1,84 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gestão Local • IDE+</title><link rel="stylesheet" href="/css/app.css"></head><body><div class="shell"><aside class="side"><div class="brand">IDE<b>+</b></div><nav><a href="/home.html">⌂ Início</a><a href="/estrutura.html">🏙 Estrutura</a><a class="active">⛪ Gestão local</a></nav></aside><main class="main"><h1>Gestão Local</h1><p>Congregações da sua cidade. Este cadastro não pertence ao nível da Presidência.</p><div class="grid"><form class="card panel" id="form"><h2>Nova congregação</h2><div class="field"><label>Nome *</label><input name="nome" required></div><div class="field"><label>Tipo *</label><select name="tipo"><option value="SEDE_LOCAL">Sede local</option><option value="CONGREGACAO">Congregação</option></select></div><div class="field"><label>Endereço</label><input name="endereco"></div><button class="btn">Gravar</button><div class="msg" id="msg"></div></form><section class="card panel"><h2>Congregações</h2><div id="lista">Carregando...</div></section></div></main></div><script>const token=localStorage.getItem('ide_token'),u=JSON.parse(localStorage.getItem('ide_usuario')||'{}');if(!token)location.href='/';if(String(u.escopo||'').toUpperCase()!=='CIDADE')location.href='/estrutura.html';const h={'Content-Type':'application/json','Authorization':'Bearer '+token};async function load(){const r=await fetch('/api/congregacoes',{headers:h}),d=await r.json();lista.innerHTML=d.length?d.map(x=>'<p><strong>'+x.nome+'</strong><br><small>'+[x.cidade,x.estado].filter(Boolean).join(' / ')+'</small></p>').join(''):'Nenhuma congregação cadastrada.'}form.addEventListener('submit',async e=>{e.preventDefault();msg.textContent='Gravando...';const o=Object.fromEntries(new FormData(form));const r=await fetch('/api/congregacoes',{method:'POST',headers:h,body:JSON.stringify(o)}),d=await r.json();msg.textContent=r.ok?'Gravado com sucesso.':d.erro;if(r.ok){form.reset();await load();}});load();</script></body></html>
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gestão Local • IDE+</title><link rel="stylesheet" href="/css/app.css"><style>.congregacao-item{border-bottom:1px solid #e3edf5;padding:14px 0}.congregacao-item:last-child{border-bottom:0}.congregacao-item strong{display:block;font-size:18px}.congregacao-item small{display:block;margin-top:3px}.congregacao-actions,.form-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.congregacao-actions button,.btn-secondary{width:auto;border:1px solid #b7d7eb;border-radius:10px;padding:9px 14px;background:#f1f9ff;color:#075984;font-weight:700;cursor:pointer}.congregacao-actions .excluir{border-color:#f2c5c5;background:#fff5f5;color:#a12828}.form-actions .btn{width:auto;min-width:130px}.congregacao-actions button:disabled,.form-actions button:disabled{opacity:.6;cursor:wait}</style></head><body><div class="shell"><aside class="side"><div class="brand">IDE<b>+</b></div><nav><a href="/home.html">⌂ Início</a><a href="/estrutura.html">🏙 Estrutura</a><a class="active">⛪ Gestão local</a></nav></aside><main class="main"><h1>Gestão Local</h1><p>Congregações da sua cidade. Este cadastro não pertence ao nível da Presidência.</p><div class="grid"><form class="card panel" id="form"><h2 id="tituloForm">Nova congregação</h2><input type="hidden" id="editId"><div class="field"><label>Nome *</label><input name="nome" required></div><div class="field"><label>Tipo *</label><select name="tipo"><option value="SEDE_LOCAL">Sede local</option><option value="CONGREGACAO">Congregação</option></select></div><div class="field"><label>Endereço</label><input name="endereco"></div><div class="form-actions"><button class="btn" id="salvar" type="submit">Gravar</button><button class="btn-secondary" id="cancelar" type="button" hidden>Cancelar edição</button></div><div class="msg" id="msg" role="status"></div></form><section class="card panel"><h2>Congregações</h2><div id="lista">Carregando...</div></section></div></main></div><script>
+const token=localStorage.getItem('ide_token');
+let usuario={};try{usuario=JSON.parse(localStorage.getItem('ide_usuario')||'{}')}catch(e){}
+if(!token)location.href='/';
+if(String(usuario.escopo||'').toUpperCase()!=='CIDADE')location.href='/estrutura.html';
+const headers={'Content-Type':'application/json','Authorization':'Bearer '+token};
+const form=document.getElementById('form'),lista=document.getElementById('lista'),msg=document.getElementById('msg');
+const editId=document.getElementById('editId'),tituloForm=document.getElementById('tituloForm');
+const salvar=document.getElementById('salvar'),cancelar=document.getElementById('cancelar');
+let congregacoes=[],permissoes=new Set();
+function pode(acao){return permissoes.has('*')||permissoes.has('congregacoes.'+acao)}
+function esc(valor){return String(valor??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function api(url,opcoes={}){
+  const r=await fetch(url,{headers,...opcoes});
+  if(r.status===401){location.href='/';throw new Error('Sessão expirada. Faça login novamente.')}
+  const tipo=r.headers.get('content-type')||'';
+  const dados=tipo.includes('application/json')?await r.json():{};
+  if(!r.ok)throw new Error(dados.erro||'Não foi possível concluir a operação.');
+  return dados;
+}
+function limparEdicao(){
+  form.reset();editId.value='';tituloForm.textContent='Nova congregação';
+  salvar.textContent='Gravar';cancelar.hidden=true;
+}
+async function carregar(){
+  congregacoes=await api('/api/congregacoes');
+  lista.innerHTML=congregacoes.length?congregacoes.map(x=>
+    '<div class="congregacao-item"><strong>'+esc(x.nome)+'</strong><small>'+
+    esc([x.cidade,x.estado].filter(Boolean).join(' / '))+'</small>'+
+    ((pode('editar')||pode('excluir'))?'<div class="congregacao-actions">'+
+    (pode('editar')?'<button type="button" data-editar="'+esc(x.id)+'">Editar</button>':'')+
+    (pode('excluir')?'<button type="button" class="excluir" data-excluir="'+esc(x.id)+'">Excluir</button>':'')+
+    '</div>':'')+'</div>').join(''):'Nenhuma congregação cadastrada.';
+}
+cancelar.addEventListener('click',()=>{limparEdicao();msg.textContent='Edição cancelada.'});
+lista.addEventListener('click',async e=>{
+  const editar=e.target.closest('[data-editar]');
+  if(editar){
+    const x=congregacoes.find(item=>String(item.id)===editar.dataset.editar);
+    if(!x||!pode('editar'))return;
+    editId.value=x.id;form.elements.nome.value=x.nome||'';
+    form.elements.tipo.value=x.tipo||'CONGREGACAO';
+    form.elements.endereco.value=x.endereco||'';
+    tituloForm.textContent='Editar congregação';salvar.textContent='Salvar alteração';
+    cancelar.hidden=false;msg.textContent='';
+    form.scrollIntoView({behavior:'smooth',block:'start'});
+    form.elements.nome.focus();return;
+  }
+  const excluir=e.target.closest('[data-excluir]');
+  if(!excluir||!pode('excluir'))return;
+  const x=congregacoes.find(item=>String(item.id)===excluir.dataset.excluir);
+  if(!x||!confirm('Excluir a congregação "'+x.nome+'"?'))return;
+  excluir.disabled=true;excluir.textContent='Excluindo...';msg.textContent='';
+  try{
+    await api('/api/congregacoes/'+encodeURIComponent(x.id),{method:'DELETE'});
+    if(editId.value===String(x.id))limparEdicao();
+    await carregar();msg.textContent='Congregação excluída com sucesso.';
+  }catch(err){msg.textContent=err.message;excluir.disabled=false;excluir.textContent='Excluir'}
+});
+form.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const id=editId.value;
+  if(!pode(id?'editar':'inserir')){msg.textContent='Você não tem permissão para esta operação.';return}
+  salvar.disabled=true;cancelar.disabled=true;salvar.textContent='Gravando...';msg.textContent='';
+  try{
+    const dados=Object.fromEntries(new FormData(form));
+    dados.nome=dados.nome.trim();dados.endereco=dados.endereco.trim();
+    await api(id?'/api/congregacoes/'+encodeURIComponent(id):'/api/congregacoes',{
+      method:id?'PUT':'POST',body:JSON.stringify(dados)
+    });
+    limparEdicao();await carregar();
+    msg.textContent=id?'Congregação alterada com sucesso.':'Gravado com sucesso.';
+  }catch(err){msg.textContent=err.message}
+  finally{salvar.disabled=false;cancelar.disabled=false;salvar.textContent=editId.value?'Salvar alteração':'Gravar'}
+});
+(async()=>{
+  try{
+    const acesso=await api('/api/acessos/me');
+    permissoes=new Set(acesso.permissoes||[]);
+    if(!pode('inserir'))form.hidden=true;
+    await carregar();
+  }catch(err){lista.textContent=err.message}
+})();
+</script></body></html>
