@@ -164,6 +164,20 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
     ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS numero VARCHAR(30);
     CREATE UNIQUE INDEX IF NOT EXISTS ux_pessoas_cpf_denominacao ON pessoas(denominacao_id, cpf) WHERE cpf IS NOT NULL;
 
+    -- Recuperação segura de senha por código enviado ao e-mail cadastrado.
+    CREATE TABLE IF NOT EXISTS recuperacoes_senha (
+      id BIGSERIAL PRIMARY KEY,
+      usuario_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+      codigo_hash VARCHAR(64) NOT NULL,
+      tentativas INTEGER NOT NULL DEFAULT 0,
+      expira_em TIMESTAMPTZ NOT NULL,
+      confirmado_em TIMESTAMPTZ,
+      usado BOOLEAN NOT NULL DEFAULT FALSE,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS ix_recuperacoes_senha_usuario
+      ON recuperacoes_senha(usuario_id,criado_em DESC);
+
     -- Catálogos configurados pela própria denominação, cidade ou congregação.
     CREATE TABLE IF NOT EXISTS tipos_atividades (
       id BIGSERIAL PRIMARY KEY,
