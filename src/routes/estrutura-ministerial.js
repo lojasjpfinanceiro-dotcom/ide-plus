@@ -92,12 +92,17 @@ router.get('/categorias',async(req,res,next)=>{
       EXISTS(SELECT 1 FROM categorias_ocultas o
         WHERE o.categoria_id=c.id AND o.denominacao_id=c.denominacao_id
           AND o.cidade_ministerial_id IS NOT DISTINCT FROM $3::bigint
-          AND o.congregacao_id IS NOT DISTINCT FROM $4::bigint) AS oculta
+          AND (o.congregacao_id IS NULL OR o.congregacao_id IS NOT DISTINCT FROM $4::bigint)) AS oculta,
+      EXISTS(SELECT 1 FROM categorias_ocultas o
+        WHERE o.categoria_id=c.id AND o.denominacao_id=c.denominacao_id
+          AND o.cidade_ministerial_id IS NOT DISTINCT FROM $3::bigint
+          AND o.congregacao_id IS NOT DISTINCT FROM $4::bigint) AS oculta_propria
       FROM categorias_ministeriais c
       WHERE c.denominacao_id=$1 AND c.ativo=TRUE AND c.modulo=$2${s.sql}
       ORDER BY c.nome`,[req.user.denominacao_id,modulo,local?.city??null,local?.church??null,...s.params]);
     res.json(q.rows.map(x=>({...x,pode_editar:canEdit(req.user,x),
-      pode_ocultar:!!local?.city&&!canEdit(req.user,x)})));
+      pode_ocultar:!!local?.city&&!canEdit(req.user,x)&&!x.oculta,
+      pode_restaurar:!!local?.city&&!canEdit(req.user,x)&&x.oculta_propria})));
   }catch(e){next(e);}
 });
 router.post('/categorias/:id/ocultar',async(req,res,next)=>{
@@ -184,7 +189,7 @@ router.get('/tipos',async(req,res,next)=>{
         AND NOT EXISTS(SELECT 1 FROM categorias_ocultas o
           WHERE o.categoria_id=c.id AND o.denominacao_id=c.denominacao_id
             AND o.cidade_ministerial_id IS NOT DISTINCT FROM $3::bigint
-            AND o.congregacao_id IS NOT DISTINCT FROM $4::bigint)
+            AND (o.congregacao_id IS NULL OR o.congregacao_id IS NOT DISTINCT FROM $4::bigint))
       ORDER BY c.nome,t.nome`,
       [req.user.denominacao_id,modulo,local?.city??null,local?.church??null,...s.params]);
     res.json(q.rows.map(x=>({...x,pode_editar:canEdit(req.user,x)})));
