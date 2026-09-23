@@ -101,9 +101,10 @@ router.post('/categorias',async(req,res,next)=>{
     if(!s)return res.status(403).json({erro:'Seu acesso precisa de uma área definida.'});
     if(!nome||nome.length>120)return res.status(400).json({erro:'Informe um nome de até 120 caracteres.'});
     const q=await db.query(`INSERT INTO categorias_ministeriais
-      (denominacao_id,cidade_ministerial_id,congregacao_id,modulo,nome,descricao,criado_por)
-      VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [req.user.denominacao_id,s.city,s.church,modulo,nome,clean(req.body.descricao)||null,req.user.id]);
+      (denominacao_id,cidade_ministerial_id,congregacao_id,modulo,nome,descricao,estrutura_aulas,criado_por)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [req.user.denominacao_id,s.city,s.church,modulo,nome,clean(req.body.descricao)||null,
+        modulo==='DISCIPULADO'&&req.body.estrutura_aulas===true,req.user.id]);
     res.status(201).json(q.rows[0]);
   }catch(e){error(e,res,next);}
 });
@@ -113,9 +114,16 @@ router.put('/categorias/:id',async(req,res,next)=>{
     if(!await autorizado(req,res,row.modulo,'editar'))return;
     const nome=clean(req.body.nome);
     if(!nome||nome.length>120)return res.status(400).json({erro:'Informe um nome de até 120 caracteres.'});
-    const q=await db.query(`UPDATE categorias_ministeriais SET nome=$1,descricao=$2
-      WHERE id=$3 AND denominacao_id=$4 RETURNING *`,
-      [nome,clean(req.body.descricao)||null,row.id,req.user.denominacao_id]);
+    const aulas=row.modulo==='DISCIPULADO'&&req.body.estrutura_aulas===true;
+    if(row.estrutura_aulas&&!aulas){
+      const linked=await db.query(`SELECT 1 FROM planos_discipulado p
+        JOIN tipos_atividades t ON t.id=p.tipo_atividade_id
+        WHERE t.categoria_id=$1 AND p.ativo=TRUE LIMIT 1`,[row.id]);
+      if(linked.rowCount)return res.status(409).json({erro:'Há planos vinculados a esta categoria de aulas.'});
+    }
+    const q=await db.query(`UPDATE categorias_ministeriais SET nome=$1,descricao=$2,estrutura_aulas=$3
+      WHERE id=$4 AND denominacao_id=$5 RETURNING *`,
+      [nome,clean(req.body.descricao)||null,aulas,row.id,req.user.denominacao_id]);
     res.json(q.rows[0]);
   }catch(e){error(e,res,next);}
 });
@@ -135,7 +143,7 @@ router.get('/tipos',async(req,res,next)=>{
     const modulo=clean(req.query.modulo).toUpperCase();
     if(!await autorizado(req,res,modulo,'ler'))return;
     const s=visible(req.user,'t',3);
-    const q=await db.query(`SELECT t.*,c.nome AS categoria_nome,c.modulo
+    const q=await db.query(`SELECT t.*,c.nome AS categoria_nome,c.modulo,c.estrutura_aulas
       FROM tipos_atividades t JOIN categorias_ministeriais c
         ON c.id=t.categoria_id AND c.ativo=TRUE AND c.denominacao_id=t.denominacao_id
       WHERE t.denominacao_id=$1 AND c.modulo=$2 AND t.ativo=TRUE${s.sql}
@@ -181,18 +189,36 @@ router.delete('/tipos/:id',async(req,res,next)=>{
     const row=await owned(req,res,'tipos_atividades',req.params.id);if(!row)return;
     const categoria=await categoriaAcessivel(req,res,row.categoria_id);if(!categoria)return;
     if(!await autorizado(req,res,categoria.modulo,'editar'))return;
+    const used=await db.query('SELECT 1 FROM planos_discipulado WHERE tipo_atividade_id=$1 AND ativo=TRUE LIMIT 1',[row.id]);
+    if(used.rowCount)return res.status(409).json({erro:'Este tipo está vinculado a um plano de aulas.'});
     await db.query('UPDATE tipos_atividades SET ativo=FALSE WHERE id=$1 AND denominacao_id=$2',
       [row.id,req.user.denominacao_id]);
     res.json({ok:true});
   }catch(e){next(e);}
 });
+async function tipoAulaAcessivel(req,res,value,target){
+  if(!id(value)){res.status(400).json({erro:'Escolha um tipo de aula.'});return null;}
+  const s=visible(req.user,'t',3);
+  const q=await db.query(`SELECT t.*,c.estrutura_aulas FROM tipos_atividades t
+    JOIN categorias_ministeriais c ON c.id=t.categoria_id
+    WHERE t.id=$1 AND t.denominacao_id=$2 AND t.ativo=TRUE AND c.ativo=TRUE
+      AND c.modulo='DISCIPULADO' AND c.estrutura_aulas=TRUE${s.sql}`,
+    [id(value),req.user.denominacao_id,...s.params]);
+  if(!q.rowCount){res.status(400).json({erro:'Selecione um tipo vinculado a uma categoria de aulas.'});return null;}
+  if(!categoriaCompativel(q.rows[0],target)){
+    res.status(400).json({erro:'Este tipo de aula pertence a outra área.'});return null;
+  }
+  return q.rows[0];
+}
 router.get('/planos',requirePermission('discipulado.estrutura.visualizar'),async(req,res,next)=>{
   try{
     const s=visible(req.user,'p');
-    const q=await db.query(`SELECT p.*,COUNT(a.id)::int AS total_aulas
+    const q=await db.query(`SELECT p.*,t.nome AS tipo_nome,c.nome AS categoria_nome,COUNT(a.id)::int AS total_aulas
       FROM planos_discipulado p LEFT JOIN aulas_discipulado a ON a.plano_id=p.id AND a.ativo=TRUE
+      LEFT JOIN tipos_atividades t ON t.id=p.tipo_atividade_id
+      LEFT JOIN categorias_ministeriais c ON c.id=t.categoria_id
       WHERE p.denominacao_id=$1 AND p.ativo=TRUE${s.sql}
-      GROUP BY p.id ORDER BY p.nome`,[req.user.denominacao_id,...s.params]);
+      GROUP BY p.id,t.nome,c.nome ORDER BY p.nome`,[req.user.denominacao_id,...s.params]);
     res.json(q.rows.map(x=>({...x,pode_editar:canEdit(req.user,x)})));
   }catch(e){next(e);}
 });
@@ -201,10 +227,11 @@ router.post('/planos',requirePermission('discipulado.estrutura.gerenciar'),async
     const s=scope(req.user),nome=clean(req.body.nome);
     if(!s)return res.status(403).json({erro:'Seu acesso precisa de uma área definida.'});
     if(!nome||nome.length>160)return res.status(400).json({erro:'Informe um nome de até 160 caracteres.'});
+    const tipo=await tipoAulaAcessivel(req,res,req.body.tipo_atividade_id,s);if(!tipo)return;
     const q=await db.query(`INSERT INTO planos_discipulado
-      (denominacao_id,cidade_ministerial_id,congregacao_id,nome,descricao,criado_por)
-      VALUES($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [req.user.denominacao_id,s.city,s.church,nome,clean(req.body.descricao)||null,req.user.id]);
+      (denominacao_id,cidade_ministerial_id,congregacao_id,nome,descricao,tipo_atividade_id,criado_por)
+      VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [req.user.denominacao_id,s.city,s.church,nome,clean(req.body.descricao)||null,tipo.id,req.user.id]);
     res.status(201).json(q.rows[0]);
   }catch(e){error(e,res,next);}
 });
@@ -213,8 +240,15 @@ router.put('/planos/:id',requirePermission('discipulado.estrutura.gerenciar'),as
     const row=await owned(req,res,'planos_discipulado',req.params.id);if(!row)return;
     const nome=clean(req.body.nome);
     if(!nome||nome.length>160)return res.status(400).json({erro:'Informe um nome de até 160 caracteres.'});
-    const q=await db.query('UPDATE planos_discipulado SET nome=$1,descricao=$2 WHERE id=$3 AND denominacao_id=$4 RETURNING *',
-      [nome,clean(req.body.descricao)||null,row.id,req.user.denominacao_id]);
+    const typeId=req.body.tipo_atividade_id||row.tipo_atividade_id;
+    if(typeId){
+      const tipo=await tipoAulaAcessivel(req,res,typeId,
+        {city:row.cidade_ministerial_id,church:row.congregacao_id});
+      if(!tipo)return;
+    }
+    const q=await db.query(`UPDATE planos_discipulado SET nome=$1,descricao=$2,tipo_atividade_id=$3
+      WHERE id=$4 AND denominacao_id=$5 RETURNING *`,
+      [nome,clean(req.body.descricao)||null,typeId||null,row.id,req.user.denominacao_id]);
     res.json(q.rows[0]);
   }catch(e){error(e,res,next);}
 });
@@ -239,7 +273,13 @@ function lessonBody(body){
   const duracao=clean(body.duracao_minutos)?Number(body.duracao_minutos):null;
   if(!titulo||titulo.length>180||!Number.isSafeInteger(ordem)||ordem<1||
      (duracao!==null&&(!Number.isSafeInteger(duracao)||duracao<1)))return null;
-  return {titulo,ordem,duracao,objetivo:clean(body.objetivo)||null,conteudo:clean(body.conteudo)||null};
+  const data=clean(body.data_prevista),hora=clean(body.hora_prevista);
+  if((data&&!/^\d{4}-\d{2}-\d{2}$/.test(data))||(hora&&!/^\d{2}:\d{2}$/.test(hora)))
+    return null;
+  return {titulo,ordem,duracao,data:data||null,hora:hora||null,
+    objetivo:clean(body.objetivo)||null,conteudo:clean(body.conteudo)||null,
+    metodologia:clean(body.metodologia)||null,materiais:clean(body.materiais)||null,
+    atividade:clean(body.atividade)||null};
 }
 router.post('/planos/:id/aulas',requirePermission('discipulado.estrutura.gerenciar'),async(req,res,next)=>{
   try{
@@ -247,9 +287,9 @@ router.post('/planos/:id/aulas',requirePermission('discipulado.estrutura.gerenci
     const a=lessonBody(req.body);
     if(!a)return res.status(400).json({erro:'Informe número e título da aula; duração deve ser positiva.'});
     const q=await db.query(`INSERT INTO aulas_discipulado
-      (plano_id,ordem,titulo,objetivo,conteudo,duracao_minutos)
-      VALUES($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [plan.id,a.ordem,a.titulo,a.objetivo,a.conteudo,a.duracao]);
+      (plano_id,ordem,titulo,objetivo,conteudo,duracao_minutos,data_prevista,hora_prevista,metodologia,materiais,atividade)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      [plan.id,a.ordem,a.titulo,a.objetivo,a.conteudo,a.duracao,a.data,a.hora,a.metodologia,a.materiais,a.atividade]);
     res.status(201).json(q.rows[0]);
   }catch(e){next(e);}
 });
@@ -265,8 +305,9 @@ router.put('/aulas/:id',requirePermission('discipulado.estrutura.gerenciar'),asy
     const a=lessonBody(req.body);
     if(!a)return res.status(400).json({erro:'Informe número e título da aula; duração deve ser positiva.'});
     const result=await db.query(`UPDATE aulas_discipulado SET ordem=$1,titulo=$2,objetivo=$3,
-      conteudo=$4,duracao_minutos=$5 WHERE id=$6 AND plano_id=$7 RETURNING *`,
-      [a.ordem,a.titulo,a.objetivo,a.conteudo,a.duracao,q.rows[0].id,q.rows[0].plano_id]);
+      conteudo=$4,duracao_minutos=$5,data_prevista=$6,hora_prevista=$7,metodologia=$8,materiais=$9,atividade=$10
+      WHERE id=$11 AND plano_id=$12 RETURNING *`,
+      [a.ordem,a.titulo,a.objetivo,a.conteudo,a.duracao,a.data,a.hora,a.metodologia,a.materiais,a.atividade,q.rows[0].id,q.rows[0].plano_id]);
     res.json(result.rows[0]);
   }catch(e){next(e);}
 });
