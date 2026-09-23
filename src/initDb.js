@@ -292,6 +292,11 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
       WHERE codigo='discipulado.estrutura.gerenciar';
   `);
 
+  // Planos sem tipo pertencem ao fluxo antigo, anterior à escolha de categoria/tipo.
+  // Exclui também as lições desses planos pela chave estrangeira ON DELETE CASCADE.
+  await db.query(`DELETE FROM planos_discipulado
+    WHERE tipo_atividade_id IS NULL`);
+
   // Remove o tipo genérico antigo na denominação, sem afetar tipos locais.
   // Uma eventual referência histórica a plano mantém o registro, mas inativo.
   await db.query(`DELETE FROM tipos_atividades t USING categorias_ministeriais c
