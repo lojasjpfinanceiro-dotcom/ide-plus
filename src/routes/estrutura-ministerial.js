@@ -1,7 +1,7 @@
 const express=require('express');
 const db=require('../db');
 const auth=require('../middleware/auth');
-const {requirePermission,president}=require('../middleware/permissions');
+const {requirePermission,permissionsFor,president}=require('../middleware/permissions');
 const router=express.Router();
 router.use(auth);
 
@@ -58,43 +58,120 @@ function error(e,res,next){
   next(e);
 }
 
-router.get('/tipos',requirePermission('atividades.visualizar'),async(req,res,next)=>{
+const moduloValido=m=>['CAMPANHA','DISCIPULADO'].includes(m);
+const permissao=(modulo,acao)=>modulo==='CAMPANHA'
+  ?'atividades.'+(acao==='ler'?'visualizar':'gerenciar')
+  :'discipulado.estrutura.'+(acao==='ler'?'visualizar':'gerenciar');
+async function autorizado(req,res,modulo,acao){
+  if(!moduloValido(modulo)){res.status(400).json({erro:'Módulo inválido.'});return false;}
+  const p=await permissionsFor(req.user);
+  if(p.has('*')||p.has(permissao(modulo,acao)))return true;
+  res.status(403).json({erro:'Você não tem permissão para este módulo.'});return false;
+}
+async function categoriaAcessivel(req,res,value){
+  if(!id(value)){res.status(400).json({erro:'Categoria inválida.'});return null;}
+  const s=visible(req.user,'c',3);
+  const q=await db.query(`SELECT c.* FROM categorias_ministeriais c
+    WHERE c.id=$1 AND c.denominacao_id=$2 AND c.ativo=TRUE${s.sql}`,
+    [id(value),req.user.denominacao_id,...s.params]);
+  if(!q.rowCount){res.status(404).json({erro:'Categoria não encontrada nesta área.'});return null;}
+  return q.rows[0];
+}
+router.get('/categorias',async(req,res,next)=>{
   try{
-    const s=visible(req.user,'t');
-    const q=await db.query(`SELECT t.* FROM tipos_atividades t
-      WHERE t.denominacao_id=$1 AND t.ativo=TRUE${s.sql}
-      ORDER BY t.categoria,t.nome`,[req.user.denominacao_id,...s.params]);
+    const modulo=clean(req.query.modulo).toUpperCase();
+    if(!await autorizado(req,res,modulo,'ler'))return;
+    const s=visible(req.user,'c',3);
+    const q=await db.query(`SELECT c.* FROM categorias_ministeriais c
+      WHERE c.denominacao_id=$1 AND c.ativo=TRUE AND c.modulo=$2${s.sql}
+      ORDER BY c.nome`,[req.user.denominacao_id,modulo,...s.params]);
     res.json(q.rows.map(x=>({...x,pode_editar:canEdit(req.user,x)})));
   }catch(e){next(e);}
 });
-router.post('/tipos',requirePermission('atividades.gerenciar'),async(req,res,next)=>{
+router.post('/categorias',async(req,res,next)=>{
   try{
-    const s=scope(req.user),categoria=clean(req.body.categoria).toUpperCase(),nome=clean(req.body.nome);
+    const modulo=clean(req.body.modulo).toUpperCase(),nome=clean(req.body.nome),s=scope(req.user);
+    if(!await autorizado(req,res,modulo,'editar'))return;
     if(!s)return res.status(403).json({erro:'Seu acesso precisa de uma área definida.'});
-    if(!['CULTO','EVENTO'].includes(categoria)||!nome||nome.length>120)
-      return res.status(400).json({erro:'Informe culto ou evento e um nome de até 120 caracteres.'});
-    const q=await db.query(`INSERT INTO tipos_atividades
-      (denominacao_id,cidade_ministerial_id,congregacao_id,categoria,nome,descricao,criado_por)
+    if(!nome||nome.length>120)return res.status(400).json({erro:'Informe um nome de até 120 caracteres.'});
+    const q=await db.query(`INSERT INTO categorias_ministeriais
+      (denominacao_id,cidade_ministerial_id,congregacao_id,modulo,nome,descricao,criado_por)
       VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [req.user.denominacao_id,s.city,s.church,categoria,nome,clean(req.body.descricao)||null,req.user.id]);
+      [req.user.denominacao_id,s.city,s.church,modulo,nome,clean(req.body.descricao)||null,req.user.id]);
     res.status(201).json(q.rows[0]);
   }catch(e){error(e,res,next);}
 });
-router.put('/tipos/:id',requirePermission('atividades.gerenciar'),async(req,res,next)=>{
+router.put('/categorias/:id',async(req,res,next)=>{
   try{
-    const row=await owned(req,res,'tipos_atividades',req.params.id);if(!row)return;
-    const categoria=clean(req.body.categoria).toUpperCase(),nome=clean(req.body.nome);
-    if(!['CULTO','EVENTO'].includes(categoria)||!nome||nome.length>120)
-      return res.status(400).json({erro:'Informe culto ou evento e um nome de até 120 caracteres.'});
-    const q=await db.query(`UPDATE tipos_atividades SET categoria=$1,nome=$2,descricao=$3
-      WHERE id=$4 AND denominacao_id=$5 RETURNING *`,
-      [categoria,nome,clean(req.body.descricao)||null,row.id,req.user.denominacao_id]);
+    const row=await owned(req,res,'categorias_ministeriais',req.params.id);if(!row)return;
+    if(!await autorizado(req,res,row.modulo,'editar'))return;
+    const nome=clean(req.body.nome);
+    if(!nome||nome.length>120)return res.status(400).json({erro:'Informe um nome de até 120 caracteres.'});
+    const q=await db.query(`UPDATE categorias_ministeriais SET nome=$1,descricao=$2
+      WHERE id=$3 AND denominacao_id=$4 RETURNING *`,
+      [nome,clean(req.body.descricao)||null,row.id,req.user.denominacao_id]);
     res.json(q.rows[0]);
   }catch(e){error(e,res,next);}
 });
-router.delete('/tipos/:id',requirePermission('atividades.gerenciar'),async(req,res,next)=>{
+router.delete('/categorias/:id',async(req,res,next)=>{
+  try{
+    const row=await owned(req,res,'categorias_ministeriais',req.params.id);if(!row)return;
+    if(!await autorizado(req,res,row.modulo,'editar'))return;
+    const linked=await db.query('SELECT 1 FROM tipos_atividades WHERE categoria_id=$1 AND ativo=TRUE LIMIT 1',[row.id]);
+    if(linked.rowCount)return res.status(409).json({erro:'Exclua primeiro os tipos desta categoria.'});
+    await db.query('UPDATE categorias_ministeriais SET ativo=FALSE WHERE id=$1 AND denominacao_id=$2',
+      [row.id,req.user.denominacao_id]);
+    res.json({ok:true});
+  }catch(e){next(e);}
+});
+router.get('/tipos',async(req,res,next)=>{
+  try{
+    const modulo=clean(req.query.modulo).toUpperCase();
+    if(!await autorizado(req,res,modulo,'ler'))return;
+    const s=visible(req.user,'t',3);
+    const q=await db.query(`SELECT t.*,c.nome AS categoria_nome,c.modulo
+      FROM tipos_atividades t JOIN categorias_ministeriais c
+        ON c.id=t.categoria_id AND c.ativo=TRUE AND c.denominacao_id=t.denominacao_id
+      WHERE t.denominacao_id=$1 AND c.modulo=$2 AND t.ativo=TRUE${s.sql}
+      ORDER BY c.nome,t.nome`,[req.user.denominacao_id,modulo,...s.params]);
+    res.json(q.rows.map(x=>({...x,pode_editar:canEdit(req.user,x)})));
+  }catch(e){next(e);}
+});
+router.post('/tipos',async(req,res,next)=>{
+  try{
+    const categoria=await categoriaAcessivel(req,res,req.body.categoria_id);if(!categoria)return;
+    if(!await autorizado(req,res,categoria.modulo,'editar'))return;
+    const s=scope(req.user),nome=clean(req.body.nome);
+    if(!s)return res.status(403).json({erro:'Seu acesso precisa de uma área definida.'});
+    if(!nome||nome.length>120)return res.status(400).json({erro:'Informe um nome de até 120 caracteres.'});
+    const q=await db.query(`INSERT INTO tipos_atividades
+      (denominacao_id,cidade_ministerial_id,congregacao_id,categoria_id,nome,descricao,criado_por)
+      VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [req.user.denominacao_id,s.city,s.church,categoria.id,nome,clean(req.body.descricao)||null,req.user.id]);
+    res.status(201).json(q.rows[0]);
+  }catch(e){error(e,res,next);}
+});
+router.put('/tipos/:id',async(req,res,next)=>{
   try{
     const row=await owned(req,res,'tipos_atividades',req.params.id);if(!row)return;
+    const oldCategory=await categoriaAcessivel(req,res,row.categoria_id);if(!oldCategory)return;
+    if(!await autorizado(req,res,oldCategory.modulo,'editar'))return;
+    const categoria=await categoriaAcessivel(req,res,req.body.categoria_id);if(!categoria)return;
+    if(categoria.modulo!==oldCategory.modulo)
+      return res.status(400).json({erro:'Escolha uma categoria do mesmo módulo.'});
+    const nome=clean(req.body.nome);
+    if(!nome||nome.length>120)return res.status(400).json({erro:'Informe um nome de até 120 caracteres.'});
+    const q=await db.query(`UPDATE tipos_atividades SET categoria_id=$1,categoria=NULL,nome=$2,descricao=$3
+      WHERE id=$4 AND denominacao_id=$5 RETURNING *`,
+      [categoria.id,nome,clean(req.body.descricao)||null,row.id,req.user.denominacao_id]);
+    res.json(q.rows[0]);
+  }catch(e){error(e,res,next);}
+});
+router.delete('/tipos/:id',async(req,res,next)=>{
+  try{
+    const row=await owned(req,res,'tipos_atividades',req.params.id);if(!row)return;
+    const categoria=await categoriaAcessivel(req,res,row.categoria_id);if(!categoria)return;
+    if(!await autorizado(req,res,categoria.modulo,'editar'))return;
     await db.query('UPDATE tipos_atividades SET ativo=FALSE WHERE id=$1 AND denominacao_id=$2',
       [row.id,req.user.denominacao_id]);
     res.json({ok:true});
