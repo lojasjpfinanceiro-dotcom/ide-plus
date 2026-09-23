@@ -11,7 +11,7 @@ async function enviarCodigo(){
     const d=await r.json(); if(!r.ok) throw new Error(d.erro||'Não foi possível enviar o código.');
     document.getElementById('etapaEmail').style.display='none';
     document.getElementById('etapaCodigo').style.display='block';
-    mensagem(d.mensagem||'Se o e-mail estiver cadastrado, o código será enviado.');
+    mensagem('Código enviado. Confira sua caixa de entrada e, se não encontrar, verifique também a pasta Spam/Lixo eletrônico.');
   }catch(e){mensagem(e.message);}
 }
 
