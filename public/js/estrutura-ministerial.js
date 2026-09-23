@@ -69,7 +69,7 @@ async function loadTypes(){
   ).join(''):'Nenhum tipo cadastrado neste módulo.';
 }
 async function loadCatalog(){
-  resetCategory();resetType();
+  resetCategory();resetType();resetPlan();resetLesson();
   $('msgCategoria').textContent='';$('msgTipo').textContent='';
   document.querySelectorAll('.moduloNome').forEach(x=>x.textContent=modulo==='CAMPANHA'?'Campanha':'Discipulado');
   $('areaCategorias').hidden=!can(permissionFor(modulo));
