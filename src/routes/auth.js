@@ -17,7 +17,7 @@ router.post('/esqueci-senha',async(req,res)=>{
     await db.query('UPDATE recuperacoes_senha SET usado=TRUE WHERE usuario_id=$1 AND usado=FALSE',[usuario.id]);
     const ins=await db.query("INSERT INTO recuperacoes_senha(usuario_id,codigo_hash,expira_em) VALUES($1,$2,NOW()+INTERVAL '10 minutes') RETURNING id",[usuario.id,codigoHash]);
     try{ await enviarCodigoRecuperacao(usuario.email,codigo); }
-    catch(e){ await db.query('DELETE FROM recuperacoes_senha WHERE id=$1',[ins.rows[0].id]); console.error('Falha SMTP:',e.message); return res.status(503).json({erro:'O envio de e-mail ainda não está configurado no IDE+.'}); }
+    catch(e){ await db.query('DELETE FROM recuperacoes_senha WHERE id=$1',[ins.rows[0].id]); console.error('Falha SMTP:',e.code||'',e.message,e.smtpMessage||''); return res.status(503).json({erro:e.message||'Falha no envio do código.',codigo:e.code||'SMTP_SEND'}); }
     res.json(resposta);
   }catch(e){console.error(e);res.status(500).json({erro:'Não foi possível iniciar a recuperação de senha.'});}
 });
