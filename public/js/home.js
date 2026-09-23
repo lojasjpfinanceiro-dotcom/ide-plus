@@ -32,7 +32,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
     if(can('cidades.visualizar')||can('congregacoes.visualizar'))
       links.push(['/estrutura.html','🏙 Estrutura']);
     if(can('atividades.visualizar')||can('discipulado.estrutura.visualizar'))
-      links.push(['/estrutura-ministerial.html','📚 Cultos, eventos e aulas']);
+      links.push(['/estrutura-ministerial.html','📚 Estrutura ministerial']);
     if(p.has('*'))links.push(['/usuarios.html','🔐 Usuários e permissões']);
     for(const [url,label] of links){
       const a=document.createElement('a');a.href=url;a.textContent=label;
