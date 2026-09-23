@@ -1,25 +1,40 @@
-const db=require('../db');
+const db = require('../db');
+const president = u => ['MASTER','PASTOR_PRESIDENTE'].includes(String(u.perfil || '').toUpperCase());
+const local = u => String(u.perfil || '').toUpperCase() === 'PASTOR_LOCAL';
+const localDefaults = [
+  'cidades.visualizar',
+  'congregacoes.visualizar','congregacoes.inserir','congregacoes.editar','congregacoes.excluir',
+  'congregacoes.gerenciar','pessoas.visualizar','pessoas.inserir','pessoas.editar',
+  'pessoas.excluir','configuracoes.visualizar','configuracoes.tipos_congregacao',
+  'relatorios.visualizar','resultados.cidades'
+];
 
-async function permissionsFor(user){
-  if(['MASTER','PASTOR_PRESIDENTE'].includes(String(user.perfil||'').toUpperCase())) return new Set(['*']);
-  const q=await db.query(`
-    SELECT DISTINCT p.codigo
-    FROM usuario_permissoes up
+async function permissionsFor(user) {
+  if (president(user)) return new Set(['*']);
+  const q = await db.query(`
+    SELECT DISTINCT p.codigo FROM usuario_permissoes up
     JOIN permissoes p ON p.id=up.permissao_id
     WHERE up.usuario_id=$1 AND up.ativo=TRUE
     UNION
-    SELECT DISTINCT p.codigo
-    FROM usuario_cargos uc
-    JOIN cargo_permissoes cp ON cp.cargo_id=uc.cargo_id
+    SELECT DISTINCT p.codigo FROM usuario_cargos uc
+    JOIN cargos c ON c.id=uc.cargo_id AND c.denominacao_id=$2 AND c.ativo=TRUE
+    JOIN cargo_permissoes cp ON cp.cargo_id=c.id
     JOIN permissoes p ON p.id=cp.permissao_id
     WHERE uc.usuario_id=$1 AND uc.ativo=TRUE
-  `,[user.id]);
-  return new Set(q.rows.map(r=>r.codigo));
+  `, [user.id,user.denominacao_id]);
+  const result = new Set(q.rows.map(r => r.codigo));
+  if (result.has('congregacoes.gerenciar'))
+    ['visualizar','inserir','editar','excluir'].forEach(action => result.add('congregacoes.'+action));
+  if (local(user)) localDefaults.forEach(code => result.add(code));
+  return result;
 }
-function requirePermission(code){
- return async(req,res,next)=>{
-  try{const p=await permissionsFor(req.user);if(p.has('*')||p.has(code))return next();return res.status(403).json({erro:'Você não tem permissão para esta operação.'});}
-  catch(e){console.error(e);return res.status(500).json({erro:'Erro ao validar permissão.'});}
- };
+function requirePermission(code) {
+  return async (req,res,next) => {
+    try {
+      const p = await permissionsFor(req.user);
+      if (p.has('*') || p.has(code)) return next();
+      res.status(403).json({ erro: 'Você não tem permissão para esta operação.' });
+    } catch (e) { next(e); }
+  };
 }
-module.exports={permissionsFor,requirePermission};
+module.exports = { permissionsFor, requirePermission, president };
