@@ -4,7 +4,9 @@ const base='/api/estrutura-ministerial';
 const headers={'Content-Type':'application/json',Authorization:'Bearer '+token};
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-let permissions=new Set(),types=[],plans=[],lessons=[],selectedPlan=null;
+let permissions=new Set(),categories=[],types=[],plans=[],lessons=[],selectedPlan=null;
+let modulo='CAMPANHA';
+const permissionFor=(m,edit=false)=>m==='CAMPANHA'?'atividades.'+(edit?'gerenciar':'visualizar'):'discipulado.estrutura.'+(edit?'gerenciar':'visualizar');
 const can=code=>permissions.has('*')||permissions.has(code);
 async function api(path,options={}){
   const r=await fetch(base+path,{headers,...options});
@@ -14,6 +16,9 @@ async function api(path,options={}){
   return data;
 }
 const area=x=>x.congregacao_id?'Congregação':x.cidade_ministerial_id?'Cidade':'Denominação';
+function resetCategory(){
+  $('formCategoria').reset();$('categoriaId').value='';$('salvarCategoria').textContent='Gravar categoria';
+}
 function resetType(){
   $('formTipo').reset();$('tipoId').value='';$('salvarTipo').textContent='Gravar tipo';
 }
@@ -25,19 +30,50 @@ function resetLesson(){
   $('aulaOrdem').value=lessons.length?Math.max(...lessons.map(x=>x.ordem))+1:1;
   $('salvarAula').textContent='Gravar aula';
 }
+$('limparCategoria').onclick=resetCategory;
 $('limparTipo').onclick=resetType;
 $('limparPlano').onclick=resetPlan;
 $('limparAula').onclick=resetLesson;
+async function loadCategories(){
+  categories=await api('/categorias?modulo='+modulo);
+  $('listaCategorias').innerHTML=categories.length?categories.map(x=>
+    '<div class="ministry-item"><strong>'+esc(x.nome)+'</strong>'+
+    '<small>'+esc(area(x))+'</small>'+
+    (x.descricao?'<p>'+esc(x.descricao)+'</p>':'')+
+    (x.pode_editar&&can(permissionFor(modulo,true))?
+      '<button type="button" data-category-edit="'+x.id+'">Alterar</button> '+
+      '<button type="button" data-category-delete="'+x.id+'">Excluir</button>':'')+'</div>'
+  ).join(''):'Nenhuma categoria cadastrada neste módulo.';
+  $('tipoCategoria').innerHTML='<option value="">Selecione a categoria</option>'+
+    categories.map(x=>'<option value="'+x.id+'">'+esc(x.nome)+' • '+esc(area(x))+'</option>').join('');
+  $('formTipo').hidden=!categories.length||!can(permissionFor(modulo,true));
+}
 async function loadTypes(){
-  types=await api('/tipos');
+  types=await api('/tipos?modulo='+modulo);
   $('listaTipos').innerHTML=types.length?types.map(x=>
     '<div class="ministry-item"><strong>'+esc(x.nome)+'</strong>'+
-    '<small>'+esc(x.categoria==='CULTO'?'Culto':'Evento')+' • '+esc(area(x))+'</small>'+
+    '<small>'+esc(x.categoria_nome)+' • '+esc(area(x))+'</small>'+
     (x.descricao?'<p>'+esc(x.descricao)+'</p>':'')+
-    (x.pode_editar&&can('atividades.gerenciar')?'<button type="button" data-type-edit="'+x.id+'">Alterar</button>'+
+    (x.pode_editar&&can(permissionFor(modulo,true))?
+      '<button type="button" data-type-edit="'+x.id+'">Alterar</button> '+
       '<button type="button" data-type-delete="'+x.id+'">Excluir</button>':'')+'</div>'
-  ).join(''):'Nenhum tipo cadastrado. Comece com o primeiro culto ou evento.';
+  ).join(''):'Nenhum tipo cadastrado neste módulo.';
 }
+async function loadCatalog(){
+  resetCategory();resetType();
+  $('msgCategoria').textContent='';$('msgTipo').textContent='';
+  document.querySelectorAll('.moduloNome').forEach(x=>x.textContent=modulo==='CAMPANHA'?'Campanha':'Discipulado');
+  $('areaCategorias').hidden=!can(permissionFor(modulo));
+  $('areaTipos').hidden=!can(permissionFor(modulo));
+  $('formCategoria').hidden=!can(permissionFor(modulo,true));
+  $('areaPlanos').hidden=modulo!=='DISCIPULADO'||!can('discipulado.estrutura.visualizar');
+  $('aulasArea').hidden=true;selectedPlan=null;
+  if(can(permissionFor(modulo))){await loadCategories();await loadTypes();}
+}
+$('modulo').addEventListener('change',async()=>{
+  modulo=$('modulo').value;
+  try{await loadCatalog();}catch(err){$('msgCategoria').textContent=err.message;}
+});
 async function loadPlans(){
   plans=await api('/planos');
   $('listaPlanos').innerHTML=plans.length?plans.map(x=>
@@ -72,10 +108,22 @@ async function openPlan(id){
   resetLesson();
   $('aulasArea').scrollIntoView({behavior:'smooth',block:'start'});
 }
+$('formCategoria').onsubmit=async e=>{
+  e.preventDefault();$('salvarCategoria').disabled=true;$('msgCategoria').textContent='Gravando...';
+  try{
+    const id=$('categoriaId').value,body={modulo,nome:$('categoriaNome').value,
+      descricao:$('categoriaDescricao').value};
+    await api(id?'/categorias/'+id:'/categorias',
+      {method:id?'PUT':'POST',body:JSON.stringify(body)});
+    resetCategory();$('msgCategoria').textContent='Categoria gravada.';
+    await loadCategories();await loadTypes();
+  }catch(err){$('msgCategoria').textContent=err.message;}
+  finally{$('salvarCategoria').disabled=false;}
+};
 $('formTipo').onsubmit=async e=>{
   e.preventDefault();$('salvarTipo').disabled=true;$('msgTipo').textContent='Gravando...';
   try{
-    const id=$('tipoId').value,body={categoria:$('tipoCategoria').value,
+    const id=$('tipoId').value,body={categoria_id:$('tipoCategoria').value,
       nome:$('tipoNome').value,descricao:$('tipoDescricao').value};
     await api(id?'/tipos/'+id:'/tipos',{method:id?'PUT':'POST',body:JSON.stringify(body)});
     resetType();$('msgTipo').textContent='Tipo gravado.';await loadTypes();
@@ -103,12 +151,28 @@ $('formAula').onsubmit=async e=>{
   }catch(err){$('msgAula').textContent=err.message;}
   finally{$('salvarAula').disabled=false;}
 };
+$('listaCategorias').onclick=async e=>{
+  const edit=e.target.closest('[data-category-edit]'),del=e.target.closest('[data-category-delete]');
+  if(edit){
+    const x=categories.find(x=>String(x.id)===edit.dataset.categoryEdit);
+    if(!x)return;
+    $('categoriaId').value=x.id;$('categoriaNome').value=x.nome;
+    $('categoriaDescricao').value=x.descricao||'';
+    $('salvarCategoria').textContent='Salvar alteração';
+    $('formCategoria').scrollIntoView({behavior:'smooth'});
+  }
+  if(del&&confirm('Excluir esta categoria? Os tipos vinculados precisam ser excluídos antes.')){
+    try{await api('/categorias/'+del.dataset.categoryDelete,{method:'DELETE'});
+      await loadCategories();await loadTypes();}
+    catch(err){$('msgCategoria').textContent=err.message;}
+  }
+};
 $('listaTipos').onclick=async e=>{
   const edit=e.target.closest('[data-type-edit]'),del=e.target.closest('[data-type-delete]');
   if(edit){
     const x=types.find(x=>String(x.id)===edit.dataset.typeEdit);
     if(!x)return;
-    $('tipoId').value=x.id;$('tipoCategoria').value=x.categoria;
+    $('tipoId').value=x.id;$('tipoCategoria').value=String(x.categoria_id);
     $('tipoNome').value=x.nome;$('tipoDescricao').value=x.descricao||'';
     $('salvarTipo').textContent='Salvar alteração';$('formTipo').scrollIntoView({behavior:'smooth'});
   }
@@ -156,15 +220,17 @@ $('listaAulas').onclick=async e=>{
     if(!r.ok)throw new Error('Não foi possível carregar seu acesso.');
     const data=await r.json(),u=data.usuario;
     permissions=new Set(data.permissoes);
-    const typesAllowed=can('atividades.visualizar'),plansAllowed=can('discipulado.estrutura.visualizar');
-    if(!typesAllowed&&!plansAllowed)return location.href='/home.html';
+    const campaignAllowed=can('atividades.visualizar');
+    const discipleAllowed=can('discipulado.estrutura.visualizar');
+    if(!campaignAllowed&&!discipleAllowed)return location.href='/home.html';
     $('escopoTexto').textContent='Você cria modelos para '+(
       u.escopo==='DENOMINACAO'?'a denominação':u.escopo==='CIDADE'?'a sua cidade':'a sua congregação')+
       '. Os modelos gerais disponíveis também aparecem aqui.';
-    $('areaTipos').hidden=!typesAllowed;$('areaPlanos').hidden=!plansAllowed;
-    $('formTipo').hidden=!can('atividades.gerenciar');
-    $('formPlano').hidden=!can('discipulado.estrutura.gerenciar');
-    if(typesAllowed)await loadTypes();
-    if(plansAllowed)await loadPlans();
+    $('modulo').querySelector('[value="CAMPANHA"]').hidden=!campaignAllowed;
+    $('modulo').querySelector('[value="DISCIPULADO"]').hidden=!discipleAllowed;
+    modulo=campaignAllowed?'CAMPANHA':'DISCIPULADO';
+    $('modulo').value=modulo;
+    await loadCatalog();
+    if(discipleAllowed){await loadPlans();}
   }catch(err){$('escopoTexto').textContent=err.message;}
 })();
