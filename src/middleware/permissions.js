@@ -23,6 +23,11 @@ async function permissionsFor(user) {
     WHERE uc.usuario_id=$1 AND uc.ativo=TRUE
   `, [user.id,user.denominacao_id]);
   const result = new Set(q.rows.map(r => r.codigo));
+  if (user.escopo !== 'DENOMINACAO') {
+    for (const code of result)
+      if (code.startsWith('cidades.') && code !== 'cidades.visualizar' ||
+          code === 'usuarios.liberar' || code === 'pastores_locais.cadastrar') result.delete(code);
+  }
   if (result.has('congregacoes.gerenciar'))
     ['visualizar','inserir','editar','excluir'].forEach(action => result.add('congregacoes.'+action));
   if (local(user)) localDefaults.forEach(code => result.add(code));
