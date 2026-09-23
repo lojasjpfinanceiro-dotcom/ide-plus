@@ -2,55 +2,78 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Estrutura ministerial • IDE+</title><link rel="stylesheet" href="/css/app.css">
 <style>
-  .ministry-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-  .ministry-item{padding:14px 0;border-bottom:1px solid #e4e8ee}
+  .ministry-main{max-width:1180px;margin:auto}
+  .ministry-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+  .ministry-plans{display:block}
+  .ministry-card{min-width:0}
+  .ministry-card h2{margin:0;font-size:23px;line-height:1.2}
+  .ministry-card>p{margin:8px 0 16px;color:#5d7084;line-height:1.4}
+  .section-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .section-heading button,.ministry-item button,.ministry-actions button{border:1px solid #c9ddeb;border-radius:10px;padding:9px 13px;background:#f2f8fd;color:#10537c;font-weight:700;cursor:pointer}
+  .section-heading .add-button{background:#079be5;border-color:#079be5;color:white}
+  .ministry-item{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:13px 0;border-bottom:1px solid #e5edf4}
   .ministry-item:last-child{border-bottom:0}
-  .ministry-item small{display:block;margin:4px 0;color:#576c7f}
-  .ministry-item button{margin:6px 6px 0 0}
-  .ministry-card input,.ministry-card textarea,.ministry-card select{width:100%;margin:5px 0 12px}
-  .ministry-card textarea{min-height:80px}
-  .ministry-card label{display:block}
+  .ministry-item .item-info{min-width:0;overflow-wrap:anywhere}
+  .ministry-item strong{display:block;font-size:17px;line-height:1.3}
+  .ministry-item small{display:block;margin-top:3px;color:#66798b}
+  .ministry-item p{margin:6px 0 0;line-height:1.35;white-space:pre-wrap;overflow-wrap:anywhere}
+  .item-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:0 0 auto}
+  .item-actions .delete-button{background:#fff6f6;color:#a52b2b;border-color:#efcece}
+  .ministry-card form{margin:15px 0;padding:16px;background:#f6faff;border:1px solid #dceaf5;border-radius:14px}
+  .ministry-card label{display:block;font-weight:700;margin-bottom:9px}
+  .ministry-card input,.ministry-card textarea,.ministry-card select{display:block;width:100%;padding:11px;margin-top:5px;border:1px solid #c7d8e6;border-radius:10px;background:white;font-weight:400}
+  .ministry-card textarea{min-height:76px}
   .ministry-actions{display:flex;gap:8px;flex-wrap:wrap}
-  #aulasArea{margin-top:18px}
-  .ministry-tag{font-weight:600;color:#2d6584}
-  .ministry-card .btn{width:auto;min-width:130px}
-  .ministry-card button{cursor:pointer}
-  .module-picker{max-width:360px;margin:16px 0}
-  .module-picker select{width:100%;padding:12px;border:1px solid #bcd4e6;border-radius:10px}
-  @media(max-width:760px){.ministry-grid{grid-template-columns:1fr}.ministry-actions button{width:auto}}
+  .ministry-actions .btn{width:auto;min-width:140px;background:#079be5;border-color:#079be5;color:white}
+  .module-picker{display:block;max-width:360px;margin:16px 0 0;font-weight:700}
+  .module-picker select{width:100%;padding:11px;margin-top:6px;border:1px solid #bcd4e6;border-radius:10px}
+  .aulas-inline{border-top:1px solid #dce9f5;margin-top:22px;padding-top:20px;scroll-margin-top:145px}
+  .ministry-main .card{box-shadow:0 8px 26px #0b5b9412}
+  .ministry-main .top{margin-bottom:16px}
+  .ministry-main .top h1{margin:0}
+  [hidden]{display:none!important}
+  @media(max-width:760px){
+    .ministry-grid{grid-template-columns:1fr;gap:12px;margin-top:12px}
+    .ministry-main .panel{padding:18px}
+    .ministry-item{display:block}
+    .item-actions{justify-content:flex-start;margin-top:9px}
+    .ministry-item button{padding:8px 12px}
+    .ministry-card h2{font-size:21px}
+    .ministry-main .top button{display:none}
+  }
 </style></head><body><div class="shell"><aside class="side"><div class="brand">IDE<b>+</b></div>
 <nav><a href="/home.html">⌂ Início</a><a class="active">📚 Estrutura ministerial</a></nav></aside>
-<main class="main"><header class="top"><div><h1>Estrutura ministerial</h1>
+<main class="main ministry-main"><header class="top"><div><h1>Estrutura ministerial</h1>
 <p id="escopoTexto">Carregando seu acesso...</p></div><button onclick="location.href='/home.html'">Voltar</button></header>
 <section class="card panel"><h2>Configure a sua forma de trabalhar</h2>
 <p>Crie categorias e tipos próprios para Campanha e Discipulado. Organize também os planos e as aulas de discipulado.</p>
 <label class="module-picker">Módulo<select id="modulo"><option value="CAMPANHA">Campanha / evangelismo</option><option value="DISCIPULADO">Discipulado</option></select></label></section>
 <div class="ministry-grid">
-<section class="card panel ministry-card" id="areaCategorias" hidden><h2>Categorias de <span class="moduloNome"></span></h2>
+<section class="card panel ministry-card" id="areaCategorias" hidden><div class="section-heading"><h2>Categorias de <span class="moduloNome"></span></h2><button class="add-button" type="button" id="novaCategoria" hidden>+ Categoria</button></div>
 <p>Exemplos: Evento, Culto, Visita, Aula. Você decide quais categorias usar.</p>
 <form id="formCategoria" hidden><input type="hidden" id="categoriaId">
 <label>Nome da categoria *<input id="categoriaNome" maxlength="120" placeholder="Ex.: Visita" required></label>
 <label>Descrição<textarea id="categoriaDescricao" placeholder="Como esta categoria é usada"></textarea></label>
 <div class="ministry-actions"><button type="submit" class="btn" id="salvarCategoria">Gravar categoria</button>
-<button type="button" id="limparCategoria">Limpar</button></div><p id="msgCategoria" role="status"></p></form>
+<button type="button" id="limparCategoria">Cancelar</button></div><p id="msgCategoria" role="status"></p></form>
 <div id="listaCategorias">Carregando...</div></section>
-<section class="card panel ministry-card" id="areaTipos" hidden><h2>Tipos de <span class="moduloNome"></span></h2>
+<section class="card panel ministry-card" id="areaTipos" hidden><div class="section-heading"><h2>Tipos de <span class="moduloNome"></span></h2><button class="add-button" type="button" id="novoTipo" hidden>+ Tipo</button></div>
 <p>Escolha uma categoria cadastrada e crie os tipos usados nela.</p>
 <form id="formTipo" hidden><input type="hidden" id="tipoId">
 <label>Categoria *<select id="tipoCategoria" required></select></label>
 <label>Nome do tipo *<input id="tipoNome" maxlength="120" placeholder="Ex.: Culto de ensino" required></label>
 <label>Descrição<textarea id="tipoDescricao" placeholder="Como este tipo é usado"></textarea></label>
 <div class="ministry-actions"><button type="submit" class="btn" id="salvarTipo">Gravar tipo</button>
-<button type="button" id="limparTipo">Limpar</button></div><p id="msgTipo" role="status"></p></form>
-<div id="listaTipos">Carregando...</div></section></div><div class="ministry-grid">
-<section class="card panel ministry-card" id="areaPlanos" hidden><h2>Planos de discipulado</h2>
+<button type="button" id="limparTipo">Cancelar</button></div><p id="msgTipo" role="status"></p></form>
+<div id="listaTipos">Carregando...</div></section></div><div class="ministry-grid ministry-plans">
+<section class="card panel ministry-card" id="areaPlanos" hidden><div class="section-heading"><h2>Planos de discipulado</h2><button class="add-button" type="button" id="novoPlano" hidden>+ Plano</button></div>
 <form id="formPlano" hidden><input type="hidden" id="planoId">
 <label>Nome do plano *<input id="planoNome" maxlength="160" placeholder="Ex.: Primeiros passos na fé" required></label>
 <label>Objetivo do plano<textarea id="planoDescricao" placeholder="O que o discípulo aprenderá"></textarea></label>
 <div class="ministry-actions"><button type="submit" class="btn" id="salvarPlano">Gravar plano</button>
-<button type="button" id="limparPlano">Limpar</button></div><p id="msgPlano" role="status"></p></form>
-<div id="listaPlanos">Carregando...</div></section></div>
-<section class="card panel ministry-card" id="aulasArea" hidden><h2 id="tituloAulas">Aulas</h2>
+<button type="button" id="limparPlano">Cancelar</button></div><p id="msgPlano" role="status"></p></form>
+<div id="listaPlanos">Carregando...</div>
+<section class="ministry-card aulas-inline" id="aulasArea" hidden><div class="section-heading"><h2 id="tituloAulas">Aulas</h2><button class="add-button" type="button" id="novaAula" hidden>+ Aula</button></div>
 <p>Ordene as aulas pelo número. Cada aula pode ter objetivo, conteúdo e duração.</p>
 <form id="formAula" hidden><input type="hidden" id="aulaId">
 <div class="ministry-grid"><label>Número da aula *<input id="aulaOrdem" type="number" min="1" required></label>
@@ -59,6 +82,6 @@
 <label>Conteúdo / roteiro<textarea id="aulaConteudo"></textarea></label>
 <label>Duração estimada em minutos<input id="aulaDuracao" type="number" min="1"></label>
 <div class="ministry-actions"><button type="submit" class="btn" id="salvarAula">Gravar aula</button>
-<button type="button" id="limparAula">Limpar</button></div><p id="msgAula" role="status"></p></form>
-<div id="listaAulas"></div></section>
+<button type="button" id="limparAula">Cancelar</button></div><p id="msgAula" role="status"></p></form>
+<div id="listaAulas"></div></section></section></div>
 </main></div><script src="/js/estrutura-ministerial.js"></script></body></html>
