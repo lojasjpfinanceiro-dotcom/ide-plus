@@ -196,6 +196,45 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
       ON tipos_atividades(denominacao_id,COALESCE(cidade_ministerial_id,0),
         COALESCE(congregacao_id,0),categoria,LOWER(nome)) WHERE ativo=TRUE;
 
+    -- Categorias configuráveis separadas por Campanha e Discipulado.
+    CREATE TABLE IF NOT EXISTS categorias_ministeriais (
+      id BIGSERIAL PRIMARY KEY,
+      denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+      cidade_ministerial_id BIGINT REFERENCES cidades_ministeriais(id) ON DELETE CASCADE,
+      congregacao_id BIGINT REFERENCES congregacoes(id) ON DELETE CASCADE,
+      modulo VARCHAR(20) NOT NULL CHECK (modulo IN ('CAMPANHA','DISCIPULADO')),
+      nome VARCHAR(120) NOT NULL,
+      descricao TEXT,
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      criado_por BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CHECK (congregacao_id IS NULL OR cidade_ministerial_id IS NOT NULL)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_categorias_ministeriais_ativas
+      ON categorias_ministeriais(denominacao_id,COALESCE(cidade_ministerial_id,0),
+        COALESCE(congregacao_id,0),modulo,LOWER(nome)) WHERE ativo=TRUE;
+    ALTER TABLE tipos_atividades ADD COLUMN IF NOT EXISTS categoria_id BIGINT
+      REFERENCES categorias_ministeriais(id) ON DELETE RESTRICT;
+    -- A coluna antiga permanece para compatibilidade com dados existentes.
+    ALTER TABLE tipos_atividades ALTER COLUMN categoria DROP NOT NULL;
+    INSERT INTO categorias_ministeriais
+      (denominacao_id,cidade_ministerial_id,congregacao_id,modulo,nome)
+    SELECT DISTINCT denominacao_id,cidade_ministerial_id,congregacao_id,'CAMPANHA',
+      CASE categoria WHEN 'CULTO' THEN 'Culto' WHEN 'EVENTO' THEN 'Evento' END
+    FROM tipos_atividades WHERE categoria_id IS NULL AND categoria IN ('CULTO','EVENTO')
+    ON CONFLICT DO NOTHING;
+    UPDATE tipos_atividades t SET categoria_id=c.id
+    FROM categorias_ministeriais c
+    WHERE t.categoria_id IS NULL AND c.denominacao_id=t.denominacao_id
+      AND c.cidade_ministerial_id IS NOT DISTINCT FROM t.cidade_ministerial_id
+      AND c.congregacao_id IS NOT DISTINCT FROM t.congregacao_id
+      AND c.modulo='CAMPANHA'
+      AND LOWER(c.nome)=CASE t.categoria WHEN 'CULTO' THEN 'culto' WHEN 'EVENTO' THEN 'evento' END;
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_tipos_atividades_categoria_ativos
+      ON tipos_atividades(denominacao_id,COALESCE(cidade_ministerial_id,0),
+        COALESCE(congregacao_id,0),categoria_id,LOWER(nome))
+      WHERE ativo=TRUE AND categoria_id IS NOT NULL;
+
     CREATE TABLE IF NOT EXISTS planos_discipulado (
       id BIGSERIAL PRIMARY KEY,
       denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
