@@ -210,6 +210,7 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
       criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CHECK (congregacao_id IS NULL OR cidade_ministerial_id IS NOT NULL)
     );
+    ALTER TABLE categorias_ministeriais ADD COLUMN IF NOT EXISTS estrutura_aulas BOOLEAN NOT NULL DEFAULT FALSE;
     CREATE UNIQUE INDEX IF NOT EXISTS ux_categorias_ministeriais_ativas
       ON categorias_ministeriais(denominacao_id,COALESCE(cidade_ministerial_id,0),
         COALESCE(congregacao_id,0),modulo,LOWER(nome)) WHERE ativo=TRUE;
@@ -247,6 +248,8 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
       criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       CHECK (congregacao_id IS NULL OR cidade_ministerial_id IS NOT NULL)
     );
+    ALTER TABLE planos_discipulado ADD COLUMN IF NOT EXISTS tipo_atividade_id BIGINT
+      REFERENCES tipos_atividades(id) ON DELETE SET NULL;
     CREATE UNIQUE INDEX IF NOT EXISTS ux_planos_discipulado_ativos
       ON planos_discipulado(denominacao_id,COALESCE(cidade_ministerial_id,0),
         COALESCE(congregacao_id,0),LOWER(nome)) WHERE ativo=TRUE;
@@ -262,6 +265,11 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
       ativo BOOLEAN NOT NULL DEFAULT TRUE,
       criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE aulas_discipulado ADD COLUMN IF NOT EXISTS data_prevista DATE;
+    ALTER TABLE aulas_discipulado ADD COLUMN IF NOT EXISTS hora_prevista TIME;
+    ALTER TABLE aulas_discipulado ADD COLUMN IF NOT EXISTS metodologia TEXT;
+    ALTER TABLE aulas_discipulado ADD COLUMN IF NOT EXISTS materiais TEXT;
+    ALTER TABLE aulas_discipulado ADD COLUMN IF NOT EXISTS atividade TEXT;
     CREATE INDEX IF NOT EXISTS ix_aulas_discipulado_plano ON aulas_discipulado(plano_id,ordem) WHERE ativo=TRUE;
     INSERT INTO permissoes(codigo,nome,modulo) VALUES
       ('atividades.visualizar','Visualizar tipos de culto e evento','ATIVIDADES'),
