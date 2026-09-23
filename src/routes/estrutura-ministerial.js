@@ -87,11 +87,45 @@ router.get('/categorias',async(req,res,next)=>{
   try{
     const modulo=clean(req.query.modulo).toUpperCase();
     if(!await autorizado(req,res,modulo,'ler'))return;
-    const s=visible(req.user,'c',3);
-    const q=await db.query(`SELECT c.* FROM categorias_ministeriais c
+    const local=scope(req.user),s=visible(req.user,'c',5);
+    const q=await db.query(`SELECT c.*,
+      EXISTS(SELECT 1 FROM categorias_ocultas o
+        WHERE o.categoria_id=c.id AND o.denominacao_id=c.denominacao_id
+          AND o.cidade_ministerial_id IS NOT DISTINCT FROM $3::bigint
+          AND o.congregacao_id IS NOT DISTINCT FROM $4::bigint) AS oculta
+      FROM categorias_ministeriais c
       WHERE c.denominacao_id=$1 AND c.ativo=TRUE AND c.modulo=$2${s.sql}
-      ORDER BY c.nome`,[req.user.denominacao_id,modulo,...s.params]);
-    res.json(q.rows.map(x=>({...x,pode_editar:canEdit(req.user,x)})));
+      ORDER BY c.nome`,[req.user.denominacao_id,modulo,local?.city??null,local?.church??null,...s.params]);
+    res.json(q.rows.map(x=>({...x,pode_editar:canEdit(req.user,x),
+      pode_ocultar:!!local?.city&&!canEdit(req.user,x)})));
+  }catch(e){next(e);}
+});
+router.post('/categorias/:id/ocultar',async(req,res,next)=>{
+  try{
+    const row=await categoriaAcessivel(req,res,req.params.id);if(!row)return;
+    if(!await autorizado(req,res,row.modulo,'editar'))return;
+    const local=scope(req.user);
+    if(!local?.city||canEdit(req.user,row))
+      return res.status(403).json({erro:'Esta categoria deve ser administrada pela área que a cadastrou.'});
+    await db.query(`INSERT INTO categorias_ocultas
+      (denominacao_id,cidade_ministerial_id,congregacao_id,categoria_id)
+      VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
+      [req.user.denominacao_id,local.city,local.church,row.id]);
+    res.json({ok:true});
+  }catch(e){next(e);}
+});
+router.delete('/categorias/:id/ocultar',async(req,res,next)=>{
+  try{
+    const row=await categoriaAcessivel(req,res,req.params.id);if(!row)return;
+    if(!await autorizado(req,res,row.modulo,'editar'))return;
+    const local=scope(req.user);
+    if(!local?.city||canEdit(req.user,row))
+      return res.status(403).json({erro:'Esta categoria deve ser administrada pela área que a cadastrou.'});
+    await db.query(`DELETE FROM categorias_ocultas
+      WHERE denominacao_id=$1 AND cidade_ministerial_id=$2
+        AND congregacao_id IS NOT DISTINCT FROM $3::bigint AND categoria_id=$4`,
+      [req.user.denominacao_id,local.city,local.church,row.id]);
+    res.json({ok:true});
   }catch(e){next(e);}
 });
 router.post('/categorias',async(req,res,next)=>{
@@ -142,12 +176,17 @@ router.get('/tipos',async(req,res,next)=>{
   try{
     const modulo=clean(req.query.modulo).toUpperCase();
     if(!await autorizado(req,res,modulo,'ler'))return;
-    const s=visible(req.user,'t',3);
+    const local=scope(req.user),s=visible(req.user,'t',5);
     const q=await db.query(`SELECT t.*,c.nome AS categoria_nome,c.modulo,c.estrutura_aulas
       FROM tipos_atividades t JOIN categorias_ministeriais c
         ON c.id=t.categoria_id AND c.ativo=TRUE AND c.denominacao_id=t.denominacao_id
       WHERE t.denominacao_id=$1 AND c.modulo=$2 AND t.ativo=TRUE${s.sql}
-      ORDER BY c.nome,t.nome`,[req.user.denominacao_id,modulo,...s.params]);
+        AND NOT EXISTS(SELECT 1 FROM categorias_ocultas o
+          WHERE o.categoria_id=c.id AND o.denominacao_id=c.denominacao_id
+            AND o.cidade_ministerial_id IS NOT DISTINCT FROM $3::bigint
+            AND o.congregacao_id IS NOT DISTINCT FROM $4::bigint)
+      ORDER BY c.nome,t.nome`,
+      [req.user.denominacao_id,modulo,local?.city??null,local?.church??null,...s.params]);
     res.json(q.rows.map(x=>({...x,pode_editar:canEdit(req.user,x)})));
   }catch(e){next(e);}
 });
