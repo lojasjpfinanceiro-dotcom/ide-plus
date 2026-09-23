@@ -163,6 +163,59 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
     ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS foto TEXT;
     ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS numero VARCHAR(30);
     CREATE UNIQUE INDEX IF NOT EXISTS ux_pessoas_cpf_denominacao ON pessoas(denominacao_id, cpf) WHERE cpf IS NOT NULL;
+
+    -- Catálogos configurados pela própria denominação, cidade ou congregação.
+    CREATE TABLE IF NOT EXISTS tipos_atividades (
+      id BIGSERIAL PRIMARY KEY,
+      denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+      cidade_ministerial_id BIGINT REFERENCES cidades_ministeriais(id) ON DELETE CASCADE,
+      congregacao_id BIGINT REFERENCES congregacoes(id) ON DELETE CASCADE,
+      categoria VARCHAR(10) NOT NULL CHECK (categoria IN ('CULTO','EVENTO')),
+      nome VARCHAR(120) NOT NULL,
+      descricao TEXT,
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      criado_por BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CHECK (congregacao_id IS NULL OR cidade_ministerial_id IS NOT NULL)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_tipos_atividades_ativos
+      ON tipos_atividades(denominacao_id,COALESCE(cidade_ministerial_id,0),
+        COALESCE(congregacao_id,0),categoria,LOWER(nome)) WHERE ativo=TRUE;
+
+    CREATE TABLE IF NOT EXISTS planos_discipulado (
+      id BIGSERIAL PRIMARY KEY,
+      denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+      cidade_ministerial_id BIGINT REFERENCES cidades_ministeriais(id) ON DELETE CASCADE,
+      congregacao_id BIGINT REFERENCES congregacoes(id) ON DELETE CASCADE,
+      nome VARCHAR(160) NOT NULL,
+      descricao TEXT,
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      criado_por BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CHECK (congregacao_id IS NULL OR cidade_ministerial_id IS NOT NULL)
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS ux_planos_discipulado_ativos
+      ON planos_discipulado(denominacao_id,COALESCE(cidade_ministerial_id,0),
+        COALESCE(congregacao_id,0),LOWER(nome)) WHERE ativo=TRUE;
+
+    CREATE TABLE IF NOT EXISTS aulas_discipulado (
+      id BIGSERIAL PRIMARY KEY,
+      plano_id BIGINT NOT NULL REFERENCES planos_discipulado(id) ON DELETE CASCADE,
+      ordem INTEGER NOT NULL CHECK (ordem>0),
+      titulo VARCHAR(180) NOT NULL,
+      objetivo TEXT,
+      conteudo TEXT,
+      duracao_minutos INTEGER CHECK (duracao_minutos IS NULL OR duracao_minutos>0),
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS ix_aulas_discipulado_plano ON aulas_discipulado(plano_id,ordem) WHERE ativo=TRUE;
+    INSERT INTO permissoes(codigo,nome,modulo) VALUES
+      ('atividades.visualizar','Visualizar tipos de culto e evento','ATIVIDADES'),
+      ('atividades.gerenciar','Criar e alterar tipos de culto e evento','ATIVIDADES'),
+      ('discipulado.estrutura.visualizar','Visualizar planos e aulas','DISCIPULADO_ESTRUTURA'),
+      ('discipulado.estrutura.gerenciar','Criar e alterar planos e aulas','DISCIPULADO_ESTRUTURA')
+    ON CONFLICT(codigo) DO NOTHING;
   `);
 }
 

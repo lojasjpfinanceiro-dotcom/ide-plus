@@ -6,7 +6,9 @@ const localDefaults = [
   'congregacoes.visualizar','congregacoes.inserir','congregacoes.editar','congregacoes.excluir',
   'congregacoes.gerenciar','pessoas.visualizar','pessoas.inserir','pessoas.editar',
   'pessoas.excluir','configuracoes.visualizar','configuracoes.tipos_congregacao',
-  'relatorios.visualizar','resultados.cidades'
+  'relatorios.visualizar','resultados.cidades',
+  'atividades.visualizar','atividades.gerenciar',
+  'discipulado.estrutura.visualizar','discipulado.estrutura.gerenciar'
 ];
 
 async function permissionsFor(user) {
@@ -30,6 +32,9 @@ async function permissionsFor(user) {
   }
   if (result.has('congregacoes.gerenciar'))
     ['visualizar','inserir','editar','excluir'].forEach(action => result.add('congregacoes.'+action));
+  if (result.has('atividades.gerenciar')) result.add('atividades.visualizar');
+  if (result.has('discipulado.estrutura.gerenciar'))
+    result.add('discipulado.estrutura.visualizar');
   if (local(user)) localDefaults.forEach(code => result.add(code));
   return result;
 }

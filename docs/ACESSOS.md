@@ -19,9 +19,16 @@ As tabelas de cargos e permissões já permitem evoluir para múltiplas atribui�
 2. Cadastro das cidades, sedes e congregações.
 3. Criação dos acessos e seleção das ações permitidas.
 4. Ficha de pessoas e resultados por área.
-5. Campanhas de evangelismo com responsáveis, origem e metas.
-6. Discipulado com histórico, responsáveis, encontros e situação.
-7. Batismo e relatórios consolidados.
+5. Catálogos de culto/evento e planos de discipulado, com aulas ordenadas e conteúdo definido pela própria equipe.
+6. Campanhas de evangelismo com responsáveis, origem e metas.
+7. Discipulado com histórico, responsáveis, encontros e situação.
+8. Batismo e relatórios consolidados.
+
+Os cadastros de `tipos_atividades`, `planos_discipulado` e `aulas_discipulado` são modelos.
+Registrar um culto ocorrido ou matricular uma pessoa em um plano são operações futuras,
+com tabelas próprias. Os modelos podem ser gerais, da cidade ou da congregação.
+O usuário vê os modelos gerais e os de sua área, mas só altera modelos próprios,
+salvo o Pastor Presidente, que administra a denominação inteira.
 
 Antes de publicar cada novo módulo, acrescentar códigos de permissão em `src/initDb.js`, proteger **todas** as suas rotas e aplicar filtro de denominação/cidade/congregação nos dados. Exibir o módulo na Home somente depois que ele funcionar.
 
