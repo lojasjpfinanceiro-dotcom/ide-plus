@@ -5,7 +5,7 @@ const headers={'Content-Type':'application/json',Authorization:'Bearer '+token};
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 let permissions=new Set(),categories=[],types=[],plans=[],lessons=[],selectedPlan=null;
-let modulo='CAMPANHA';
+let modulo='CAMPANHA',mostrarOcultas=false;
 const permissionFor=(m,edit=false)=>m==='CAMPANHA'?'atividades.'+(edit?'gerenciar':'visualizar'):'discipulado.estrutura.'+(edit?'gerenciar':'visualizar');
 const can=code=>permissions.has('*')||permissions.has(code);
 async function api(path,options={}){
@@ -45,19 +45,32 @@ for(const [botao,form,reset] of [
 ])$(botao).onclick=()=>{reset();$(form).hidden=false;$(form).scrollIntoView({behavior:'smooth',block:'nearest'});};
 async function loadCategories(){
   categories=await api('/categorias?modulo='+modulo);
-  $('listaCategorias').innerHTML=categories.length?categories.map(x=>
-    '<div class="ministry-item"><div class="item-info"><strong>'+esc(x.nome)+'</strong>'+
+  const ocultas=categories.filter(x=>x.oculta),visiveis=categories.filter(x=>!x.oculta);
+  $('mostrarOcultas').hidden=!ocultas.length;
+  $('mostrarOcultas').textContent=mostrarOcultas?'Esconder ocultas':'Ver ocultas ('+ocultas.length+')';
+  const list=mostrarOcultas?categories:visiveis;
+  $('listaCategorias').innerHTML=list.length?list.map(x=>
+    '<div class="ministry-item'+(x.oculta?' is-hidden':'')+'"><div class="item-info"><strong>'+
+    esc(x.nome)+(x.oculta?' (oculta nesta área)':'')+'</strong>'+
     '<small>'+esc(area(x))+(x.estrutura_aulas?' • Com cronograma de aulas':'')+'</small>'+
     (x.descricao?'<p>'+esc(x.descricao)+'</p>':'')+'</div>'+
     (x.pode_editar&&can(permissionFor(modulo,true))?
       '<div class="item-actions"><button type="button" data-category-edit="'+x.id+'">Editar</button>'+
-      '<button type="button" class="delete-button" data-category-delete="'+x.id+'">Excluir</button></div>':'')+'</div>'
-  ).join(''):'Nenhuma categoria cadastrada neste módulo.';
+      '<button type="button" class="delete-button" data-category-delete="'+x.id+'">Excluir</button></div>':
+      x.pode_ocultar&&can(permissionFor(modulo,true))?
+      '<div class="item-actions"><button type="button" data-category-'+
+      (x.oculta?'restore':'hide')+'="'+x.id+'">'+
+      (x.oculta?'Restaurar':'Ocultar nesta área')+'</button></div>':'')+'</div>'
+  ).join(''):'Nenhuma categoria visível neste módulo.';
   $('tipoCategoria').innerHTML='<option value="">Selecione a categoria</option>'+
-    categories.map(x=>'<option value="'+x.id+'">'+esc(x.nome)+' • '+esc(area(x))+'</option>').join('');
-  $('novoTipo').hidden=!categories.length||!can(permissionFor(modulo,true));
-  if(!categories.length)$('formTipo').hidden=true;
+    visiveis.map(x=>'<option value="'+x.id+'">'+esc(x.nome)+' • '+esc(area(x))+'</option>').join('');
+  $('novoTipo').hidden=!visiveis.length||!can(permissionFor(modulo,true));
+  if(!visiveis.length)$('formTipo').hidden=true;
 }
+$('mostrarOcultas').onclick=async()=>{
+  mostrarOcultas=!mostrarOcultas;
+  await loadCategories();
+};
 async function loadTypes(){
   types=await api('/tipos?modulo='+modulo);
   if(modulo==='DISCIPULADO'){
@@ -75,6 +88,7 @@ async function loadTypes(){
   ).join(''):'Nenhum tipo cadastrado neste módulo.';
 }
 async function loadCatalog(){
+  mostrarOcultas=false;
   resetCategory();resetType();resetPlan();resetLesson();
   $('msgCategoria').textContent='';$('msgTipo').textContent='';
   $('opcaoAulas').hidden=modulo!=='DISCIPULADO';
@@ -191,6 +205,20 @@ $('formAula').onsubmit=async e=>{
   finally{$('salvarAula').disabled=false;}
 };
 $('listaCategorias').onclick=async e=>{
+  const hide=e.target.closest('[data-category-hide]'),restore=e.target.closest('[data-category-restore]');
+  if(hide||restore){
+    const id=hide?hide.dataset.categoryHide:restore.dataset.categoryRestore;
+    const x=categories.find(x=>String(x.id)===String(id));
+    if(!x)return;
+    if(hide&&!confirm('Ocultar "'+x.nome+'" apenas nesta área?'))return;
+    try{
+      await api('/categorias/'+id+'/ocultar',{method:hide?'POST':'DELETE'});
+      if(hide&&$('tipoCategoria').value===String(id))resetType();
+      await loadCategories();await loadTypes();
+      $('msgCategoria').textContent=hide?'Categoria oculta nesta área.':'Categoria restaurada nesta área.';
+    }catch(err){$('msgCategoria').textContent=err.message;}
+    return;
+  }
   const edit=e.target.closest('[data-category-edit]'),del=e.target.closest('[data-category-delete]');
   if(edit){
     const x=categories.find(x=>String(x.id)===edit.dataset.categoryEdit);
