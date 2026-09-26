@@ -312,7 +312,9 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
       WHERE codigo='discipulado.estrutura.gerenciar';
   `);
 
-    -- Acompanhamento individual do discípulo.
+  // Acompanhamento individual do discípulo.
+  await db.query(`
+-- Acompanhamento individual do discípulo.
     CREATE TABLE IF NOT EXISTS discipulados (
       id BIGSERIAL PRIMARY KEY,
       denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
@@ -340,6 +342,7 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
     );
     CREATE INDEX IF NOT EXISTS ix_discipulado_pessoa ON discipulados(denominacao_id,pessoa_id);
     CREATE INDEX IF NOT EXISTS ix_discipulado_visitas ON discipulado_visitas(discipulado_id,data_visita DESC);
+  `);
 
   // Planos sem tipo pertencem ao fluxo antigo, anterior à escolha de categoria/tipo.
   // Exclui também as lições desses planos pela chave estrangeira ON DELETE CASCADE.
