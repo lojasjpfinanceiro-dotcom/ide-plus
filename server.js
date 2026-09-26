@@ -11,6 +11,7 @@ const acessos = require('./src/routes/acessos');
 const resultados = require('./src/routes/resultados');
 const estruturaMinisterial = require('./src/routes/estrutura-ministerial');
 const agenda = require('./src/routes/agenda');
+const discipulado = require('./src/routes/discipulado');
 const initDb = require('./src/initDb');
 
 const app = express();
@@ -27,6 +28,7 @@ app.use('/api/acessos', acessos);
 app.use('/api/resultados', resultados);
 app.use('/api/estrutura-ministerial', estruturaMinisterial);
 app.use('/api/agenda', agenda);
+app.use('/api/discipulado', discipulado);
 
 app.get('/api/health', (req, res) => res.json({ ok: true, app: 'IDE+' }));
 
