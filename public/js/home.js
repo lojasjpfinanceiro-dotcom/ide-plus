@@ -33,17 +33,17 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
     contexto.textContent=(user.denominacao||'IDE+')+' • '+(labels[u.escopo]||'acesso limitado');
     const links=[];
     if(can('pessoas.visualizar'))links.push(['/pessoas.html','👤 Pessoas']);
-    if(can('cidades.visualizar')||can('congregacoes.visualizar'))
-      links.push(['/estrutura.html','🏙 Estrutura']);
-    if(can('atividades.visualizar')||can('discipulado.estrutura.visualizar'))
-      links.push(['/estrutura-ministerial.html','📚 Estrutura ministerial']);
-    if(p.has('*'))links.push(['/usuarios.html','🔐 Usuários e permissões']);
+    if(can('atividades.visualizar'))links.push(['/estrutura-ministerial.html','📣 Campanhas']);
+    if(can('discipulado.estrutura.visualizar'))links.push(['/estrutura-ministerial.html','📚 Discipulado']);
+    if(can('atividades.visualizar')||can('discipulado.estrutura.visualizar'))links.push(['/estrutura-ministerial.html','📅 Agenda']);
+    if(can('cidades.visualizar')||can('congregacoes.visualizar')||can('discipulado.estrutura.visualizar')||p.has('*'))
+      links.push(['/configuracao.html','⚙ Configurações']);
     for(const [url,label] of links){
       const a=document.createElement('a');a.href=url;a.textContent=label;
       menu.appendChild(a);
       const b=document.createElement('button');b.textContent=label;b.onclick=()=>location.href=url;atalhos.appendChild(b);
     }
-    descricao.textContent=p.has('*')?'Cadastre cidades e crie os acessos da equipe. Depois acompanhe o trabalho de todas as áreas.':
+    descricao.textContent=p.has('*')?'Configure a estrutura da igreja uma vez e acompanhe pessoas, campanhas e discipulado de forma organizada.':
       'Seu acesso mostra somente as funções e os registros da sua área.';
     if(can('pessoas.visualizar')){
       const summary=await fetch('/api/pessoas/resumo',{headers:{Authorization:'Bearer '+token}});
