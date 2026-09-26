@@ -20,6 +20,7 @@ senhaForm.onsubmit=async e=>{
     senhaForm.reset();senhaMsg.textContent='Senha alterada com sucesso.';
   }catch(err){senhaMsg.textContent=err.message;}
 };
+const cardDiscipulado=document.getElementById('cardDiscipulado');if(cardDiscipulado)cardDiscipulado.onclick=()=>location.href='/discipulado.html';
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 (async()=>{
   try {
@@ -34,7 +35,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
     const links=[];
     if(can('pessoas.visualizar'))links.push(['/pessoas.html','👤 Pessoas']);
     if(can('atividades.visualizar'))links.push(['/estrutura-ministerial.html','📣 Campanhas']);
-    if(can('discipulado.estrutura.visualizar'))links.push(['/estrutura-ministerial.html','📚 Discipulado']);
+    if(can('discipulado.estrutura.visualizar'))links.push(['/discipulado.html','📚 Discipulado']);
     if(can('atividades.visualizar')||can('discipulado.estrutura.visualizar'))links.push(['/agenda.html','📅 Agenda']);
     if(can('cidades.visualizar')||can('congregacoes.visualizar')||can('discipulado.estrutura.visualizar')||p.has('*'))
       links.push(['/configuracao.html','⚙ Configurações']);
