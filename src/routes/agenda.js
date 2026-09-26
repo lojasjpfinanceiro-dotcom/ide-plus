@@ -13,7 +13,7 @@ function scopeSql(user,start=2){
 router.get('/',async(req,res)=>{
   try{
     const mes=/^\d{4}-\d{2}$/.test(String(req.query.mes||''))?String(req.query.mes):new Date().toISOString().slice(0,7);
-    const s=scopeSql(req.user,2);
+    const s=scopeSql(req.user,3);
     const q=await db.query(`SELECT a.* FROM agenda_eventos a WHERE a.denominacao_id=$1 AND a.ativo=TRUE AND TO_CHAR(a.data_evento,'YYYY-MM')=$2${s.sql} ORDER BY a.data_evento,a.hora_inicio NULLS LAST`,[req.user.denominacao_id,mes,...s.values]);
     res.json(q.rows);
   }catch(e){console.error('Agenda listar:',e);res.status(500).json({erro:'Erro ao carregar agenda.'});}
