@@ -312,6 +312,35 @@ ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS cpf VARCHAR(14);
       WHERE codigo='discipulado.estrutura.gerenciar';
   `);
 
+    -- Acompanhamento individual do discípulo.
+    CREATE TABLE IF NOT EXISTS discipulados (
+      id BIGSERIAL PRIMARY KEY,
+      denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+      pessoa_id BIGINT NOT NULL REFERENCES pessoas(id) ON DELETE CASCADE,
+      nivel VARCHAR(40) NOT NULL DEFAULT 'INICIO',
+      local_estudo VARCHAR(200),
+      situacao VARCHAR(40) NOT NULL DEFAULT 'ATIVO',
+      proxima_acao TEXT,
+      proxima_data DATE,
+      observacoes TEXT,
+      iniciado_em DATE NOT NULL DEFAULT CURRENT_DATE,
+      atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(denominacao_id,pessoa_id)
+    );
+    CREATE TABLE IF NOT EXISTS discipulado_visitas (
+      id BIGSERIAL PRIMARY KEY,
+      discipulado_id BIGINT NOT NULL REFERENCES discipulados(id) ON DELETE CASCADE,
+      data_visita DATE NOT NULL DEFAULT CURRENT_DATE,
+      tipo VARCHAR(60) NOT NULL DEFAULT 'ACOMPANHAMENTO',
+      responsavel VARCHAR(160),
+      resumo TEXT,
+      situacao_encontrada VARCHAR(120),
+      criado_por BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS ix_discipulado_pessoa ON discipulados(denominacao_id,pessoa_id);
+    CREATE INDEX IF NOT EXISTS ix_discipulado_visitas ON discipulado_visitas(discipulado_id,data_visita DESC);
+
   // Planos sem tipo pertencem ao fluxo antigo, anterior à escolha de categoria/tipo.
   // Exclui também as lições desses planos pela chave estrangeira ON DELETE CASCADE.
   await db.query(`DELETE FROM planos_discipulado
