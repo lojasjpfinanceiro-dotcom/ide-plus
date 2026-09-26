@@ -35,7 +35,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
     if(can('pessoas.visualizar'))links.push(['/pessoas.html','👤 Pessoas']);
     if(can('atividades.visualizar'))links.push(['/estrutura-ministerial.html','📣 Campanhas']);
     if(can('discipulado.estrutura.visualizar'))links.push(['/estrutura-ministerial.html','📚 Discipulado']);
-    if(can('atividades.visualizar')||can('discipulado.estrutura.visualizar'))links.push(['/estrutura-ministerial.html','📅 Agenda']);
+    if(can('atividades.visualizar')||can('discipulado.estrutura.visualizar'))links.push(['/agenda.html','📅 Agenda']);
     if(can('cidades.visualizar')||can('congregacoes.visualizar')||can('discipulado.estrutura.visualizar')||p.has('*'))
       links.push(['/configuracao.html','⚙ Configurações']);
     for(const [url,label] of links){
