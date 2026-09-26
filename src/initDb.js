@@ -116,6 +116,26 @@ async function initDb() {
       criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY(usuario_id,cargo_id)
     );
+    CREATE TABLE IF NOT EXISTS agenda_eventos (
+      id BIGSERIAL PRIMARY KEY,
+      denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+      cidade_ministerial_id BIGINT REFERENCES cidades_ministeriais(id) ON DELETE CASCADE,
+      congregacao_id BIGINT REFERENCES congregacoes(id) ON DELETE SET NULL,
+      modulo VARCHAR(20) NOT NULL CHECK (modulo IN ('CAMPANHA','DISCIPULADO','OUTRO')),
+      titulo VARCHAR(180) NOT NULL,
+      data_evento DATE NOT NULL,
+      hora_inicio TIME,
+      hora_fim TIME,
+      local VARCHAR(200),
+      responsavel VARCHAR(160),
+      observacoes TEXT,
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      criado_por BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS ix_agenda_eventos_data
+      ON agenda_eventos(denominacao_id,data_evento) WHERE ativo=TRUE;
+
     INSERT INTO permissoes(codigo,nome,modulo) VALUES
       ('cidades.visualizar','Visualizar cidades','CIDADES'),
       ('cidades.inserir','Inserir cidades','CIDADES'),
