@@ -119,8 +119,7 @@ listaUsuarios.addEventListener('click',async e=>{
         '<fieldset class="access-group"><legend>'+esc(name.replaceAll('_',' '))+'</legend>'+
         items.map(p=>'<label><input type="checkbox" value="'+p.id+'" '+(p.liberada?'checked':'')+
           '> '+esc(p.nome)+'</label>').join('')+'</fieldset>').join('');
-      editorMsg.textContent='';
-      editorPermissoes.showModal();
+      editorMsg.textContent='';const xs=[...editorLista.querySelectorAll('input[type="checkbox"]')];editorMarcarTodos.checked=xs.length>0&&xs.every(x=>x.checked);editorMarcarTodos.indeterminate=xs.some(x=>x.checked)&&!xs.every(x=>x.checked);editorPermissoes.showModal();
     }
     if(del){
       const nome=del.dataset.name||'este usuário';
@@ -140,6 +139,8 @@ listaUsuarios.addEventListener('click',async e=>{
     }
   }catch(err){msg.textContent=err.message;}
 });
+editorMarcarTodos.addEventListener('change',()=>{editorLista.querySelectorAll('input[type="checkbox"]').forEach(x=>x.checked=editorMarcarTodos.checked);});
+editorLista.addEventListener('change',()=>{const xs=[...editorLista.querySelectorAll('input[type="checkbox"]')];editorMarcarTodos.checked=xs.length>0&&xs.every(x=>x.checked);editorMarcarTodos.indeterminate=xs.some(x=>x.checked)&&!xs.every(x=>x.checked);});
 editorSalvar.addEventListener('click',async()=>{
   editorSalvar.disabled=true;editorMsg.textContent='Gravando...';
   try{
