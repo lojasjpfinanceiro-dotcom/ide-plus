@@ -4,6 +4,12 @@ const escopoAtual=String(usuarioAtual.escopo||'DENOMINACAO').toUpperCase();
 const perfilAtual=String(usuarioAtual.perfil||'').toUpperCase();
 const acessoPresidencia=escopoAtual==='DENOMINACAO'&&(perfilAtual==='ADMIN'||perfilAtual==='MASTER'||perfilAtual==='PASTOR_PRESIDENTE');
 const nivelAdministracao=document.getElementById('nivelAdministracao');if(nivelAdministracao&&!acessoPresidencia)nivelAdministracao.remove();
+const cargosCoordenacao=['SUPERINTENDENTE_CAMPANHAS','VICE_SUPERINTENDENTE_CAMPANHAS','SUPERINTENDENTE_DISCIPULADO','VICE_SUPERINTENDENTE_DISCIPULADO'];
+const ehCoordenador=cargosCoordenacao.includes(String(usuarioAtual.cargo||'').toUpperCase());
+if(ehCoordenador){
+ const ng=document.getElementById('nivelGestaoLocal');if(ng)ng.remove();
+ const nc=document.getElementById('nivelCoordenacao');if(nc){nc.href='/coordenacao-equipe.html';nc.querySelector('span').textContent='Funções e usuários para Campanhas e Discipulado';}
+}
 let cidadeContextoId=String(usuarioAtual.cidade_ministerial_id||sessionStorage.getItem('ide_cidade_contexto')||'');
 // Cadastro de cidades não pertence a esta tela operacional.
 // Será acessado somente pela área administrativa da Presidência/Master.
