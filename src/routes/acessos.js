@@ -91,6 +91,22 @@ router.post('/usuarios', presidentOnly, async(req,res,next) => {
     next(e);
   } finally { cx.release(); }
 });
+router.put('/usuarios/:id', presidentOnly, async(req,res,next)=>{
+  const {nome,email,telefone,senha}=req.body; const cargo=String(req.body.cargo||'').toUpperCase(); const escopo=cargos[cargo];
+  if(!String(nome||'').trim()||!String(email||'').trim()||!escopo)return res.status(400).json({erro:'Informe nome, e-mail e cargo válido.'});
+  const cidadeId=cleanId(req.body.cidade_ministerial_id),congregacaoId=cleanId(req.body.congregacao_id);
+  if(escopo!=='DENOMINACAO'&&!cidadeId)return res.status(400).json({erro:'Selecione a cidade deste usuário.'});
+  try{
+    const alvo=(await db.query('SELECT id,perfil FROM usuarios WHERE id=$1 AND denominacao_id=$2',[req.params.id,req.user.denominacao_id])).rows[0];
+    if(!alvo)return res.status(404).json({erro:'Usuário não encontrado.'}); if(president(alvo))return res.status(403).json({erro:'O Pastor Presidente não pode ser alterado aqui.'});
+    const perfil=cargo==='PASTOR_LOCAL'?'PASTOR_LOCAL':escopo==='DENOMINACAO'?'LIDERANCA_CONVENCAO':'LIDERANCA_LOCAL';
+    const vals=[String(nome).trim(),String(email).trim(),telefone||null,perfil,cargo,escopo,escopo==='DENOMINACAO'?null:cidadeId,escopo==='CONGREGACAO'?congregacaoId:null,req.params.id,req.user.denominacao_id];
+    let sql=`UPDATE usuarios SET nome=$1,email=LOWER($2),telefone=$3,perfil=$4,cargo=$5,escopo=$6,cidade_ministerial_id=$7,congregacao_id=$8`;
+    if(senha){if(String(senha).length<8)return res.status(400).json({erro:'A nova senha precisa ter pelo menos 8 caracteres.'});vals.push(await bcrypt.hash(String(senha),12));sql+=',senha_hash=$11';}
+    sql+=' WHERE id=$9 AND denominacao_id=$10 RETURNING id,nome,email,telefone,perfil,cargo,escopo,cidade_ministerial_id,congregacao_id,ativo';
+    res.json((await db.query(sql,vals)).rows[0]);
+  }catch(e){if(e.code==='23505')return res.status(409).json({erro:'Este e-mail já possui acesso.'});next(e);}
+});
 router.post('/pastores-locais', presidentOnly, (req,res) => res.status(410).json({
   erro:'Cadastre o Pastor Local em Usuários e Permissões.'
 }));
