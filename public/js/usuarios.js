@@ -1,3 +1,4 @@
+const somenteGestores=new URLSearchParams(location.search).get('cargo')==='PASTOR_LOCAL';
 const token=localStorage.getItem('ide_token');
 const headers={'Content-Type':'application/json','Authorization':'Bearer '+token};
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
