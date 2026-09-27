@@ -94,6 +94,17 @@ router.post('/usuarios', presidentOnly, async(req,res,next) => {
 router.post('/pastores-locais', presidentOnly, (req,res) => res.status(410).json({
   erro:'Cadastre o Pastor Local em Usuários e Permissões.'
 }));
+router.get('/coordenadores', async(req,res,next) => {
+  const gestor=String(req.user.escopo||'').toUpperCase()==='CIDADE'&&['PASTOR_LOCAL','GESTOR_LOCAL'].includes(String(req.user.perfil||'').toUpperCase());
+  if(!gestor)return res.status(403).json({erro:'Acesso restrito ao Gestor Local.'});
+  try{
+    const q=await db.query(`SELECT id,nome,email,telefone,perfil,cargo,ativo FROM usuarios
+      WHERE denominacao_id=$1 AND cidade_ministerial_id=$2 AND perfil='LIDERANCA_LOCAL'
+      AND cargo IN ('SUPERINTENDENTE_CAMPANHAS','VICE_SUPERINTENDENTE_CAMPANHAS','SUPERINTENDENTE_DISCIPULADO','VICE_SUPERINTENDENTE_DISCIPULADO')
+      ORDER BY ativo DESC,nome`,[req.user.denominacao_id,req.user.cidade_ministerial_id]);
+    res.json(q.rows);
+  }catch(e){next(e);}
+});
 router.post('/equipe-local', async(req,res,next) => {
   const gestor = String(req.user.escopo||'').toUpperCase()==='CIDADE' &&
     ['PASTOR_LOCAL','GESTOR_LOCAL'].includes(String(req.user.perfil||'').toUpperCase());
