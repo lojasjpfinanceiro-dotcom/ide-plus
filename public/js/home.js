@@ -4,10 +4,6 @@ const user=JSON.parse(localStorage.getItem('ide_usuario')||'{}');
 document.getElementById('sair').onclick=()=>{localStorage.removeItem('ide_token');localStorage.removeItem('ide_usuario');location.href='/';};
 abrirSenha.onclick=()=>senhaDialog.showModal();
 fecharSenha.onclick=()=>senhaDialog.close();
-const mobileMenu=document.getElementById('mobileMenu');
-const mobilePerfil=document.getElementById('mobilePerfil');
-if(mobileMenu)mobileMenu.onclick=()=>{const first=document.querySelector('#atalhos button');if(first)first.scrollIntoView({behavior:'smooth',block:'center'});};
-if(mobilePerfil)mobilePerfil.onclick=()=>senhaDialog.showModal();
 senhaForm.onsubmit=async e=>{
   e.preventDefault();senhaMsg.textContent='Gravando...';
   const f=new FormData(senhaForm);
@@ -42,7 +38,6 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
     for(const [url,label] of links){
       const a=document.createElement('a');a.href=url;a.textContent=label;
       menu.appendChild(a);
-      const b=document.createElement('button');b.textContent=label;b.onclick=()=>location.href=url;atalhos.appendChild(b);
     }
     descricao.textContent=p.has('*')?'Configure a estrutura da igreja uma vez e acompanhe pessoas, campanhas e discipulado de forma organizada.':
       'Seu acesso mostra somente as funções e os registros da sua área.';
