@@ -23,10 +23,10 @@ router.get('/', requirePermission('cidades.visualizar'), async (req,res) => {
 
 router.put('/:id', requirePermission('cidades.editar'), async (req,res) => {
   try {
-    const {nome,estado}=req.body;
+    const {nome,estado,pais}=req.body;
     if(!nome) return res.status(400).json({erro:'Informe o nome da cidade.'});
     const s=filter(req.user,'id',null,5);
-    const q=await db.query('UPDATE cidades_ministeriais SET nome=$1,estado=$2 WHERE id=$3 AND denominacao_id=$4 AND ativo=TRUE'+s.sql+' RETURNING *',[nome.trim(),estado?estado.trim().toUpperCase():null,req.params.id,req.user.denominacao_id,...s.values]);
+    const q=await db.query('UPDATE cidades_ministeriais SET nome=$1,estado=$2,pais=$5 WHERE id=$3 AND denominacao_id=$4 AND ativo=TRUE'+s.sql+' RETURNING *',[nome.trim(),estado?estado.trim():null,req.params.id,req.user.denominacao_id,String(pais||'Brasil').trim(),...s.values]);
     if(!q.rowCount) return res.status(404).json({erro:'Cidade não encontrada.'});
     await db.query('UPDATE congregacoes SET cidade=$1,estado=$2 WHERE cidade_ministerial_id=$3 AND denominacao_id=$4',[q.rows[0].nome,q.rows[0].estado,req.params.id,req.user.denominacao_id]);
     res.json(q.rows[0]);
@@ -46,11 +46,11 @@ router.delete('/:id', requirePermission('cidades.excluir'), async (req,res) => {
 
 router.post('/', requirePermission('cidades.inserir'), async (req,res) => {
   try {
-    const {nome,estado}=req.body;
+    const {nome,estado,pais}=req.body;
     if(req.user.escopo!=='DENOMINACAO')return res.status(403).json({erro:'Somente a administração geral pode criar cidades.'});
     if(!nome) return res.status(400).json({erro:'Informe o nome da cidade.'});
-    const q=await db.query('INSERT INTO cidades_ministeriais(denominacao_id,nome,estado) VALUES($1,$2,$3) RETURNING *',
-      [req.user.denominacao_id,nome.trim(),estado?estado.trim().toUpperCase():null]);
+    const q=await db.query('INSERT INTO cidades_ministeriais(denominacao_id,nome,estado,pais) VALUES($1,$2,$3,$4) RETURNING *',
+      [req.user.denominacao_id,nome.trim(),estado?estado.trim():null,String(pais||'Brasil').trim()]);
     res.status(201).json(q.rows[0]);
   } catch(e){
     if(e.code==='23505') return res.status(409).json({erro:'Esta cidade já está cadastrada.'});
