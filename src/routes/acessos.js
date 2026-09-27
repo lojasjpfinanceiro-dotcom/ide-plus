@@ -124,6 +124,42 @@ router.post('/equipe-local', async(req,res,next) => {
     res.status(201).json(q.rows[0]);
   }catch(e){if(e.code==='23505')return res.status(409).json({erro:'Este e-mail já possui acesso.'});next(e);}
 });
+const coordenadorAtual = u => String(u.escopo||'').toUpperCase()==='CIDADE' &&
+  ['SUPERINTENDENTE_CAMPANHAS','VICE_SUPERINTENDENTE_CAMPANHAS','SUPERINTENDENTE_DISCIPULADO','VICE_SUPERINTENDENTE_DISCIPULADO'].includes(String(u.cargo||'').toUpperCase());
+
+router.get('/equipe-coordenacao', async(req,res,next)=>{
+  if(!coordenadorAtual(req.user))return res.status(403).json({erro:'Acesso restrito à Coordenação.'});
+  try{
+    const f=await db.query('SELECT id,nome,modulo FROM funcoes_equipe WHERE coordenador_id=$1 AND ativo=TRUE ORDER BY modulo,nome',[req.user.id]);
+    const u=await db.query(`SELECT u.id,u.nome,u.email,u.telefone,u.ativo,fe.nome funcao,fe.modulo
+      FROM usuarios_funcoes_equipe uf JOIN usuarios u ON u.id=uf.usuario_id JOIN funcoes_equipe fe ON fe.id=uf.funcao_equipe_id
+      WHERE fe.coordenador_id=$1 ORDER BY u.ativo DESC,u.nome`,[req.user.id]);
+    res.json({funcoes:f.rows,usuarios:u.rows});
+  }catch(e){next(e);}
+});
+router.post('/funcoes-equipe', async(req,res,next)=>{
+  if(!coordenadorAtual(req.user))return res.status(403).json({erro:'Acesso restrito à Coordenação.'});
+  const nome=String(req.body.nome||'').trim(),modulo=String(req.body.modulo||'').toUpperCase();
+  if(!nome||!['CAMPANHAS','DISCIPULADO'].includes(modulo))return res.status(400).json({erro:'Informe a função e o módulo.'});
+  try{const q=await db.query(`INSERT INTO funcoes_equipe(denominacao_id,cidade_ministerial_id,coordenador_id,nome,modulo)
+    VALUES($1,$2,$3,$4,$5) RETURNING id,nome,modulo`,[req.user.denominacao_id,req.user.cidade_ministerial_id,req.user.id,nome,modulo]);res.status(201).json(q.rows[0]);}catch(e){next(e);}
+});
+router.post('/usuarios-equipe', async(req,res,next)=>{
+  if(!coordenadorAtual(req.user))return res.status(403).json({erro:'Acesso restrito à Coordenação.'});
+  const {nome,email,telefone,senha}=req.body;const funcaoId=cleanId(req.body.funcao_id);
+  if(!String(nome||'').trim()||!String(email||'').trim()||!senha||String(senha).length<8||!funcaoId)return res.status(400).json({erro:'Preencha nome, função, e-mail e senha com pelo menos 8 caracteres.'});
+  const cx=await db.connect();
+  try{
+    const fun=(await cx.query('SELECT id,modulo FROM funcoes_equipe WHERE id=$1 AND coordenador_id=$2 AND ativo=TRUE',[funcaoId,req.user.id])).rows[0];
+    if(!fun)return res.status(400).json({erro:'Função inválida.'});
+    await cx.query('BEGIN');const hash=await bcrypt.hash(String(senha),12);
+    const u=await cx.query(`INSERT INTO usuarios(denominacao_id,nome,email,telefone,senha_hash,perfil,cargo,escopo,cidade_ministerial_id)
+      VALUES($1,$2,LOWER($3),$4,$5,'EQUIPE_LOCAL',$6,'CIDADE',$7) RETURNING id,nome,email,telefone,ativo`,
+      [req.user.denominacao_id,String(nome).trim(),String(email).trim(),telefone||null,hash,fun.modulo==='CAMPANHAS'?'EQUIPE_CAMPANHAS':'EQUIPE_DISCIPULADO',req.user.cidade_ministerial_id]);
+    await cx.query('INSERT INTO usuarios_funcoes_equipe(usuario_id,funcao_equipe_id) VALUES($1,$2)',[u.rows[0].id,funcaoId]);
+    await cx.query('COMMIT');res.status(201).json(u.rows[0]);
+  }catch(e){await cx.query('ROLLBACK');if(e.code==='23505')return res.status(409).json({erro:'Este e-mail já possui acesso.'});next(e);}finally{cx.release();}
+});
 router.get('/usuarios/:id/permissoes', presidentOnly, async(req,res,next) => {
   try {
     const q=await db.query(`SELECT p.id,p.codigo,p.nome,p.modulo,
