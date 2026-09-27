@@ -1,6 +1,7 @@
 const db = require('../db');
 const president = u => ['MASTER','PASTOR_PRESIDENTE'].includes(String(u.perfil || '').toUpperCase());
-const local = u => String(u.perfil || '').toUpperCase() === 'PASTOR_LOCAL';
+const local = u => ['PASTOR_LOCAL','GESTOR_LOCAL'].includes(String(u.perfil || '').toUpperCase());
+const coordenacao = u => String(u.escopo||'').toUpperCase()==='CIDADE' && ['SUPERINTENDENTE_CAMPANHAS','VICE_SUPERINTENDENTE_CAMPANHAS','SUPERINTENDENTE_DISCIPULADO','VICE_SUPERINTENDENTE_DISCIPULADO'].includes(String(u.cargo||'').toUpperCase());
 const localDefaults = [
   'cidades.visualizar',
   'congregacoes.visualizar','congregacoes.inserir','congregacoes.editar','congregacoes.excluir',
@@ -36,6 +37,7 @@ async function permissionsFor(user) {
   if (result.has('discipulado.estrutura.gerenciar'))
     result.add('discipulado.estrutura.visualizar');
   if (local(user)) localDefaults.forEach(code => result.add(code));
+  if (coordenacao(user)) ['pessoas.visualizar','pessoas.inserir','pessoas.editar','atividades.visualizar','discipulado.estrutura.visualizar'].forEach(code=>result.add(code));
   return result;
 }
 function requirePermission(code) {
