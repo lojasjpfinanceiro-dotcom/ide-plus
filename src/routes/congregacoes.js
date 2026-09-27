@@ -41,7 +41,13 @@ router.post('/',requirePermission('congregacoes.inserir'),async(req,res,next)=>{
       VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
       [req.user.denominacao_id,nome.trim(),cid.nome,cid.estado,endereco||null,cid.id,tipo==='SEDE_LOCAL',tipo||'CONGREGACAO']);
     res.status(201).json(q.rows[0]);
-  }catch(e){next(e);}
+  }catch(e){
+    console.error('[CONGREGACOES][POST]',e);
+    if(e.code==='23505')return res.status(409).json({erro:'Já existe uma sede/congregação com estes dados nesta cidade.'});
+    if(e.code==='23503')return res.status(400).json({erro:'A cidade vinculada a este acesso não é válida.'});
+    if(e.code==='23502')return res.status(400).json({erro:'Falta um dado obrigatório para cadastrar a congregação.'});
+    return res.status(500).json({erro:'Não foi possível cadastrar a congregação. Verifique os dados e tente novamente.'});
+  }
 });
 router.put('/:id',requirePermission('congregacoes.editar'),async(req,res,next)=>{
   try{
