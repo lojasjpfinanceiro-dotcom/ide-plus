@@ -126,3 +126,10 @@
  .ide-bottom-nav a.active{color:var(--blue);background:#eaf7ff}
  .main{padding-bottom:104px}
 }
+
+.gestao-niveis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+.gestao-nivel{display:flex;flex-direction:column;gap:7px;padding:20px;border:1px solid #dce8f2;border-radius:16px;background:#f7fbfe;color:var(--text);text-decoration:none}
+.gestao-nivel strong{font-size:19px;color:var(--navy)}
+.gestao-nivel span{font-size:14px;line-height:1.4;color:var(--muted)}
+.gestao-nivel:hover{border-color:var(--blue);background:#eef9ff}
+@media(max-width:850px){.gestao-niveis{grid-template-columns:1fr}.gestao-nivel{padding:17px}}
