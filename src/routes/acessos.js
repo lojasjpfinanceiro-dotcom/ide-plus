@@ -157,6 +157,24 @@ router.put('/usuarios/:id/permissoes', presidentOnly, async(req,res,next) => {
   } catch(e) { await cx.query('ROLLBACK'); next(e); }
   finally { cx.release(); }
 });
+router.delete('/usuarios/:id', presidentOnly, async(req,res,next) => {
+  const cx=await db.connect();
+  try{
+    const alvo=(await cx.query('SELECT id,nome,perfil FROM usuarios WHERE id=$1 AND denominacao_id=$2',[req.params.id,req.user.denominacao_id])).rows[0];
+    if(!alvo)return res.status(404).json({erro:'Usuário não encontrado.'});
+    if(['MASTER','PASTOR_PRESIDENTE'].includes(String(alvo.perfil||'').toUpperCase()))
+      return res.status(403).json({erro:'O acesso do Pastor Presidente não pode ser excluído.'});
+    await cx.query('BEGIN');
+    await cx.query('DELETE FROM usuario_permissoes WHERE usuario_id=$1',[alvo.id]);
+    await cx.query('DELETE FROM usuarios WHERE id=$1 AND denominacao_id=$2',[alvo.id,req.user.denominacao_id]);
+    await cx.query('COMMIT');
+    res.json({ok:true,nome:alvo.nome});
+  }catch(e){
+    await cx.query('ROLLBACK');
+    if(e.code==='23503')return res.status(409).json({erro:'Este usuário possui registros vinculados. Suspenda o acesso em vez de excluir.'});
+    next(e);
+  }finally{cx.release();}
+});
 router.patch('/usuarios/:id/ativo', presidentOnly, async(req,res,next) => {
   try {
     if (typeof req.body.ativo!=='boolean') return res.status(400).json({erro:'Informe o estado do acesso.'});
