@@ -29,7 +29,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
     const labels={DENOMINACAO:'toda a denominação',CIDADE:'sua cidade',CONGREGACAO:'sua congregação'};
     contexto.textContent=(user.denominacao||'IDE+')+' • '+(labels[u.escopo]||'acesso limitado');
     const links=[];
-    const executivo=['DENOMINACAO','CIDADE'].includes(String(u.escopo||'').toUpperCase());if(executivo){const pm=document.getElementById('proximosModulos');if(pm)pm.style.display='none';const ori=document.getElementById('orientacao');if(ori)ori.style.display='none';}
+    const escopoAtual=String(u.escopo||user.escopo||'').toUpperCase();const perfilAtual=String(u.perfil||user.perfil||'').toUpperCase();const executivo=['DENOMINACAO','CIDADE'].includes(escopoAtual)||['PASTOR_PRESIDENTE','ADMIN','ADMINISTRADOR','PASTOR_LOCAL','GESTOR_LOCAL'].includes(perfilAtual);if(executivo){const pm=document.getElementById('proximosModulos');if(pm)pm.style.display='none';const ori=document.getElementById('orientacao');if(ori)ori.style.display='none';}
     if(!executivo&&can('pessoas.visualizar'))links.push(['/pessoas.html','👤 Pessoas']);
     if(!executivo&&can('atividades.visualizar'))links.push(['/estrutura-ministerial.html','📣 Campanhas']);
     if(!executivo&&can('discipulado.estrutura.visualizar'))links.push(['/discipulado.html','📚 Discipulado']);
