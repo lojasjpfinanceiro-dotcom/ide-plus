@@ -149,3 +149,5 @@
  .coordenador-form-grid label{font-size:15px}
  .coordenador-form-grid input,.coordenador-form-grid select{min-height:50px;font-size:16px}
 }
+
+.btn-excluir-acesso{border:1px solid #efb3b3!important;background:#fff5f5!important;color:#b42318!important;font-weight:800!important}
