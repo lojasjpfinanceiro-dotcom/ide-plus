@@ -135,3 +135,17 @@
 @media(max-width:850px){.gestao-niveis{grid-template-columns:1fr}.gestao-nivel{padding:17px}}
 
 .config-top{display:flex;align-items:center;justify-content:space-between;gap:16px}.config-top h1{margin-right:auto}.btn-sair{border:1px solid #e2a7a7;background:#fff;color:#b42318;border-radius:12px;padding:10px 18px;font-weight:800;cursor:pointer}@media(max-width:850px){.config-top{margin-bottom:12px}.config-top h1{font-size:28px}.btn-sair{padding:9px 16px}}
+
+/* Cadastro de coordenadores */
+.coordenador-form-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:16px 18px;margin-top:18px}
+.coordenador-form-grid .field{margin:0;min-width:0}
+.coordenador-form-grid label{display:block;margin:0 0 7px;font-weight:800;color:var(--navy)}
+.coordenador-form-grid input,.coordenador-form-grid select{display:block;width:100%;min-width:0;box-sizing:border-box}
+.coordenador-form-grid .campo-funcao{grid-column:1/-1}
+.coordenador-form-grid .campo-senha small{display:block;margin-top:6px;color:var(--muted)}
+@media(max-width:850px){
+ .coordenador-form-grid{grid-template-columns:1fr;gap:14px}
+ .coordenador-form-grid .campo-funcao{grid-column:auto}
+ .coordenador-form-grid label{font-size:15px}
+ .coordenador-form-grid input,.coordenador-form-grid select{min-height:50px;font-size:16px}
+}
