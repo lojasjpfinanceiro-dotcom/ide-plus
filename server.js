@@ -18,6 +18,21 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
+
+const telasComNavegacao = new Set([
+  '/home.html','/pessoas.html','/estrutura-ministerial.html','/discipulado.html',
+  '/agenda.html','/configuracao.html','/cadastro.html','/usuarios.html',
+  '/gestao-local.html','/equipe-local.html','/pastor-local.html','/estrutura.html'
+]);
+app.get([...telasComNavegacao], (req, res, next) => {
+  const arquivo = path.join(__dirname, 'public', req.path.slice(1));
+  require('fs').readFile(arquivo, 'utf8', (err, html) => {
+    if (err) return next();
+    const tag = '<script src="/js/bottom-nav.js"></script>';
+    if (!html.includes('/js/bottom-nav.js')) html = html.replace('</body>', tag + '</body>');
+    res.type('html').send(html);
+  });
+});
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api/auth', auth);
 app.use('/api/congregacoes', congregacoes);
