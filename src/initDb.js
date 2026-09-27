@@ -8,10 +8,12 @@ async function initDb() {
       cidade_ministerial_id BIGINT NOT NULL REFERENCES cidades_ministeriais(id) ON DELETE CASCADE,
       coordenador_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
       nome VARCHAR(120) NOT NULL,
-      modulo VARCHAR(20) NOT NULL CHECK (modulo IN ('CAMPANHAS','DISCIPULADO')),
+      modulo VARCHAR(20) NOT NULL CHECK (modulo IN ('CAMPANHAS','DISCIPULADO','GERAL')),
       ativo BOOLEAN NOT NULL DEFAULT TRUE,
       criado_em TIMESTAMP NOT NULL DEFAULT NOW()
     );
+    ALTER TABLE funcoes_equipe DROP CONSTRAINT IF EXISTS funcoes_equipe_modulo_check;
+    ALTER TABLE funcoes_equipe ADD CONSTRAINT funcoes_equipe_modulo_check CHECK (modulo IN ('CAMPANHAS','DISCIPULADO','GERAL'));
     CREATE TABLE IF NOT EXISTS usuarios_funcoes_equipe (
       usuario_id BIGINT PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
       funcao_equipe_id BIGINT NOT NULL REFERENCES funcoes_equipe(id) ON DELETE CASCADE
