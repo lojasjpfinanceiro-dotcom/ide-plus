@@ -133,3 +133,5 @@
 .gestao-nivel span{font-size:14px;line-height:1.4;color:var(--muted)}
 .gestao-nivel:hover{border-color:var(--blue);background:#eef9ff}
 @media(max-width:850px){.gestao-niveis{grid-template-columns:1fr}.gestao-nivel{padding:17px}}
+
+.config-top{display:flex;align-items:center;justify-content:space-between;gap:16px}.config-top h1{margin-right:auto}.btn-sair{border:1px solid #e2a7a7;background:#fff;color:#b42318;border-radius:12px;padding:10px 18px;font-weight:800;cursor:pointer}@media(max-width:850px){.config-top{margin-bottom:12px}.config-top h1{font-size:28px}.btn-sair{padding:9px 16px}}
