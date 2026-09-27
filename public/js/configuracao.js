@@ -4,9 +4,11 @@ const escopoAtual=String(usuarioAtual.escopo||'DENOMINACAO').toUpperCase();
 const perfilAtual=String(usuarioAtual.perfil||'').toUpperCase();
 const acessoPresidencia=escopoAtual==='DENOMINACAO'&&(perfilAtual==='ADMIN'||perfilAtual==='MASTER'||perfilAtual==='PASTOR_PRESIDENTE');
 const nivelAdministracao=document.getElementById('nivelAdministracao');if(nivelAdministracao&&!acessoPresidencia)nivelAdministracao.remove();
+// Presidência administra acessos gerais e pastores locais; não opera Gestão Local nem Coordenação.
+if(acessoPresidencia){const ng=document.getElementById('nivelGestaoLocal');if(ng)ng.remove();const nc=document.getElementById('nivelCoordenacao');if(nc)nc.remove();}
 const cargosCoordenacao=['SUPERINTENDENTE_CAMPANHAS','VICE_SUPERINTENDENTE_CAMPANHAS','SUPERINTENDENTE_DISCIPULADO','VICE_SUPERINTENDENTE_DISCIPULADO'];
 const ehCoordenador=cargosCoordenacao.includes(String(usuarioAtual.cargo||'').toUpperCase());
-if(ehCoordenador){
+if(!acessoPresidencia&&ehCoordenador){
  const ng=document.getElementById('nivelGestaoLocal');if(ng)ng.remove();
  const nc=document.getElementById('nivelCoordenacao');if(nc){nc.href='/coordenacao-equipe.html';nc.querySelector('span').textContent='Funções e usuários para Campanhas e Discipulado';}
 }
