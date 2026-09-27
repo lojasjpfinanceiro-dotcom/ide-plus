@@ -10,7 +10,7 @@ let allPermissions=[],allCities=[],allChurches=[];
 let me={};
 let editingId=null;
 let hiddenEditingIds=[];
-let userScopes={};
+let userScopes={};let usersCache=[];
 if(!token)location.href='/';
 async function api(url,options={}) {
   let r;
@@ -62,7 +62,7 @@ function loadChurches(){
     visible.map(x=>'<option value="'+x.id+'">'+esc(x.nome)+'</option>').join('');
 }
 async function loadUsers(){
-  const people=await api('/api/acessos/usuarios');
+  const people=await api('/api/acessos/usuarios');usersCache=people;
   userScopes=Object.fromEntries(people.map(x=>[x.id,x.escopo]));
   listaUsuarios.innerHTML=people.length?people.map(x=>
     '<div class="access-row"><div><strong>'+esc(x.nome)+'</strong> '+
@@ -71,7 +71,7 @@ async function loadUsers(){
     (x.cidade?' • '+esc(x.cidade):'')+(x.congregacao?' • '+esc(x.congregacao):'')+
     ' • '+esc(x.email)+'</small></div>'+
     (['MASTER','PASTOR_PRESIDENTE'].includes(x.perfil)?'':
-      (modoPermissoes?'<div><button type="button" data-edit="'+x.id+'">Permissões</button></div>':'<div><button type="button" data-active="'+x.id+'" data-value="'+(!x.ativo)+'">'+(x.ativo?'Suspender':'Reativar')+'</button> <button type="button" class="btn-excluir-acesso" data-delete="'+x.id+'" data-name="'+esc(x.nome)+'">Excluir</button></div>'))+'</div>'
+      (modoPermissoes?'<div><button type="button" data-edit="'+x.id+'">Permissões</button></div>':'<div><button type="button" data-change="'+x.id+'">Alterar</button> <button type="button" data-active="'+x.id+'" data-value="'+(!x.ativo)+'">'+(x.ativo?'Suspender':'Reativar')+'</button> <button type="button" class="btn-excluir-acesso" data-delete="'+x.id+'" data-name="'+esc(x.nome)+'">Excluir</button></div>'))+'</div>'
   ).join(''):'Nenhuma pessoa cadastrada.';
 }
 cargo.addEventListener('change',changeScope);
@@ -90,15 +90,16 @@ formUsuario.addEventListener('submit',async e=>{
       cidade_ministerial_id:scope()==='DENOMINACAO'?null:Number(fd.get('cidade_ministerial_id')),
       congregacao_id:scope()==='CONGREGACAO'?Number(fd.get('congregacao_id')):null,
       permissoes:[...document.querySelectorAll('input[name="permissao"]:checked')].map(x=>Number(x.value))};
-    await api('/api/acessos/usuarios',{method:'POST',body:JSON.stringify(body)});
-    msg.textContent='Acesso criado. A pessoa já pode entrar com o e-mail e a senha inicial.';
-    formUsuario.reset();await loadUsers();
+    const id=usuarioEditando.value;if(id){await api('/api/acessos/usuarios/'+id,{method:'PUT',body:JSON.stringify(body)});}else{await api('/api/acessos/usuarios',{method:'POST',body:JSON.stringify(body)});}
+    msg.textContent=usuarioEditando.value?'Cadastro alterado com sucesso.':'Acesso criado. A pessoa já pode entrar com o e-mail e a senha inicial.';
+    formUsuario.reset();usuarioEditando.value='';formUsuario.senha.required=true;cancelarAlteracao.style.display='none';await loadUsers();
   }catch(err){msg.textContent=err.message==='Load failed'?'Falha momentânea de conexão. Toque em Salvar novamente.':err.message;}
   finally{salvar.disabled=false;salvar.textContent='Salvar e liberar acesso';}
 });
 listaUsuarios.addEventListener('click',async e=>{
-  const edit=e.target.closest('[data-edit]'),active=e.target.closest('[data-active]'),del=e.target.closest('[data-delete]');
+  const edit=e.target.closest('[data-edit]'),change=e.target.closest('[data-change]'),active=e.target.closest('[data-active]'),del=e.target.closest('[data-delete]');
   try{
+    if(change){const x=usersCache.find(u=>String(u.id)===String(change.dataset.change));if(x){usuarioEditando.value=x.id;formUsuario.nome.value=x.nome||'';formUsuario.telefone.value=x.telefone||'';formUsuario.email.value=x.email||'';formUsuario.senha.value='';formUsuario.senha.required=false;cargo.value=x.cargo||'PASTOR_LOCAL';changeScope();cidadeMinisterial.value=x.cidade_ministerial_id||'';loadChurches();congregacao.value=x.congregacao_id||'';salvar.textContent='Salvar alteração';cancelarAlteracao.style.display='';document.getElementById('cardNovoAcesso').scrollIntoView({behavior:'smooth'});}return;}
     if(edit){
       const rows=await api('/api/acessos/usuarios/'+edit.dataset.edit+'/permissoes');
       editingId=edit.dataset.edit;
@@ -164,3 +165,5 @@ editorSalvar.addEventListener('click',async()=>{
     changeScope();await loadUsers();
   }catch(err){msg.textContent=err.message;}
 })();
+
+cancelarAlteracao.addEventListener('click',()=>{usuarioEditando.value='';formUsuario.reset();formUsuario.senha.required=true;cancelarAlteracao.style.display='none';salvar.textContent='Salvar e liberar acesso';});
