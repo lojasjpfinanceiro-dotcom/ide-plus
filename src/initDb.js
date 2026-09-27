@@ -2,6 +2,8 @@ const db = require('./db');
 
 async function initDb() {
   await db.query(`
+    ALTER TABLE cidades_ministeriais ADD COLUMN IF NOT EXISTS pais VARCHAR(100) NOT NULL DEFAULT 'Brasil';
+    ALTER TABLE cidades_ministeriais ALTER COLUMN estado TYPE VARCHAR(120);
     CREATE TABLE IF NOT EXISTS funcoes_equipe (
       id BIGSERIAL PRIMARY KEY,
       denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
