@@ -37,7 +37,7 @@ async function permissionsFor(user) {
   if (result.has('discipulado.estrutura.gerenciar'))
     result.add('discipulado.estrutura.visualizar');
   if (local(user)) localDefaults.forEach(code => result.add(code));
-  if (coordenacao(user)) ['congregacoes.visualizar','pessoas.visualizar','pessoas.inserir','pessoas.editar','atividades.visualizar','discipulado.estrutura.visualizar'].forEach(code=>result.add(code));
+  if (coordenacao(user)) ['congregacoes.visualizar','pessoas.visualizar','pessoas.inserir','pessoas.editar','pessoas.excluir','atividades.visualizar','discipulado.estrutura.visualizar'].forEach(code=>result.add(code));
   return result;
 }
 function requirePermission(code) {
