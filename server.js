@@ -22,7 +22,7 @@ app.use(express.json());
 const telasComNavegacao = new Set([
   '/home.html','/pessoas.html','/estrutura-ministerial.html','/discipulado.html',
   '/agenda.html','/configuracao.html','/cadastro.html','/usuarios.html',
-  '/gestao-local.html','/equipe-local.html','/pastor-local.html','/estrutura.html'
+  '/gestao-local.html','/equipe-local.html','/coordenacao-equipe.html','/pastor-local.html','/estrutura.html'
 ]);
 app.get([...telasComNavegacao], (req, res, next) => {
   const arquivo = path.join(__dirname, 'public', req.path.slice(1));
