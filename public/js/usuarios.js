@@ -12,7 +12,13 @@ let hiddenEditingIds=[];
 let userScopes={};
 if(!token)location.href='/';
 async function api(url,options={}) {
-  const r=await fetch(url,{headers,...options});
+  let r;
+  try{r=await fetch(url,{headers,...options});}
+  catch(err){
+    if(!['POST','PUT','PATCH','DELETE'].includes(String(options.method||'GET').toUpperCase()))throw err;
+    await new Promise(resolve=>setTimeout(resolve,500));
+    r=await fetch(url,{headers,...options});
+  }
   if(r.status===401){localStorage.removeItem('ide_token');location.href='/';throw new Error('Sessão expirada.');}
   const data=await r.json();
   if(!r.ok)throw new Error(data.erro||'Não foi possível concluir.');
@@ -74,7 +80,11 @@ cargo.addEventListener('change',changeScope);
 cidadeMinisterial.addEventListener('change',loadChurches);
 formUsuario.addEventListener('reset',()=>setTimeout(()=>{changeScope();loadChurches();msg.textContent='';},0));
 formUsuario.addEventListener('submit',async e=>{
-  e.preventDefault();salvar.disabled=true;salvar.textContent='Salvando...';msg.textContent='';
+  e.preventDefault();
+  if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  if(!formUsuario.reportValidity())return;
+  salvar.disabled=true;salvar.textContent='Salvando...';msg.textContent='';
   try{
     const fd=new FormData(formUsuario);
     const body={nome:fd.get('nome'),email:fd.get('email'),telefone:fd.get('telefone'),
@@ -85,7 +95,7 @@ formUsuario.addEventListener('submit',async e=>{
     await api('/api/acessos/usuarios',{method:'POST',body:JSON.stringify(body)});
     msg.textContent='Acesso criado. A pessoa já pode entrar com o e-mail e a senha inicial.';
     formUsuario.reset();await loadUsers();
-  }catch(err){msg.textContent=err.message;}
+  }catch(err){msg.textContent=err.message==='Load failed'?'Falha momentânea de conexão. Toque em Salvar novamente.':err.message;}
   finally{salvar.disabled=false;salvar.textContent='Salvar e liberar acesso';}
 });
 listaUsuarios.addEventListener('click',async e=>{
