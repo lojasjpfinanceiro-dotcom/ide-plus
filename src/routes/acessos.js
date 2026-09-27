@@ -99,8 +99,8 @@ router.get('/coordenadores', async(req,res,next) => {
   if(!gestor)return res.status(403).json({erro:'Acesso restrito ao Gestor Local.'});
   try{
     const q=await db.query(`SELECT id,nome,email,telefone,perfil,cargo,ativo FROM usuarios
-      WHERE denominacao_id=$1 AND cidade_ministerial_id=$2 AND perfil='LIDERANCA_LOCAL'
-      AND cargo IN ('SUPERINTENDENTE_CAMPANHAS','VICE_SUPERINTENDENTE_CAMPANHAS','SUPERINTENDENTE_DISCIPULADO','VICE_SUPERINTENDENTE_DISCIPULADO')
+      WHERE denominacao_id=$1 AND cidade_ministerial_id=$2
+      AND cargo IN ('SUPERINTENDENTE_CAMPANHAS','VICE_SUPERINTENDENTE_CAMPANHAS','SUPERINTENDENTE_DISCIPULADO','VICE_SUPERINTENDENTE_DISCIPULADO','DIRIGENTE','VICE_DIRIGENTE','PROFESSOR')
       ORDER BY ativo DESC,nome`,[req.user.denominacao_id,req.user.cidade_ministerial_id]);
     res.json(q.rows);
   }catch(e){next(e);}
