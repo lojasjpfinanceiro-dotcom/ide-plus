@@ -36,10 +36,16 @@ router.post('/',requirePermission('congregacoes.inserir'),async(req,res,next)=>{
     const {nome,endereco,tipo}=req.body;
     if(!String(nome||'').trim())return res.status(400).json({erro:'Informe o nome da congregação.'});
     const cid=await cidade(req,res);if(!cid)return;
+    // Compatibilidade com bancos antigos: alguns ambientes ainda têm estado VARCHAR(2).
+    // A relação oficial é cidade_ministerial_id; cidade/estado são apenas dados de exibição.
+    const col=await db.query(`SELECT character_maximum_length FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='congregacoes' AND column_name='estado'`);
+    const limiteEstado=col.rows[0]&&col.rows[0].character_maximum_length;
+    const estadoLegado=limiteEstado&&Number(limiteEstado)<=2?null:cid.estado;
     const q=await db.query(`INSERT INTO congregacoes
       (denominacao_id,nome,cidade,estado,endereco,cidade_ministerial_id,sede,tipo)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [req.user.denominacao_id,nome.trim(),cid.nome,cid.estado,endereco||null,cid.id,tipo==='SEDE_LOCAL',tipo||'CONGREGACAO']);
+      [req.user.denominacao_id,nome.trim(),cid.nome,estadoLegado,endereco||null,cid.id,tipo==='SEDE_LOCAL',tipo||'CONGREGACAO']);
     res.status(201).json(q.rows[0]);
   }catch(e){
     console.error('[CONGREGACOES][POST]',e);
