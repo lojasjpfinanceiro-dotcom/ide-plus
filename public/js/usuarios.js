@@ -71,10 +71,7 @@ async function loadUsers(){
     (x.cidade?' • '+esc(x.cidade):'')+(x.congregacao?' • '+esc(x.congregacao):'')+
     ' • '+esc(x.email)+'</small></div>'+
     (['MASTER','PASTOR_PRESIDENTE'].includes(x.perfil)?'':
-      '<div><button type="button" data-edit="'+x.id+'">Permissões</button> '+
-      '<button type="button" data-active="'+x.id+'" data-value="'+(!x.ativo)+'">'+
-      (x.ativo?'Suspender':'Reativar')+'</button> '+
-      '<button type="button" class="btn-excluir-acesso" data-delete="'+x.id+'" data-name="'+esc(x.nome)+'">Excluir</button></div>')+'</div>'
+      (modoPermissoes?'<div><button type="button" data-edit="'+x.id+'">Permissões</button></div>':'<div><button type="button" data-active="'+x.id+'" data-value="'+(!x.ativo)+'">'+(x.ativo?'Suspender':'Reativar')+'</button> <button type="button" class="btn-excluir-acesso" data-delete="'+x.id+'" data-name="'+esc(x.nome)+'">Excluir</button></div>'))+'</div>'
   ).join(''):'Nenhuma pessoa cadastrada.';
 }
 cargo.addEventListener('change',changeScope);
