@@ -114,10 +114,15 @@ router.get('/coordenadores', async(req,res,next) => {
   const gestor=String(req.user.escopo||'').toUpperCase()==='CIDADE'&&['PASTOR_LOCAL','GESTOR_LOCAL'].includes(String(req.user.perfil||'').toUpperCase());
   if(!gestor)return res.status(403).json({erro:'Acesso restrito ao Gestor Local.'});
   try{
-    const q=await db.query(`SELECT id,nome,email,telefone,perfil,cargo,ativo FROM usuarios
-      WHERE denominacao_id=$1 AND cidade_ministerial_id=$2
-      AND cargo IN ('SUPERINTENDENTE_CAMPANHAS','VICE_SUPERINTENDENTE_CAMPANHAS','SUPERINTENDENTE_DISCIPULADO','VICE_SUPERINTENDENTE_DISCIPULADO','DIRIGENTE','VICE_DIRIGENTE','PROFESSOR')
-      ORDER BY ativo DESC,nome`,[req.user.denominacao_id,req.user.cidade_ministerial_id]);
+    const q=await db.query(`SELECT u.id,u.nome,u.email,u.telefone,u.perfil,u.cargo,u.escopo,u.ativo,
+      fe.nome AS funcao_equipe,fe.modulo AS modulo_funcao
+      FROM usuarios u
+      LEFT JOIN usuarios_funcoes_equipe uf ON uf.usuario_id=u.id
+      LEFT JOIN funcoes_equipe fe ON fe.id=uf.funcao_equipe_id
+      WHERE u.denominacao_id=$1 AND u.cidade_ministerial_id=$2
+      AND u.id<>$3
+      AND u.perfil NOT IN ('MASTER','PASTOR_PRESIDENTE','PASTOR_LOCAL')
+      ORDER BY u.ativo DESC,u.nome`,[req.user.denominacao_id,req.user.cidade_ministerial_id,req.user.id]);
     res.json(q.rows);
   }catch(e){next(e);}
 });
