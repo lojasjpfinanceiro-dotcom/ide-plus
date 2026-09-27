@@ -4,6 +4,11 @@ const escopoAtual=String(usuarioAtual.escopo||'DENOMINACAO').toUpperCase();
 const perfilAtual=String(usuarioAtual.perfil||'').toUpperCase();
 const acessoPresidencia=escopoAtual==='DENOMINACAO'&&(perfilAtual==='ADMIN'||perfilAtual==='MASTER'||perfilAtual==='PASTOR_PRESIDENTE');
 const nivelAdministracao=document.getElementById('nivelAdministracao');if(nivelAdministracao&&!acessoPresidencia)nivelAdministracao.remove();
+const acessoGestaoLocal=escopoAtual==='CIDADE'&&['PASTOR_LOCAL','GESTOR_LOCAL'].includes(perfilAtual);
+const abrirCidades=document.getElementById('abrirCidades'),nivelCongregacoes=document.getElementById('nivelCongregacoes'),nivelCoordenadores=document.getElementById('nivelCoordenadores'),nivelAgenda=document.getElementById('nivelAgenda'),abrirPermissoes=document.getElementById('abrirPermissoes');
+if(!acessoPresidencia&&abrirCidades)abrirCidades.remove();
+if(acessoPresidencia){if(nivelCongregacoes)nivelCongregacoes.remove();if(nivelCoordenadores)nivelCoordenadores.remove();if(nivelAgenda)nivelAgenda.remove();}
+if(acessoGestaoLocal&&abrirPermissoes){abrirPermissoes.href='/equipe-local.html';abrirPermissoes.querySelector('strong').textContent='🔐 Acessos e permissões';abrirPermissoes.querySelector('span').textContent='Gerenciar os acessos dos coordenadores do Nível 3';}
 // Presidência administra acessos gerais e pastores locais; não opera Gestão Local nem Coordenação.
 
 if(acessoPresidencia){const ac=document.getElementById('areaPresidencia'),cc=document.getElementById('cadastroCongregacoes'),cl=document.getElementById('configLocal');if(ac)ac.style.display='none';if(cc)cc.style.display='none';if(cl)cl.style.display='none';const bc=document.getElementById('abrirCidades');if(bc)bc.onclick=()=>{if(ac)ac.style.display=ac.style.display==='none'?'grid':'none';if(ac&&ac.style.display!=='none')ac.scrollIntoView({behavior:'smooth'});};}
