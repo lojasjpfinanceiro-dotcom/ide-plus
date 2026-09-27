@@ -5,7 +5,8 @@ const perfilAtual=String(usuarioAtual.perfil||'').toUpperCase();
 const acessoPresidencia=escopoAtual==='DENOMINACAO'&&(perfilAtual==='ADMIN'||perfilAtual==='MASTER'||perfilAtual==='PASTOR_PRESIDENTE');
 const nivelAdministracao=document.getElementById('nivelAdministracao');if(nivelAdministracao&&!acessoPresidencia)nivelAdministracao.remove();
 // Presidência administra acessos gerais e pastores locais; não opera Gestão Local nem Coordenação.
-if(acessoPresidencia){const ng=document.getElementById('nivelGestaoLocal');if(ng)ng.remove();const nc=document.getElementById('nivelCoordenacao');if(nc)nc.remove();}
+
+if(acessoPresidencia){const ac=document.getElementById('areaPresidencia'),cc=document.getElementById('cadastroCongregacoes'),cl=document.getElementById('configLocal');if(ac)ac.style.display='none';if(cc)cc.style.display='none';if(cl)cl.style.display='none';const bc=document.getElementById('abrirCidades');if(bc)bc.onclick=()=>{if(ac)ac.style.display=ac.style.display==='none'?'grid':'none';if(ac&&ac.style.display!=='none')ac.scrollIntoView({behavior:'smooth'});};}
 const cargosCoordenacao=['SUPERINTENDENTE_CAMPANHAS','VICE_SUPERINTENDENTE_CAMPANHAS','SUPERINTENDENTE_DISCIPULADO','VICE_SUPERINTENDENTE_DISCIPULADO'];
 const ehCoordenador=cargosCoordenacao.includes(String(usuarioAtual.cargo||'').toUpperCase());
 if(!acessoPresidencia&&ehCoordenador){
