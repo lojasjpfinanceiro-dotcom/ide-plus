@@ -183,7 +183,6 @@ async function initDb() {
 INSERT INTO permissoes(codigo,nome,modulo) VALUES
  ('pastores_locais.cadastrar','Cadastrar/liberar Pastor Local','CONVENCAO'),
  ('resultados.cidades','Visualizar resultados por cidade','RESULTADOS'),
- ('dashboard.visualizar','Visualizar Dashboard / Visão Geral','DASHBOARD'),
  ('congregacoes.gerenciar','Cadastrar e administrar congregações da cidade','GESTAO_LOCAL'),
  ('campanhas.gerenciar','Cadastrar e administrar campanhas evangelizadoras','CAMPANHAS'),
  ('campanhas.equipe','Cadastrar equipe da campanha','CAMPANHAS'),
