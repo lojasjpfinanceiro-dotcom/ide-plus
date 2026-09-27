@@ -94,9 +94,25 @@ router.post('/usuarios', presidentOnly, async(req,res,next) => {
 router.post('/pastores-locais', presidentOnly, (req,res) => res.status(410).json({
   erro:'Cadastre o Pastor Local em Usuários e Permissões.'
 }));
-router.post('/equipe-local', (req,res) => res.status(403).json({
-  erro:'O Pastor Presidente cria os acessos em Usuários e Permissões.'
-}));
+router.post('/equipe-local', async(req,res,next) => {
+  const gestor = String(req.user.escopo||'').toUpperCase()==='CIDADE' &&
+    ['PASTOR_LOCAL','GESTOR_LOCAL'].includes(String(req.user.perfil||'').toUpperCase());
+  if(!gestor) return res.status(403).json({erro:'Somente o Gestor Local pode criar coordenadores.'});
+  const {nome,email,telefone,senha}=req.body;
+  const cargo=String(req.body.cargo||'').toUpperCase();
+  const cargosCoordenacao=['SUPERINTENDENTE_CAMPANHAS','VICE_SUPERINTENDENTE_CAMPANHAS','SUPERINTENDENTE_DISCIPULADO','VICE_SUPERINTENDENTE_DISCIPULADO'];
+  if(!cargosCoordenacao.includes(cargo)||!String(nome||'').trim()||!String(email||'').trim()||!senha||String(senha).length<8)
+    return res.status(400).json({erro:'Informe nome, e-mail, função de coordenação e senha com pelo menos 8 caracteres.'});
+  const hash=await bcrypt.hash(String(senha),12);
+  try{
+    const q=await db.query(`INSERT INTO usuarios
+      (denominacao_id,nome,email,telefone,senha_hash,perfil,cargo,escopo,cidade_ministerial_id)
+      VALUES($1,$2,LOWER($3),$4,$5,'LIDERANCA_LOCAL',$6,'CIDADE',$7)
+      RETURNING id,nome,email,telefone,perfil,cargo,escopo,cidade_ministerial_id,ativo`,
+      [req.user.denominacao_id,String(nome).trim(),String(email).trim(),telefone||null,hash,cargo,req.user.cidade_ministerial_id]);
+    res.status(201).json(q.rows[0]);
+  }catch(e){if(e.code==='23505')return res.status(409).json({erro:'Este e-mail já possui acesso.'});next(e);}
+});
 router.get('/usuarios/:id/permissoes', presidentOnly, async(req,res,next) => {
   try {
     const q=await db.query(`SELECT p.id,p.codigo,p.nome,p.modulo,
