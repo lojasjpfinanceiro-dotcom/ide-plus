@@ -1,12 +1,12 @@
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Coordenação • IDE+</title><link rel="stylesheet" href="/css/app.css"></head><body><div class="shell"><main class="main">
 <header class="top"><div><h1>Coordenação</h1><p>Cadastre e libere os coordenadores da sua cidade ou área.</p></div></header>
 <section class="card panel"><h2>Novo coordenador</h2><form id="form">
-<div class="form-grid">
-<label>Nome completo *<input name="nome" required></label>
-<label>WhatsApp<input name="telefone" inputmode="tel"></label>
-<label>Função *<select name="cargo" required><option value="">Selecione</option><option value="SUPERINTENDENTE_CAMPANHAS">Coordenador de Campanhas</option><option value="VICE_SUPERINTENDENTE_CAMPANHAS">Vice-coordenador de Campanhas</option><option value="SUPERINTENDENTE_DISCIPULADO">Coordenador de Discipulado</option><option value="VICE_SUPERINTENDENTE_DISCIPULADO">Vice-coordenador de Discipulado</option></select></label>
-<label>E-mail *<input name="email" type="email" required></label>
-<label>Senha inicial *<input name="senha" type="password" minlength="8" required></label>
+<div class="coordenador-form-grid">
+<div class="field campo-nome"><label for="coordNome">Nome completo *</label><input id="coordNome" name="nome" autocomplete="name" required></div>
+<div class="field campo-whatsapp"><label for="coordTelefone">WhatsApp</label><input id="coordTelefone" name="telefone" inputmode="tel" autocomplete="tel"></div>
+<div class="field campo-funcao"><label for="coordCargo">Função *</label><select id="coordCargo" name="cargo" required><option value="">Selecione</option><option value="SUPERINTENDENTE_CAMPANHAS">Coordenador de Campanhas</option><option value="VICE_SUPERINTENDENTE_CAMPANHAS">Vice-coordenador de Campanhas</option><option value="SUPERINTENDENTE_DISCIPULADO">Coordenador de Discipulado</option><option value="VICE_SUPERINTENDENTE_DISCIPULADO">Vice-coordenador de Discipulado</option></select></div>
+<div class="field campo-email"><label for="coordEmail">E-mail *</label><input id="coordEmail" name="email" type="email" autocomplete="email" required></div>
+<div class="field campo-senha"><label for="coordSenha">Senha inicial *</label><input id="coordSenha" name="senha" type="password" minlength="8" autocomplete="new-password" required><small>Mínimo de 8 caracteres.</small></div>
 </div><div class="usuario-actions"><button id="salvar" class="btn" type="submit">Salvar e liberar acesso</button></div><div id="msg" class="msg"></div>
 </form></section>
 <section class="card panel"><h2>Coordenadores</h2><div id="lista">Carregando...</div></section>
