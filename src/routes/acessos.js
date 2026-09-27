@@ -111,16 +111,17 @@ router.post('/equipe-local', async(req,res,next) => {
   if(!gestor) return res.status(403).json({erro:'Somente o Gestor Local pode criar coordenadores.'});
   const {nome,email,telefone,senha}=req.body;
   const cargo=String(req.body.cargo||'').toUpperCase();
-  const cargosCoordenacao=['SUPERINTENDENTE_CAMPANHAS','VICE_SUPERINTENDENTE_CAMPANHAS','SUPERINTENDENTE_DISCIPULADO','VICE_SUPERINTENDENTE_DISCIPULADO'];
+  const cargosCoordenacao=['SUPERINTENDENTE_CAMPANHAS','VICE_SUPERINTENDENTE_CAMPANHAS','SUPERINTENDENTE_DISCIPULADO','VICE_SUPERINTENDENTE_DISCIPULADO','DIRIGENTE','VICE_DIRIGENTE','PROFESSOR'];
   if(!cargosCoordenacao.includes(cargo)||!String(nome||'').trim()||!String(email||'').trim()||!senha||String(senha).length<8)
-    return res.status(400).json({erro:'Informe nome, e-mail, função de coordenação e senha com pelo menos 8 caracteres.'});
+    return res.status(400).json({erro:'Informe nome, e-mail, função e senha com pelo menos 8 caracteres.'});
   const hash=await bcrypt.hash(String(senha),12);
   try{
     const q=await db.query(`INSERT INTO usuarios
       (denominacao_id,nome,email,telefone,senha_hash,perfil,cargo,escopo,cidade_ministerial_id)
-      VALUES($1,$2,LOWER($3),$4,$5,'LIDERANCA_LOCAL',$6,'CIDADE',$7)
+      VALUES($1,$2,LOWER($3),$4,$5,$8,$6,'CIDADE',$7)
       RETURNING id,nome,email,telefone,perfil,cargo,escopo,cidade_ministerial_id,ativo`,
-      [req.user.denominacao_id,String(nome).trim(),String(email).trim(),telefone||null,hash,cargo,req.user.cidade_ministerial_id]);
+      [req.user.denominacao_id,String(nome).trim(),String(email).trim(),telefone||null,hash,cargo,req.user.cidade_ministerial_id,
+        ['DIRIGENTE','VICE_DIRIGENTE','PROFESSOR'].includes(cargo)?'EQUIPE_LOCAL':'LIDERANCA_LOCAL']);
     res.status(201).json(q.rows[0]);
   }catch(e){if(e.code==='23505')return res.status(409).json({erro:'Este e-mail já possui acesso.'});next(e);}
 });
@@ -140,7 +141,7 @@ router.get('/equipe-coordenacao', async(req,res,next)=>{
 router.post('/funcoes-equipe', async(req,res,next)=>{
   if(!coordenadorAtual(req.user))return res.status(403).json({erro:'Acesso restrito à Coordenação.'});
   const nome=String(req.body.nome||'').trim(),modulo=String(req.body.modulo||'').toUpperCase();
-  if(!nome||!['CAMPANHAS','DISCIPULADO'].includes(modulo))return res.status(400).json({erro:'Informe a função e o módulo.'});
+  if(!nome||!['CAMPANHAS','DISCIPULADO','GERAL'].includes(modulo))return res.status(400).json({erro:'Informe a função e a área.'});
   try{const q=await db.query(`INSERT INTO funcoes_equipe(denominacao_id,cidade_ministerial_id,coordenador_id,nome,modulo)
     VALUES($1,$2,$3,$4,$5) RETURNING id,nome,modulo`,[req.user.denominacao_id,req.user.cidade_ministerial_id,req.user.id,nome,modulo]);res.status(201).json(q.rows[0]);}catch(e){next(e);}
 });
@@ -155,7 +156,7 @@ router.post('/usuarios-equipe', async(req,res,next)=>{
     await cx.query('BEGIN');const hash=await bcrypt.hash(String(senha),12);
     const u=await cx.query(`INSERT INTO usuarios(denominacao_id,nome,email,telefone,senha_hash,perfil,cargo,escopo,cidade_ministerial_id)
       VALUES($1,$2,LOWER($3),$4,$5,'EQUIPE_LOCAL',$6,'CIDADE',$7) RETURNING id,nome,email,telefone,ativo`,
-      [req.user.denominacao_id,String(nome).trim(),String(email).trim(),telefone||null,hash,fun.modulo==='CAMPANHAS'?'EQUIPE_CAMPANHAS':'EQUIPE_DISCIPULADO',req.user.cidade_ministerial_id]);
+      [req.user.denominacao_id,String(nome).trim(),String(email).trim(),telefone||null,hash,fun.modulo==='CAMPANHAS'?'EQUIPE_CAMPANHAS':fun.modulo==='DISCIPULADO'?'EQUIPE_DISCIPULADO':'VISUALIZADOR',req.user.cidade_ministerial_id]);
     await cx.query('INSERT INTO usuarios_funcoes_equipe(usuario_id,funcao_equipe_id) VALUES($1,$2)',[u.rows[0].id,funcaoId]);
     await cx.query('COMMIT');res.status(201).json(u.rows[0]);
   }catch(e){await cx.query('ROLLBACK');if(e.code==='23505')return res.status(409).json({erro:'Este e-mail já possui acesso.'});next(e);}finally{cx.release();}
