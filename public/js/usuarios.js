@@ -65,7 +65,8 @@ async function loadUsers(){
     (['MASTER','PASTOR_PRESIDENTE'].includes(x.perfil)?'':
       '<div><button type="button" data-edit="'+x.id+'">Permissões</button> '+
       '<button type="button" data-active="'+x.id+'" data-value="'+(!x.ativo)+'">'+
-      (x.ativo?'Suspender':'Reativar')+'</button></div>')+'</div>'
+      (x.ativo?'Suspender':'Reativar')+'</button> '+
+      '<button type="button" class="btn-excluir-acesso" data-delete="'+x.id+'" data-name="'+esc(x.nome)+'">Excluir</button></div>')+'</div>'
   ).join(''):'Nenhuma pessoa cadastrada.';
 }
 cargo.addEventListener('change',changeScope);
@@ -87,7 +88,7 @@ formUsuario.addEventListener('submit',async e=>{
   finally{salvar.disabled=false;salvar.textContent='Salvar e liberar acesso';}
 });
 listaUsuarios.addEventListener('click',async e=>{
-  const edit=e.target.closest('[data-edit]'),active=e.target.closest('[data-active]');
+  const edit=e.target.closest('[data-edit]'),active=e.target.closest('[data-active]'),del=e.target.closest('[data-delete]');
   try{
     if(edit){
       const rows=await api('/api/acessos/usuarios/'+edit.dataset.edit+'/permissoes');
@@ -109,6 +110,14 @@ listaUsuarios.addEventListener('click',async e=>{
           '> '+esc(p.nome)+'</label>').join('')+'</fieldset>').join('');
       editorMsg.textContent='';
       editorPermissoes.showModal();
+    }
+    if(del){
+      const nome=del.dataset.name||'este usuário';
+      if(!confirm('Excluir definitivamente o acesso de "'+nome+'"?\n\nEsta ação não poderá ser desfeita.'))return;
+      del.disabled=true;del.textContent='Excluindo...';
+      await api('/api/acessos/usuarios/'+del.dataset.delete,{method:'DELETE'});
+      msg.textContent='Acesso excluído com sucesso.';
+      await loadUsers();return;
     }
     if(active){
       const value=active.dataset.value==='true';
