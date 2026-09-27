@@ -2,6 +2,22 @@ const db = require('./db');
 
 async function initDb() {
   await db.query(`
+    CREATE TABLE IF NOT EXISTS funcoes_equipe (
+      id BIGSERIAL PRIMARY KEY,
+      denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+      cidade_ministerial_id BIGINT NOT NULL REFERENCES cidades_ministeriais(id) ON DELETE CASCADE,
+      coordenador_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+      nome VARCHAR(120) NOT NULL,
+      modulo VARCHAR(20) NOT NULL CHECK (modulo IN ('CAMPANHAS','DISCIPULADO')),
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      criado_em TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS usuarios_funcoes_equipe (
+      usuario_id BIGINT PRIMARY KEY REFERENCES usuarios(id) ON DELETE CASCADE,
+      funcao_equipe_id BIGINT NOT NULL REFERENCES funcoes_equipe(id) ON DELETE CASCADE
+    );
+  `);
+  await db.query(`
     CREATE TABLE IF NOT EXISTS denominacoes (
       id BIGSERIAL PRIMARY KEY,
       nome VARCHAR(160) NOT NULL,
