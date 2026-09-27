@@ -18,6 +18,8 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
+// Evita que iPhone/Safari mantenha telas e JavaScript antigos após um deploy.
+app.use((req,res,next)=>{if(req.path.endsWith('.html')||req.path.endsWith('.js')||req.path==='/'){res.set('Cache-Control','no-store, no-cache, must-revalidate, proxy-revalidate');res.set('Pragma','no-cache');res.set('Expires','0');}next();});
 
 const telasComNavegacao = new Set([
   '/home.html','/pessoas.html','/estrutura-ministerial.html','/discipulado.html',
@@ -33,7 +35,7 @@ app.get([...telasComNavegacao], (req, res, next) => {
     res.type('html').send(html);
   });
 });
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'),{etag:false,maxAge:0}));
 app.use('/api/auth', auth);
 app.use('/api/congregacoes', congregacoes);
 app.use('/api/cidades', cidades);
