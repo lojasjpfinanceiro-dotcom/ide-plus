@@ -151,3 +151,16 @@
 }
 
 .btn-excluir-acesso{border:1px solid #efb3b3!important;background:#fff5f5!important;color:#b42318!important;font-weight:800!important}
+
+/* Drill-down executivo: Cidade -> Congregação -> Resultado */
+.cong-resultado h3{margin:0 0 14px;color:var(--navy)}
+.cong-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.cong-kpis>div,.cong-kpis>button{border:1px solid #e2ebf3;background:#fff;border-radius:16px;padding:16px;text-align:left;font:inherit;color:inherit;box-shadow:0 7px 20px #17304d0a}
+.cong-kpis>button{cursor:pointer}
+.cong-kpis span{display:block;color:var(--muted);font-size:13px;margin-bottom:7px}
+.cong-kpis strong{display:block;color:var(--navy);font-size:30px}
+.cong-modulos{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.cong-modulos button{display:flex;flex-direction:column;gap:7px;text-align:left;border:1px solid #dce8f2;background:#f7fbfe;border-radius:16px;padding:18px;color:var(--navy);cursor:pointer}
+.cong-modulos b{font-size:18px}.cong-modulos span{color:var(--muted);font-size:13px}
+.cong-nota{margin:14px 0 0;color:var(--muted);font-size:12px}
+@media(max-width:720px){.cong-kpis{grid-template-columns:1fr 1fr}.cong-modulos{grid-template-columns:1fr 1fr}.dash-table th,.dash-table td{padding:12px 9px}}
