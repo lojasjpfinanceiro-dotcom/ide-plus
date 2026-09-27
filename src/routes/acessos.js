@@ -165,13 +165,12 @@ router.delete('/usuarios/:id', presidentOnly, async(req,res,next) => {
     if(['MASTER','PASTOR_PRESIDENTE'].includes(String(alvo.perfil||'').toUpperCase()))
       return res.status(403).json({erro:'O acesso do Pastor Presidente não pode ser excluído.'});
     await cx.query('BEGIN');
-    await cx.query('DELETE FROM usuario_permissoes WHERE usuario_id=$1',[alvo.id]);
     await cx.query('DELETE FROM usuarios WHERE id=$1 AND denominacao_id=$2',[alvo.id,req.user.denominacao_id]);
     await cx.query('COMMIT');
     res.json({ok:true,nome:alvo.nome});
   }catch(e){
     await cx.query('ROLLBACK');
-    if(e.code==='23503')return res.status(409).json({erro:'Este usuário possui registros vinculados. Suspenda o acesso em vez de excluir.'});
+    if(e.code==='23503')return res.status(409).json({erro:'Este acesso possui vínculo que impede a exclusão. Suspenda o usuário ou remova primeiro o vínculo relacionado.'});
     next(e);
   }finally{cx.release();}
 });
