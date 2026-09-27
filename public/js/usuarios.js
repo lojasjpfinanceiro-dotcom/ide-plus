@@ -1,4 +1,5 @@
-const somenteGestores=new URLSearchParams(location.search).get('cargo')==='PASTOR_LOCAL';
+const paramsPagina=new URLSearchParams(location.search);const somenteGestores=paramsPagina.get('cargo')==='PASTOR_LOCAL';const modoPermissoes=paramsPagina.get('modo')==='permissoes';
+if(modoPermissoes){const card=document.getElementById('cardNovoAcesso');if(card)card.style.display='none';const titulo=document.getElementById('tituloAcessos');if(titulo)titulo.textContent='Permissões';const sub=document.getElementById('subtituloAcessos');if(sub)sub.textContent='Selecione um usuário já cadastrado para consultar ou alterar suas permissões.';}
 const token=localStorage.getItem('ide_token');
 const headers={'Content-Type':'application/json','Authorization':'Bearer '+token};
 const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
