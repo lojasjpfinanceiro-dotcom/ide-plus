@@ -49,8 +49,13 @@ router.post('/', requirePermission('cidades.inserir'), async (req,res) => {
     const {nome,estado,pais}=req.body;
     if(req.user.escopo!=='DENOMINACAO')return res.status(403).json({erro:'Somente a administração geral pode criar cidades.'});
     if(!nome) return res.status(400).json({erro:'Informe o nome da cidade.'});
-    const q=await db.query('INSERT INTO cidades_ministeriais(denominacao_id,nome,estado,pais) VALUES($1,$2,$3,$4) RETURNING *',
-      [req.user.denominacao_id,nome.trim(),estado?estado.trim():null,String(pais||'Brasil').trim()]);
+    const valores=[req.user.denominacao_id,nome.trim(),estado?estado.trim():null,String(pais||'Brasil').trim()];
+    const antiga=await db.query('SELECT id FROM cidades_ministeriais WHERE denominacao_id=$1 AND LOWER(nome)=LOWER($2) AND COALESCE(LOWER(estado),\'\')=COALESCE(LOWER($3),\'\') ORDER BY ativo DESC,id DESC LIMIT 1',valores.slice(0,3));
+    if(antiga.rowCount){
+      const q=await db.query('UPDATE cidades_ministeriais SET ativo=TRUE,nome=$2,estado=$3,pais=$4 WHERE id=$1 RETURNING *',[antiga.rows[0].id,valores[1],valores[2],valores[3]]);
+      return res.status(201).json(q.rows[0]);
+    }
+    const q=await db.query('INSERT INTO cidades_ministeriais(denominacao_id,nome,estado,pais) VALUES($1,$2,$3,$4) RETURNING *',valores);
     res.status(201).json(q.rows[0]);
   } catch(e){
     if(e.code==='23505') return res.status(409).json({erro:'Esta cidade já está cadastrada.'});
