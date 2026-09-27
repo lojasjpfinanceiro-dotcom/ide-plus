@@ -161,6 +161,50 @@ router.post('/usuarios-equipe', async(req,res,next)=>{
     await cx.query('COMMIT');res.status(201).json(u.rows[0]);
   }catch(e){await cx.query('ROLLBACK');if(e.code==='23505')return res.status(409).json({erro:'Este e-mail já possui acesso.'});next(e);}finally{cx.release();}
 });
+
+router.put('/equipe-local/:id', async(req,res,next)=>{
+  const gestor=String(req.user.escopo||'').toUpperCase()==='CIDADE'&&['PASTOR_LOCAL','GESTOR_LOCAL'].includes(String(req.user.perfil||'').toUpperCase());
+  if(!gestor)return res.status(403).json({erro:'Acesso restrito ao Gestor Local.'});
+  const id=cleanId(req.params.id),nome=String(req.body.nome||'').trim(),email=String(req.body.email||'').trim(),telefone=req.body.telefone||null,cargo=String(req.body.cargo||'').toUpperCase();
+  const permitidos=['SUPERINTENDENTE_CAMPANHAS','VICE_SUPERINTENDENTE_CAMPANHAS','SUPERINTENDENTE_DISCIPULADO','VICE_SUPERINTENDENTE_DISCIPULADO','DIRIGENTE','VICE_DIRIGENTE','PROFESSOR'];
+  if(!id||!nome||!email||!permitidos.includes(cargo))return res.status(400).json({erro:'Informe nome, e-mail e função válida.'});
+  try{
+    const q=await db.query(`UPDATE usuarios SET nome=$1,email=LOWER($2),telefone=$3,cargo=$4,perfil=$5
+      WHERE id=$6 AND denominacao_id=$7 AND cidade_ministerial_id=$8
+      AND perfil NOT IN ('MASTER','PASTOR_PRESIDENTE','PASTOR_LOCAL')
+      RETURNING id,nome,email,telefone,cargo,perfil,ativo`,
+      [nome,email,telefone,cargo,['DIRIGENTE','VICE_DIRIGENTE','PROFESSOR'].includes(cargo)?'EQUIPE_LOCAL':'LIDERANCA_LOCAL',id,req.user.denominacao_id,req.user.cidade_ministerial_id]);
+    if(!q.rowCount)return res.status(404).json({erro:'Acesso não encontrado.'});res.json(q.rows[0]);
+  }catch(e){if(e.code==='23505')return res.status(409).json({erro:'Este e-mail já possui acesso.'});next(e);}
+});
+router.delete('/equipe-local/:id', async(req,res,next)=>{
+  const gestor=String(req.user.escopo||'').toUpperCase()==='CIDADE'&&['PASTOR_LOCAL','GESTOR_LOCAL'].includes(String(req.user.perfil||'').toUpperCase());
+  if(!gestor)return res.status(403).json({erro:'Acesso restrito ao Gestor Local.'});
+  try{const q=await db.query(`DELETE FROM usuarios WHERE id=$1 AND denominacao_id=$2 AND cidade_ministerial_id=$3
+    AND perfil NOT IN ('MASTER','PASTOR_PRESIDENTE','PASTOR_LOCAL') RETURNING id,nome`,[req.params.id,req.user.denominacao_id,req.user.cidade_ministerial_id]);
+    if(!q.rowCount)return res.status(404).json({erro:'Acesso não encontrado.'});res.json({ok:true,...q.rows[0]});
+  }catch(e){if(e.code==='23503')return res.status(409).json({erro:'Este acesso possui vínculos. Remova os vínculos antes de excluir.'});next(e);}
+});
+router.delete('/funcoes-equipe/:id', async(req,res,next)=>{
+  if(!coordenadorAtual(req.user))return res.status(403).json({erro:'Acesso restrito à Coordenação.'});
+  try{const q=await db.query('DELETE FROM funcoes_equipe WHERE id=$1 AND coordenador_id=$2 RETURNING id,nome',[req.params.id,req.user.id]);
+    if(!q.rowCount)return res.status(404).json({erro:'Função não encontrada.'});res.json({ok:true,...q.rows[0]});
+  }catch(e){if(e.code==='23503')return res.status(409).json({erro:'A função possui usuários vinculados.'});next(e);}
+});
+router.put('/funcoes-equipe/:id', async(req,res,next)=>{
+  if(!coordenadorAtual(req.user))return res.status(403).json({erro:'Acesso restrito à Coordenação.'});
+  const nome=String(req.body.nome||'').trim(),modulo=String(req.body.modulo||'').toUpperCase();
+  if(!nome||!['CAMPANHAS','DISCIPULADO','GERAL'].includes(modulo))return res.status(400).json({erro:'Informe função e área.'});
+  try{const q=await db.query('UPDATE funcoes_equipe SET nome=$1,modulo=$2 WHERE id=$3 AND coordenador_id=$4 RETURNING id,nome,modulo',[nome,modulo,req.params.id,req.user.id]);
+    if(!q.rowCount)return res.status(404).json({erro:'Função não encontrada.'});res.json(q.rows[0]);}catch(e){next(e);}
+});
+router.delete('/usuarios-equipe/:id', async(req,res,next)=>{
+  if(!coordenadorAtual(req.user))return res.status(403).json({erro:'Acesso restrito à Coordenação.'});
+  try{const q=await db.query(`DELETE FROM usuarios u USING usuarios_funcoes_equipe uf,funcoes_equipe fe
+    WHERE u.id=$1 AND uf.usuario_id=u.id AND fe.id=uf.funcao_equipe_id AND fe.coordenador_id=$2 RETURNING u.id,u.nome`,[req.params.id,req.user.id]);
+    if(!q.rowCount)return res.status(404).json({erro:'Usuário não encontrado.'});res.json({ok:true,...q.rows[0]});}catch(e){next(e);}
+});
+
 router.get('/usuarios/:id/permissoes', presidentOnly, async(req,res,next) => {
   try {
     const q=await db.query(`SELECT p.id,p.codigo,p.nome,p.modulo,
