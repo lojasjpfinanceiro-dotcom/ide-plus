@@ -3,39 +3,28 @@
 <title>Acessos • IDE+</title><link rel="stylesheet" href="/css/app.css"></head>
 <body><div class="shell usuarios-shell"><aside class="side usuarios-side"><div class="brand">IDE<b>+</b></div>
 <nav><a href="/home.html">⌂ Início</a><a href="/estrutura.html">🏙 Cidades</a><a class="active">🔐 Acessos</a></nav></aside>
-<main class="main usuarios-main"><header class="top usuarios-top"><div><h1>Acessos da denominação</h1>
-<p>O Pastor Presidente cria os logins e libera o trabalho de cada pessoa.</p></div>
+<main class="main usuarios-main"><header class="top usuarios-top"><div><h1 id="tituloAcessos">Gestores / Pastores Locais</h1><p id="subtituloAcessos">Cadastre os usuários gestores responsáveis pelas cidades.</p></div>
 <button class="usuarios-voltar" onclick="location.href='/home.html'">Voltar</button></header>
-<section class="card panel presidente-card"><h2>👑 Pastor Presidente</h2><p id="presidente"></p>
-<p>O cargo identifica a função. O vínculo define onde a pessoa atua. As permissões definem o que ela pode fazer.</p></section>
+<section class="card panel presidente-card" id="cardPresidente"><h2>👑 Pastor Presidente</h2><p id="presidente"></p></section>
 <section class="card panel usuario-card"><div class="usuario-title"><div class="usuario-title-icon">👤<b>+</b></div>
-<div><h2>Novo acesso</h2><p>Escolha o cargo e a área antes de liberar os módulos.</p></div></div>
+<div><h2>Novo Gestor / Pastor Local</h2><p>Crie o login do responsável pela cidade.</p></div></div>
 <form id="formUsuario"><div class="usuario-section"><h3>1. Pessoa e área</h3>
 <div class="form-grid usuario-form-grid">
 <label>Nome completo *<input name="nome" required></label>
 <label>WhatsApp<input name="telefone" inputmode="tel"></label>
-<label>Cargo *<select name="cargo" id="cargo" required><option value="">Selecione</option>
-<optgroup label="Convenção"><option value="VICE_PRESIDENTE">Vice-Presidente</option><option value="SECRETARIO">Secretário</option><option value="OUTRO">Outro membro da liderança</option></optgroup>
-<optgroup label="Cidade"><option value="PASTOR_LOCAL">Pastor Local</option>
-<option value="SUPERINTENDENTE_CAMPANHAS">Superintendente de Campanhas</option>
-<option value="VICE_SUPERINTENDENTE_CAMPANHAS">Vice-Superintendente de Campanhas</option>
-<option value="SUPERINTENDENTE_DISCIPULADO">Superintendente de Discipulado</option>
-<option value="VICE_SUPERINTENDENTE_DISCIPULADO">Vice-Superintendente de Discipulado</option></optgroup>
-<optgroup label="Congregação"><option value="DIRIGENTE">Dirigente</option>
-<option value="VICE_DIRIGENTE">Vice-Dirigente</option>
-<option value="SECRETARIO_CAMPANHA">Secretário de Campanha</option></optgroup></select></label>
+<label>Cargo *<select name="cargo" id="cargo" required><option value="PASTOR_LOCAL">Pastor Local / Gestor</option></select></label>
 <label id="campoCidade" style="display:none">Cidade *<select name="cidade_ministerial_id" id="cidadeMinisterial"><option value="">Selecione a cidade</option></select></label>
 <label id="campoCongregacao" style="display:none">Congregação *<select name="congregacao_id" id="congregacao"><option value="">Selecione a congregação</option></select></label>
 <label>E-mail *<input name="email" type="email" required></label>
 <label>Senha inicial *<input name="senha" type="password" minlength="8" autocomplete="new-password" required></label>
 </div></div>
-<div class="usuario-section permissoes-section"><h3>2. Módulos e ações</h3>
+<div class="usuario-section permissoes-section" id="secaoPermissoesCadastro" style="display:none"><h3>2. Módulos e ações</h3>
 <p class="permissoes-help" id="ajudaPermissoes">Marque somente as ações necessárias. O Pastor Local tem acesso operacional à própria cidade.</p>
 <div id="permissoes">Escolha um cargo para ver as opções.</div></div>
 <p id="msg" role="status"></p><div class="usuario-actions">
 <button class="btn-cancelar" type="reset">Limpar</button>
 <button id="salvar" class="btn-salvar" type="submit">Salvar e liberar acesso</button></div></form></section>
-<section class="card panel equipe-card"><h2>Pessoas com acesso</h2><div id="listaUsuarios">Carregando...</div></section>
+<section class="card panel equipe-card"><h2>Gestores / Pastores Locais cadastrados</h2><div id="listaUsuarios">Carregando...</div></section>
 <dialog id="editorPermissoes" class="card panel"><form method="dialog"><h2>Permissões deste acesso</h2>
 <p>Escolha as ações liberadas para esta pessoa.</p><div id="editorLista"></div>
 <p id="editorMsg" role="status"></p><div class="usuario-actions">
