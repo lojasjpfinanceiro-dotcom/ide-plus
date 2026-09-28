@@ -39,20 +39,29 @@ router.get('/painel',async(req,res,next)=>{
     const cidades=await db.query(`SELECT cm.id,cm.nome,cm.estado,cm.pais,COUNT(DISTINCT cg.id) FILTER(WHERE cg.ativo=TRUE)::int congregacoes,
       COUNT(p.id) FILTER(WHERE p.ativo=TRUE)::int alcancados,
       COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='CONVERTIDO')::int convertidos,
-      COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='EM_DISCIPULADO')::int em_discipulado
+      COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='EM_DISCIPULADO')::int em_discipulado,
+      COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='CONVERTIDO')::int nao_discipulados,
+      COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='SAIU')::int desistidos,
+      COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='BATIZADO')::int batizados
       FROM cidades_ministeriais cm LEFT JOIN congregacoes cg ON cg.cidade_ministerial_id=cm.id
       LEFT JOIN pessoas p ON p.congregacao_id=cg.id
       WHERE cm.denominacao_id=$1 AND cm.ativo=TRUE${s.sql} GROUP BY cm.id ORDER BY convertidos DESC,cm.nome`,base);
     const congregacoes=await db.query(`SELECT cg.id,cg.nome,cm.nome cidade,cm.estado,cm.pais,
       COUNT(p.id) FILTER(WHERE p.ativo=TRUE)::int alcancados,
       COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='CONVERTIDO')::int convertidos,
-      COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='EM_DISCIPULADO')::int em_discipulado
+      COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='EM_DISCIPULADO')::int em_discipulado,
+      COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='CONVERTIDO')::int nao_discipulados,
+      COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='SAIU')::int desistidos,
+      COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='BATIZADO')::int batizados
       FROM congregacoes cg JOIN cidades_ministeriais cm ON cm.id=cg.cidade_ministerial_id
       LEFT JOIN pessoas p ON p.congregacao_id=cg.id
       WHERE cm.denominacao_id=$1 AND cm.ativo=TRUE${s.sql}
       GROUP BY cg.id,cm.nome,cm.estado,cm.pais ORDER BY convertidos DESC,cg.nome`,base);
-    const paises=await db.query(`SELECT COALESCE(cm.pais,'Brasil') pais,COUNT(DISTINCT cm.id)::int cidades,COUNT(DISTINCT cg.id) FILTER(WHERE cg.ativo=TRUE)::int congregacoes,COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE)::int alcancados,COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE AND p.status='CONVERTIDO')::int convertidos,COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE AND p.status='EM_DISCIPULADO')::int em_discipulado FROM cidades_ministeriais cm LEFT JOIN congregacoes cg ON cg.cidade_ministerial_id=cm.id LEFT JOIN pessoas p ON p.congregacao_id=cg.id WHERE cm.denominacao_id=$1 AND cm.ativo=TRUE${s.sql} GROUP BY COALESCE(cm.pais,'Brasil') ORDER BY convertidos DESC,pais`,base);
-    const estados=await db.query(`SELECT COALESCE(cm.pais,'Brasil') pais,COALESCE(cm.estado,'Sem região') estado,COUNT(DISTINCT cm.id)::int cidades,COUNT(DISTINCT cg.id)::int congregacoes,COUNT(p.id) FILTER(WHERE p.ativo=TRUE)::int alcancados,COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='CONVERTIDO')::int convertidos,COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='EM_DISCIPULADO')::int em_discipulado FROM cidades_ministeriais cm LEFT JOIN congregacoes cg ON cg.cidade_ministerial_id=cm.id AND cg.ativo=TRUE LEFT JOIN pessoas p ON p.congregacao_id=cg.id WHERE cm.denominacao_id=$1 AND cm.ativo=TRUE${s.sql} GROUP BY COALESCE(cm.pais,'Brasil'),COALESCE(cm.estado,'Sem região') ORDER BY convertidos DESC,estado`,base);
+    const paises=await db.query(`SELECT COALESCE(cm.pais,'Brasil') pais,COUNT(DISTINCT cm.id)::int cidades,COUNT(DISTINCT cg.id) FILTER(WHERE cg.ativo=TRUE)::int congregacoes,COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE)::int alcancados,COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE AND p.status='CONVERTIDO')::int convertidos,COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE AND p.status='EM_DISCIPULADO')::int em_discipulado,COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE AND p.status='CONVERTIDO')::int nao_discipulados,COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE AND p.status='SAIU')::int desistidos,COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE AND p.status='BATIZADO')::int batizados FROM cidades_ministeriais cm LEFT JOIN congregacoes cg ON cg.cidade_ministerial_id=cm.id LEFT JOIN pessoas p ON p.congregacao_id=cg.id WHERE cm.denominacao_id=$1 AND cm.ativo=TRUE${s.sql} GROUP BY COALESCE(cm.pais,'Brasil') ORDER BY convertidos DESC,pais`,base);
+    const estados=await db.query(`SELECT COALESCE(cm.pais,'Brasil') pais,COALESCE(cm.estado,'Sem região') estado,COUNT(DISTINCT cm.id)::int cidades,COUNT(DISTINCT cg.id)::int congregacoes,COUNT(p.id) FILTER(WHERE p.ativo=TRUE)::int alcancados,COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='CONVERTIDO')::int convertidos,COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='EM_DISCIPULADO')::int em_discipulado,
+      COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='CONVERTIDO')::int nao_discipulados,
+      COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='SAIU')::int desistidos,
+      COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='BATIZADO')::int batizados FROM cidades_ministeriais cm LEFT JOIN congregacoes cg ON cg.cidade_ministerial_id=cm.id AND cg.ativo=TRUE LEFT JOIN pessoas p ON p.congregacao_id=cg.id WHERE cm.denominacao_id=$1 AND cm.ativo=TRUE${s.sql} GROUP BY COALESCE(cm.pais,'Brasil'),COALESCE(cm.estado,'Sem região') ORDER BY convertidos DESC,estado`,base);
     res.json({resumo:resumo.rows[0],paises:paises.rows,estados:estados.rows,cidades:cidades.rows,congregacoes:congregacoes.rows});
   }catch(e){next(e);}
 });
