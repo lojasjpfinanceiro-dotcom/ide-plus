@@ -36,11 +36,11 @@ router.get('/painel',async(req,res,next)=>{
       FROM cidades_ministeriais cm LEFT JOIN congregacoes cg ON cg.cidade_ministerial_id=cm.id
       LEFT JOIN pessoas p ON p.congregacao_id=cg.id
       WHERE cm.denominacao_id=$1 AND cm.ativo=TRUE${s.sql}`,base);
-    const cidades=await db.query(`SELECT cm.id,cm.nome,cm.estado,cm.pais,COUNT(DISTINCT cg.id)::int congregacoes,
+    const cidades=await db.query(`SELECT cm.id,cm.nome,cm.estado,cm.pais,COUNT(DISTINCT cg.id) FILTER(WHERE cg.ativo=TRUE)::int congregacoes,
       COUNT(p.id) FILTER(WHERE p.ativo=TRUE)::int alcancados,
       COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='CONVERTIDO')::int convertidos,
       COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='EM_DISCIPULADO')::int em_discipulado
-      FROM cidades_ministeriais cm LEFT JOIN congregacoes cg ON cg.cidade_ministerial_id=cm.id AND cg.ativo=TRUE
+      FROM cidades_ministeriais cm LEFT JOIN congregacoes cg ON cg.cidade_ministerial_id=cm.id
       LEFT JOIN pessoas p ON p.congregacao_id=cg.id
       WHERE cm.denominacao_id=$1 AND cm.ativo=TRUE${s.sql} GROUP BY cm.id ORDER BY convertidos DESC,cm.nome`,base);
     const congregacoes=await db.query(`SELECT cg.id,cg.nome,cm.nome cidade,cm.estado,cm.pais,
