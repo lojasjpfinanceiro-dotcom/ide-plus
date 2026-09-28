@@ -27,13 +27,13 @@ router.get('/painel',async(req,res,next)=>{
   try{
     const s=filter(req.user,'cm.id','cg.id',2);
     const base=[req.user.denominacao_id,...s.values];
-    const resumo=await db.query(`SELECT COUNT(DISTINCT cm.id)::int cidades,COUNT(DISTINCT cg.id)::int congregacoes,
+    const resumo=await db.query(`SELECT COUNT(DISTINCT cm.id)::int cidades,COUNT(DISTINCT cg.id) FILTER(WHERE cg.ativo=TRUE)::int congregacoes,
       COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE)::int alcancados,
       COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE AND p.status='CONVERTIDO')::int convertidos,
       COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE AND p.status='EM_DISCIPULADO')::int em_discipulado,
       COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE AND p.status='PREPARANDO_BATISMO')::int preparando_batismo,
       COUNT(DISTINCT p.id) FILTER(WHERE p.ativo=TRUE AND p.status='BATIZADO')::int batizados
-      FROM cidades_ministeriais cm LEFT JOIN congregacoes cg ON cg.cidade_ministerial_id=cm.id AND cg.ativo=TRUE
+      FROM cidades_ministeriais cm LEFT JOIN congregacoes cg ON cg.cidade_ministerial_id=cm.id
       LEFT JOIN pessoas p ON p.congregacao_id=cg.id
       WHERE cm.denominacao_id=$1 AND cm.ativo=TRUE${s.sql}`,base);
     const cidades=await db.query(`SELECT cm.id,cm.nome,cm.estado,cm.pais,COUNT(DISTINCT cg.id)::int congregacoes,
