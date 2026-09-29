@@ -1,10 +1,29 @@
 <!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Home • IDE+</title><link rel="stylesheet" href="/css/app.css"><style>.kpi-link{text-align:left;cursor:pointer;font:inherit;text-decoration:none;color:inherit;display:block}.kpi-link small{display:block;margin-top:8px;color:#52708d;font-weight:700} .executivo{display:block}.dash-table{width:100%;border-collapse:collapse}.dash-table th,.dash-table td{padding:10px;border-bottom:1px solid #dce6ef;text-align:left}.dash-bars{display:grid;gap:10px}.dash-bar{display:grid;grid-template-columns:minmax(100px,1fr) 3fr 50px;gap:8px;align-items:center}.dash-bar i{height:14px;background:#1d78b5;border-radius:8px;display:block}.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:720px){.dash-grid{grid-template-columns:1fr}.dash-table{font-size:13px}}</style></head><body>
+<title>Home • IDE+</title><link rel="stylesheet" href="/css/app.css"><link rel="stylesheet" href="/css/home-nivel1.css"><style>.kpi-link{text-align:left;cursor:pointer;font:inherit;text-decoration:none;color:inherit;display:block}.kpi-link small{display:block;margin-top:8px;color:#52708d;font-weight:700} .executivo{display:block}.dash-table{width:100%;border-collapse:collapse}.dash-table th,.dash-table td{padding:10px;border-bottom:1px solid #dce6ef;text-align:left}.dash-bars{display:grid;gap:10px}.dash-bar{display:grid;grid-template-columns:minmax(100px,1fr) 3fr 50px;gap:8px;align-items:center}.dash-bar i{height:14px;background:#1d78b5;border-radius:8px;display:block}.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:720px){.dash-grid{grid-template-columns:1fr}.dash-table{font-size:13px}}</style></head><body>
 <div class="shell"><aside class="side"><div class="brand">IDE<b>+</b></div>
 <nav id="menu"><a class="active" href="/home.html">⌂ Início</a></nav></aside>
 <main class="main"><header class="top"><div><h1 id="ola">Olá!</h1>
 <p id="contexto">Carregando seu acesso...</p></div><div><button id="abrirSenha">Alterar senha</button> <button id="sair">Sair</button></div></header>
-<section class="card panel" id="orientacao"><h2>Seu trabalho no IDE+</h2><p id="descricao"></p>
+<section id="nivel1Home" aria-label="Dashboard da denominação">
+  <div class="n1-userbar"><div class="n1-user"><span class="n1-avatar">👤</span><span id="n1Usuario">Administrador</span><span class="n1-chevron">⌄</span></div></div>
+  <h1 class="n1-title">Denominação</h1>
+  <div class="n1-kpis">
+    <div class="n1-kpi"><strong id="n1Paises">0</strong><span>Países</span></div>
+    <div class="n1-kpi"><strong id="n1Estados">0</strong><span>Estados</span></div>
+    <div class="n1-kpi"><strong id="n1Cidades">0</strong><span>Cidades</span></div>
+    <div class="n1-kpi"><strong id="n1Congregacoes">0</strong><span>Congregações</span></div>
+  </div>
+  <div class="n1-map-card" aria-label="Mapa de atuação da denominação">
+    <svg class="n1-map" viewBox="0 0 900 360" role="img" aria-label="Mapa mundial de atuação">
+      <path class="n1-land" d="M72 102l38-32 80-18 77 17 40 40-21 34-53 8-18 29-48 2-29 42-35-20-8-43-31-17zm208 115 38 8 24 36-7 55-29 37-19-23 8-43-24-34zm111-121 42-24 55 5 21 21 57-13 69 17 65-12 73 34-8 30-60 12-42-17-32 22-49-9-27 29-45-3-23-33-42 7-28-25-25-3zm160 101 35 9 20 42-16 60-34 30-24-45 9-43-19-32zm176 77 48-11 45 18 9 29-40 19-52-13-15-24z"/>
+      <g id="n1MapDots"><circle class="n1-dot" cx="150" cy="112" r="7"/><circle class="n1-dot" cx="210" cy="153" r="6"/><circle class="n1-dot alt" cx="300" cy="264" r="7"/><circle class="n1-dot" cx="432" cy="117" r="6"/><circle class="n1-dot alt" cx="500" cy="171" r="7"/><circle class="n1-dot" cx="585" cy="129" r="6"/><circle class="n1-dot alt" cx="650" cy="153" r="7"/><circle class="n1-dot" cx="742" cy="145" r="6"/><circle class="n1-dot hot" cx="282" cy="238" r="7"/></g>
+    </svg>
+  </div>
+  <div class="n1-lower">
+    <section class="n1-box"><h3>Crescimento por ano</h3><div class="n1-bars" id="n1Crescimento"></div></section>
+    <section class="n1-box"><h3>Atividades Recentes</h3><div class="n1-activity" id="n1Atividades"><div><i>●</i><span>Carregando atividades...</span><time></time></div></div></section>
+  </div>
+</section><section class="card panel" id="orientacao"><h2>Seu trabalho no IDE+</h2><p id="descricao"></p>
 </section>
 <section id="executivo" class="executivo" style="display:block"><h2>Visão Geral</h2><section class="card panel" id="navegacaoTerritorial"><h2 id="tituloTerritorial">Resumo territorial</h2><p id="trilhaTerritorial" style="display:none"></p><div id="resumoTerritorial"></div></section><div class="dash-grid"><section class="card panel"><h2>Conversões por país</h2><div id="graficoPaises" class="dash-bars"></div></section><section class="card panel"><h2>Conversões por estado / região</h2><div id="graficoEstados" class="dash-bars"></div></section></div><div class="dash-grid"><section class="card panel"><h2>Conversões por cidade</h2><div id="graficoCidades" class="dash-bars"></div></section><section class="card panel"><h2>Jornada do discipulado</h2><div id="graficoJornada" class="dash-bars"></div></section></div><div class="dash-grid"><section class="card panel"><h2>Conversões por congregação</h2><div id="graficoCongregacoes" class="dash-bars"></div></section><section class="card panel"><h2>Discipulado por cidade</h2><div id="graficoDiscipuladoCidade" class="dash-bars"></div></section></div><section class="card panel" id="menuDashboard"><h2>Menu do Dashboard</h2><div class="quick"><a href="#graficoPaises">Países</a><a href="#graficoEstados">Estados / Regiões</a><a href="#graficoCidades">Cidades</a><a href="#graficoCongregacoes">Congregações</a><a href="#graficoDiscipuladoCidade">Discipulado</a><a href="/configuracao.html">Cadastros</a></div></section></section><section id="resumoSecao" style="display:none"><h2>Resumo da sua área</h2>
 <div class="kpis"><a class="card kpi kpi-link" id="cardAlcancadas" href="/pessoas.html?filtro=alcancadas"><span>Pessoas alcançadas</span><strong id="kAlcancadas">0</strong><small>Ver pessoas ›</small></a>
