@@ -19,8 +19,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 app.use(express.json());
-// Evita que iPhone/Safari mantenha telas e JavaScript antigos após um deploy.
-app.use((req,res,next)=>{if(req.path.endsWith('.html')||req.path.endsWith('.js')||req.path==='/'){res.set('Cache-Control','no-store, no-cache, must-revalidate, proxy-revalidate');res.set('Pragma','no-cache');res.set('Expires','0');}next();});
+app.use((req,res,next)=>{if(req.path.endsWith('.html')||req.path.endsWith('.js')||req.path.endsWith('.css')||req.path==='/'){res.set('Cache-Control','no-store, no-cache, must-revalidate, proxy-revalidate');res.set('Pragma','no-cache');res.set('Expires','0');}next();});
 
 const telasComNavegacao = new Set([
   '/home.html','/pessoas.html','/estrutura-ministerial.html','/discipulado.html',
@@ -31,8 +30,9 @@ app.get([...telasComNavegacao], (req, res, next) => {
   const arquivo = path.join(__dirname, 'public', req.path.slice(1));
   require('fs').readFile(arquivo, 'utf8', (err, html) => {
     if (err) return next();
-    const tag = '<script src="/js/bottom-nav.js"></script>';
-    if (!html.includes('/js/bottom-nav.js')) html = html.replace('</body>', tag + '</body>');
+    if (!html.includes('/css/levels.css')) html = html.replace('</head>','<link rel="stylesheet" href="/css/levels.css"></head>');
+    const scripts='<script src="/js/level-ui.js"></script><script src="/js/bottom-nav.js"></script>';
+    if (!html.includes('/js/level-ui.js')) html = html.replace('</body>', scripts + '</body>');
     res.type('html').send(html);
   });
 });
@@ -55,30 +55,19 @@ app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) return next();
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-
 app.use((req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
-
 app.use((err, req, res, next) => {
   console.error('Erro HTTP:', err);
-  if (err && err.type === 'entity.too.large') {
-    return res.status(413).json({ erro: 'A foto ficou muito grande para envio. Tire uma nova foto de identificação e tente novamente.' });
-  }
-  if (req.path && req.path.startsWith('/api/')) {
-    return res.status(err.status || 500).json({ erro: 'Erro ao processar a solicitação.' });
-  }
+  if (err && err.type === 'entity.too.large') return res.status(413).json({ erro: 'A foto ficou muito grande para envio. Tire uma nova foto de identificação e tente novamente.' });
+  if (req.path && req.path.startsWith('/api/')) return res.status(err.status || 500).json({ erro: 'Erro ao processar a solicitação.' });
   next(err);
 });
-
 async function start() {
   try {
     if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL não configurada.');
     if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET não configurado.');
     await initDb();
     app.listen(port, () => console.log('IDE+ ativo na porta ' + port));
-  } catch (err) {
-    console.error('Falha ao iniciar IDE+:', err);
-    process.exit(1);
-  }
+  } catch (err) { console.error('Falha ao iniciar IDE+:', err); process.exit(1); }
 }
-
 start();
