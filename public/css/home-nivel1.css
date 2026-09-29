@@ -1,0 +1,21 @@
+/* Home Nível 1 — referência visual do fluxograma aprovado */
+#nivel1Home{display:none}
+html[data-ide-nivel="1"] body{background:#f4f7fb}
+html[data-ide-nivel="1"] .shell{grid-template-columns:220px minmax(0,1fr)}
+html[data-ide-nivel="1"] .side{background:linear-gradient(180deg,#061f43 0%,#052d5d 55%,#041b39 100%);border:0;padding:22px 14px;color:#fff}
+html[data-ide-nivel="1"] .side .brand{color:#fff;font-size:38px;letter-spacing:-1px;padding:2px 10px 18px}
+html[data-ide-nivel="1"] .side .brand b{color:#16a7ff}
+html[data-ide-nivel="1"] .side nav{margin-top:6px}
+html[data-ide-nivel="1"] .side nav a{color:#eef7ff;border-radius:7px;padding:11px 12px;margin:2px 0;font-size:14px;border-left:0!important}
+html[data-ide-nivel="1"] .side nav a:hover,html[data-ide-nivel="1"] .side nav a.active{background:#0a4f91;color:#fff}
+html[data-ide-nivel="1"] .ide-level-badge{display:none}
+html[data-ide-nivel="1"] .main{padding:0 26px 30px}
+html[data-ide-nivel="1"] .main>.top,html[data-ide-nivel="1"] #orientacao,html[data-ide-nivel="1"] #executivo,html[data-ide-nivel="1"] #resumoSecao,html[data-ide-nivel="1"] #proximosModulos{display:none!important}
+html[data-ide-nivel="1"] #nivel1Home{display:block}
+.n1-userbar{height:76px;margin:0 -26px 18px;padding:0 28px;display:flex;align-items:center;justify-content:flex-end;background:#fff;border-bottom:1px solid #dce6f0}
+.n1-user{display:flex;align-items:center;gap:12px;font-weight:800;color:#17335b}.n1-avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:#e9f3fb;font-size:22px}.n1-chevron{color:#0d8bea;font-size:18px}
+.n1-title{font-size:30px;color:#102c59;margin:0 0 16px;font-weight:900}
+.n1-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}.n1-kpi{background:#fff;border:1px solid #e0e8f1;border-radius:13px;padding:17px 12px;text-align:center;box-shadow:0 4px 14px #163b6610}.n1-kpi strong{display:block;font-size:34px;color:#102e5b;line-height:1}.n1-kpi span{display:block;margin-top:8px;font-weight:700;color:#405d7c}
+.n1-map-card{background:#fff;border:1px solid #e0e8f1;border-radius:13px;padding:10px 18px 4px;margin-bottom:16px;overflow:hidden}.n1-map{width:100%;height:290px;display:block}.n1-land{fill:#cfe5f2}.n1-dot{fill:#169ce4}.n1-dot.alt{fill:#12b886}.n1-dot.hot{fill:#ef4444}
+.n1-lower{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}.n1-box{background:#fff;border:1px solid #e0e8f1;border-radius:13px;padding:18px;min-width:0}.n1-box h3{margin:0 0 14px;color:#14345f;font-size:19px}.n1-bars{height:170px;display:flex;align-items:flex-end;gap:18px;padding:14px 10px 0;border-bottom:1px solid #dbe5ef}.n1-bar-wrap{flex:1;text-align:center;color:#667d95;font-size:11px}.n1-bar{display:block;width:100%;max-width:48px;margin:0 auto 7px;background:linear-gradient(#149ff0,#087bd1);border-radius:3px 3px 0 0;min-height:8px}.n1-activity{display:grid;gap:0}.n1-activity div{display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:center;padding:10px 2px;border-bottom:1px solid #e7edf3;color:#304d6d}.n1-activity div:last-child{border-bottom:0}.n1-activity i{font-style:normal;color:#0b91ea}.n1-activity time{color:#70859b;font-weight:700;font-size:12px}
+@media(max-width:850px){html[data-ide-nivel="1"] .shell{display:block}html[data-ide-nivel="1"] .side{background:#061f43;padding:15px 16px}html[data-ide-nivel="1"] .side .brand{font-size:30px;padding:0}html[data-ide-nivel="1"] .main{padding:0 14px 104px}.n1-userbar{height:62px;margin:0 -14px 14px;padding:0 16px}.n1-title{font-size:26px}.n1-kpis{grid-template-columns:1fr 1fr;gap:9px}.n1-kpi{padding:14px 8px}.n1-kpi strong{font-size:29px}.n1-map{height:210px}.n1-lower{grid-template-columns:1fr}.n1-bars{gap:8px;height:150px}}
