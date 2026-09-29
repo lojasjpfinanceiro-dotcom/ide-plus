@@ -36,10 +36,10 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
         const d=await painel.json(),r=d.resumo||{};
         const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=Number(v||0).toLocaleString('pt-BR')};
         set('n1Paises',(d.paises||[]).length);set('n1Estados',(d.estados||[]).length);set('n1Cidades',r.cidades);set('n1Congregacoes',r.congregacoes);
-        const total=Math.max(1,Number(r.alcancados||0),Number(r.convertidos||0),Number(r.em_discipulado||0),Number(r.batizados||0));
-        const vals=[['Alcançadas',r.alcancados],['Convertidas',r.convertidos],['Discipulado',r.em_discipulado],['Batizadas',r.batizados]];
-        const bars=document.getElementById('n1Crescimento');if(bars)bars.innerHTML=vals.map(([x,v])=>'<div class="n1-bar-wrap"><span class="n1-bar" style="height:'+Math.max(8,Math.round(Number(v||0)*130/total))+'px"></span><b>'+Number(v||0).toLocaleString('pt-BR')+'</b><br>'+x+'</div>').join('');
-        const acts=document.getElementById('n1Atividades');if(acts){const eventos=[];(d.paises||[]).slice(0,1).forEach(x=>eventos.push('País ativo: '+x.pais));(d.estados||[]).slice(0,1).forEach(x=>eventos.push('Estado ativo: '+x.estado));(d.cidades||[]).slice(0,1).forEach(x=>eventos.push('Cidade ativa: '+x.nome));eventos.push(Number(r.congregacoes||0).toLocaleString('pt-BR')+' congregações cadastradas');acts.innerHTML=eventos.map((x,i)=>'<div><i>●</i><span>'+esc(x)+'</span><time>'+(['Agora','Hoje','Hoje','Atual'][i]||'')+'</time></div>').join('');}
+        const serie=(d.crescimento||[]),total=Math.max(1,...serie.map(x=>Number(x.total||0)));
+        const bars=document.getElementById('n1Crescimento');if(bars)bars.innerHTML=serie.length?serie.map(x=>'<div class="n1-bar-wrap"><span class="n1-bar" style="height:'+Math.max(8,Math.round(Number(x.total||0)*130/total))+'px"></span><b>'+Number(x.total||0).toLocaleString('pt-BR')+'</b><br>'+esc(x.ano)+'</div>').join(''):'<div class="n1-empty">Ainda não há histórico anual.</div>';
+        const rel=t=>{const ms=Date.now()-new Date(t).getTime(),m=Math.max(0,Math.floor(ms/60000));if(m<1)return'Agora';if(m<60)return m+' min';const h=Math.floor(m/60);if(h<24)return h+' h';const dias=Math.floor(h/24);return dias+' d'};
+        const acts=document.getElementById('n1Atividades');if(acts)acts.innerHTML=(d.atividades||[]).length?(d.atividades||[]).map(x=>'<div><i>●</i><span>'+esc(x.descricao)+'</span><time>'+rel(x.criado_em)+'</time></div>').join(''):'<div><i>●</i><span>Nenhuma atividade recente.</span><time></time></div>';
       }
     }
     ola.textContent='Olá, '+u.nome+'!';
