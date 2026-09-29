@@ -62,7 +62,17 @@ router.get('/painel',async(req,res,next)=>{
       COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='CONVERTIDO')::int nao_discipulados,
       COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='SAIU')::int desistidos,
       COUNT(p.id) FILTER(WHERE p.ativo=TRUE AND p.status='BATIZADO')::int batizados FROM cidades_ministeriais cm LEFT JOIN congregacoes cg ON cg.cidade_ministerial_id=cm.id AND cg.ativo=TRUE LEFT JOIN pessoas p ON p.congregacao_id=cg.id WHERE cm.denominacao_id=$1 AND cm.ativo=TRUE${s.sql} GROUP BY COALESCE(cm.pais,'Brasil'),COALESCE(cm.estado,'Sem região') ORDER BY convertidos DESC,estado`,base);
-    res.json({resumo:resumo.rows[0],paises:paises.rows,estados:estados.rows,cidades:cidades.rows,congregacoes:congregacoes.rows});
+    const crescimento=await db.query(`SELECT EXTRACT(YEAR FROM p.criado_em)::int ano,COUNT(DISTINCT p.id)::int total
+      FROM pessoas p LEFT JOIN congregacoes cg ON cg.id=p.congregacao_id LEFT JOIN cidades_ministeriais cm ON cm.id=cg.cidade_ministerial_id
+      WHERE p.denominacao_id=$1 AND p.ativo=TRUE${s.sql}
+      GROUP BY EXTRACT(YEAR FROM p.criado_em) ORDER BY ano`,base);
+    const atividades=await db.query(`SELECT tipo,descricao,criado_em FROM (
+      SELECT 'PAIS' tipo,'Novo país cadastrado: '||COALESCE(cm.pais,'Brasil') descricao,MIN(cm.criado_em) criado_em FROM cidades_ministeriais cm WHERE cm.denominacao_id=$1 AND cm.ativo=TRUE GROUP BY COALESCE(cm.pais,'Brasil')
+      UNION ALL SELECT 'ESTADO','Novo estado cadastrado: '||COALESCE(cm.estado,'Sem região'),MIN(cm.criado_em) FROM cidades_ministeriais cm WHERE cm.denominacao_id=$1 AND cm.ativo=TRUE GROUP BY COALESCE(cm.estado,'Sem região')
+      UNION ALL SELECT 'CIDADE','Nova cidade cadastrada: '||cm.nome,cm.criado_em FROM cidades_ministeriais cm WHERE cm.denominacao_id=$1 AND cm.ativo=TRUE
+      UNION ALL SELECT 'CONGREGACAO','Nova congregação cadastrada: '||cg.nome,cg.criado_em FROM congregacoes cg WHERE cg.denominacao_id=$1 AND cg.ativo=TRUE
+    ) x ORDER BY criado_em DESC LIMIT 6`,[req.user.denominacao_id]);
+    res.json({resumo:resumo.rows[0],paises:paises.rows,estados:estados.rows,cidades:cidades.rows,congregacoes:congregacoes.rows,crescimento:crescimento.rows,atividades:atividades.rows});
   }catch(e){next(e);}
 });
 module.exports=router;
