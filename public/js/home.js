@@ -25,6 +25,23 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
     if(!r.ok)throw new Error('Não foi possível carregar seu acesso.');
     const data=await r.json(),u=data.usuario,p=new Set(data.permissoes);
     const can=code=>p.has('*')||p.has(code);
+    const escopoLogin=String(u.escopo||user.escopo||'').toUpperCase();
+    const perfilLogin=String(u.perfil||user.perfil||'').toUpperCase();
+    const nivel1=escopoLogin==='DENOMINACAO'||['MASTER','PASTOR_PRESIDENTE','ADMIN','ADMINISTRADOR'].includes(perfilLogin);
+    if(nivel1){
+      document.documentElement.dataset.ideNivel='1';
+      const nome=document.getElementById('n1Usuario');if(nome)nome.textContent=u.nome||'Administrador';
+      const painel=await fetch('/api/resultados/painel',{headers:{Authorization:'Bearer '+token}});
+      if(painel.ok){
+        const d=await painel.json(),r=d.resumo||{};
+        const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=Number(v||0).toLocaleString('pt-BR')};
+        set('n1Paises',(d.paises||[]).length);set('n1Estados',(d.estados||[]).length);set('n1Cidades',r.cidades);set('n1Congregacoes',r.congregacoes);
+        const total=Math.max(1,Number(r.alcancados||0),Number(r.convertidos||0),Number(r.em_discipulado||0),Number(r.batizados||0));
+        const vals=[['Alcançadas',r.alcancados],['Convertidas',r.convertidos],['Discipulado',r.em_discipulado],['Batizadas',r.batizados]];
+        const bars=document.getElementById('n1Crescimento');if(bars)bars.innerHTML=vals.map(([x,v])=>'<div class="n1-bar-wrap"><span class="n1-bar" style="height:'+Math.max(8,Math.round(Number(v||0)*130/total))+'px"></span><b>'+Number(v||0).toLocaleString('pt-BR')+'</b><br>'+x+'</div>').join('');
+        const acts=document.getElementById('n1Atividades');if(acts){const eventos=[];(d.paises||[]).slice(0,1).forEach(x=>eventos.push('País ativo: '+x.pais));(d.estados||[]).slice(0,1).forEach(x=>eventos.push('Estado ativo: '+x.estado));(d.cidades||[]).slice(0,1).forEach(x=>eventos.push('Cidade ativa: '+x.nome));eventos.push(Number(r.congregacoes||0).toLocaleString('pt-BR')+' congregações cadastradas');acts.innerHTML=eventos.map((x,i)=>'<div><i>●</i><span>'+esc(x)+'</span><time>'+(['Agora','Hoje','Hoje','Atual'][i]||'')+'</time></div>').join('');}
+      }
+    }
     ola.textContent='Olá, '+u.nome+'!';
     const labels={DENOMINACAO:'toda a denominação',CIDADE:'sua cidade',CONGREGACAO:'sua congregação'};
     contexto.textContent=(user.denominacao||'IDE+')+' • '+(labels[u.escopo]||'acesso limitado');
