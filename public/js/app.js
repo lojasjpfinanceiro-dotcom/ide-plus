@@ -379,9 +379,9 @@
       eu.nivel <= 2 ? api('/usuarios') : Promise.resolve([])
     ]);
     const pessoasOpc = usuarios.filter((u) => u.ativo).map((u) => [u.id, `${u.nome} — ${NIVEIS[u.nivel]}${u.cargo && u.cargo !== NIVEIS[u.nivel] ? ' (' + u.cargo + ')' : ''}`]);
-    // Pastor Presidente também pode ser o pastor local (é o caso da cidade sede)
-    const pastoresLocais = usuarios.filter((u) => (u.nivel === 1 || u.nivel === 2) && u.ativo)
-      .map((u) => [u.id, u.nivel === 1 ? `${u.nome} (Pastor Presidente)` : u.nome]);
+    // Qualquer usuário da denominação pode ser escolhido como pastor local (presidente, vice, pastores…)
+    const pastoresLocais = usuarios.filter((u) => u.ativo).sort((a, b) => a.nivel - b.nivel || a.nome.localeCompare(b.nome))
+      .map((u) => [u.id, `${u.nome} — ${u.cargo && u.cargo !== NIVEIS[u.nivel] ? u.cargo : NIVEIS[u.nivel]}`]);
     const n1 = eu.nivel === 1;
     const totalCong = cidades.reduce((s, x) => s + x.congregacoes.length, 0);
 
@@ -436,7 +436,7 @@
         { nome: 'geo_cidade_id', rotulo: 'Cidade', tipo: 'select', opcoes: [], vazio: 'Escolha o estado primeiro', obrigatorio: true, inteira: true,
           ajuda: 'Digite no campo de busca para encontrar a cidade mais rápido.' },
         { nome: 'responsavel_id', rotulo: 'Pastor local (responsável)', tipo: 'select', opcoes: pastoresLocais, vazio: 'Sem responsável por enquanto',
-          ajuda: 'Na cidade sede, se ninguém for escolhido, o Pastor Presidente fica como pastor local. Outros pastores precisam estar cadastrados em Usuários (Nível 2).' },
+          ajuda: 'Aparecem todos os usuários cadastrados (presidente, vice-presidente, pastores…). Na cidade sede, se ninguém for escolhido, o Pastor Presidente fica como pastor local.' },
         { nome: 'responsavel_todas', rotulo: 'Responsável por todas as congregações da cidade', tipo: 'checkbox',
           ajuda: 'Se não marcar, cada congregação fica em laranja até ganhar o seu próprio responsável.' },
         { nome: 'is_sede', rotulo: 'Esta é a cidade da igreja sede', tipo: 'checkbox' }

@@ -24,10 +24,21 @@ app.get('/api/versao', (req, res) => { res.set('Cache-Control', 'no-store'); res
 app.get('/api/health', (req, res) => res.json({ ok: true, app: 'IDE+', versao: 2 }));
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 
+// Página principal sem cache e com ?v=versão nos arquivos: o celular sempre pega a versão nova
+const fs = require('fs');
+const paginaInicial = () => fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8')
+  .replace('/css/app.css', `/css/app.css?v=${VERSAO}`)
+  .replace('/js/app.js', `/js/app.js?v=${VERSAO}`);
+const enviarInicial = (req, res) => {
+  res.set('Cache-Control', 'no-store, must-revalidate');
+  res.type('html').send(paginaInicial());
+};
+app.get(['/', '/index.html'], enviarInicial);
 app.use(express.static(path.join(__dirname, 'public'), {
+  index: false,
   setHeaders: (res, f) => { if (/\.(html|js|css)$/.test(f)) res.set('Cache-Control', 'no-cache'); }
 }));
-app.use((req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.use(enviarInicial);
 
 // Erros (Express 5 repassa erros de funções async)
 app.use((err, req, res, next) => {
