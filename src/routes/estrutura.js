@@ -27,8 +27,10 @@ router.get('/cidades', async (req, res) => {
   const u = req.usuario;
   const filtroCidade = u.nivel === 1 ? null : u.cidade_id;
   const cidades = (await db.query(
-    `SELECT c.*, r.nome AS responsavel_nome
+    `SELECT c.*, r.nome AS responsavel_nome, gc.estado_id AS geo_estado_id, ge.pais AS geo_pais
        FROM cidades c LEFT JOIN usuarios r ON r.id = c.responsavel_id
+       LEFT JOIN geo_cidades gc ON gc.id = c.geo_cidade_id
+       LEFT JOIN geo_estados ge ON ge.id = gc.estado_id
       WHERE c.denominacao_id = $1 AND ($2::bigint IS NULL OR c.id = $2)
       ORDER BY c.is_sede DESC, c.pais, c.estado, c.nome`, [d(req), filtroCidade])).rows;
   const congs = (await db.query(
@@ -57,6 +59,17 @@ router.get('/cidades', async (req, res) => {
   res.json(cidades);
 });
 
+// Cidade escolhida na base geográfica → preenche cidade, estado e país sem digitação
+async function resolverGeo(b) {
+  if (!b.geo_cidade_id) return b;
+  const g = (await db.query(
+    `SELECT gc.id, gc.nome, ge.codigo AS uf, ge.nome AS estado, gp.codigo AS pais_cod, gp.nome AS pais
+       FROM geo_cidades gc JOIN geo_estados ge ON ge.id = gc.estado_id JOIN geo_paises gp ON gp.codigo = ge.pais
+      WHERE gc.id = $1`, [b.geo_cidade_id])).rows[0];
+  if (!g) throw Object.assign(new Error('Cidade não encontrada na lista.'), { status: 400 });
+  return { ...b, geo_cidade_id: g.id, nome: g.nome, estado: g.pais_cod === 'BR' ? g.uf : g.estado, pais: g.pais };
+}
+
 async function validarResponsavel(req, usuarioId) {
   if (!usuarioId) return null;
   const { rowCount } = await db.query('SELECT 1 FROM usuarios WHERE id = $1 AND denominacao_id = $2', [usuarioId, d(req)]);
@@ -65,17 +78,17 @@ async function validarResponsavel(req, usuarioId) {
 }
 
 router.post('/cidades', exigirNivel(1), async (req, res) => {
-  const { pais, estado, nome, is_sede, responsavel_id, responsavel_todas } = req.body;
-  if (!estado || !nome) return res.status(400).json({ erro: 'Informe estado e cidade.' });
+  const { pais, estado, nome, is_sede, responsavel_id, responsavel_todas, geo_cidade_id } = await resolverGeo(req.body);
+  if (!estado || !nome) return res.status(400).json({ erro: 'Escolha o estado e a cidade.' });
   const resp = await validarResponsavel(req, responsavel_id);
   const c = await db.connect();
   try {
     await c.query('BEGIN');
     if (is_sede) await c.query('UPDATE cidades SET is_sede = FALSE WHERE denominacao_id = $1', [d(req)]);
     const { rows } = await c.query(
-      `INSERT INTO cidades (denominacao_id, pais, estado, nome, is_sede, responsavel_id, responsavel_todas)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-      [d(req), pais || 'Brasil', estado, nome, !!is_sede, resp, !!responsavel_todas]);
+      `INSERT INTO cidades (denominacao_id, pais, estado, nome, is_sede, responsavel_id, responsavel_todas, geo_cidade_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [d(req), pais || 'Brasil', estado, nome, !!is_sede, resp, !!responsavel_todas, geo_cidade_id || null]);
     // o Pastor Local passa a atuar nesta cidade
     if (resp) await c.query('UPDATE usuarios SET cidade_id = $1 WHERE id = $2 AND nivel = 2', [rows[0].id, resp]);
     // a cidade sede é a cidade do Nível 1
@@ -86,16 +99,18 @@ router.post('/cidades', exigirNivel(1), async (req, res) => {
 });
 
 router.put('/cidades/:id', exigirNivel(1), async (req, res) => {
-  const { pais, estado, nome, is_sede, responsavel_id, responsavel_todas } = req.body;
+  const { pais, estado, nome, is_sede, responsavel_id, responsavel_todas, geo_cidade_id } = await resolverGeo(req.body);
+  if (!estado || !nome) return res.status(400).json({ erro: 'Escolha o estado e a cidade.' });
   const resp = await validarResponsavel(req, responsavel_id);
   const c = await db.connect();
   try {
     await c.query('BEGIN');
     if (is_sede) await c.query('UPDATE cidades SET is_sede = FALSE WHERE denominacao_id = $1 AND id <> $2', [d(req), req.params.id]);
     const { rows } = await c.query(
-      `UPDATE cidades SET pais = $1, estado = $2, nome = $3, is_sede = $4, responsavel_id = $5, responsavel_todas = $6
+      `UPDATE cidades SET pais = $1, estado = $2, nome = $3, is_sede = $4, responsavel_id = $5, responsavel_todas = $6,
+              geo_cidade_id = $9
         WHERE id = $7 AND denominacao_id = $8 RETURNING *`,
-      [pais || 'Brasil', estado, nome, !!is_sede, resp, !!responsavel_todas, req.params.id, d(req)]);
+      [pais || 'Brasil', estado, nome, !!is_sede, resp, !!responsavel_todas, req.params.id, d(req), geo_cidade_id || null]);
     if (!rows[0]) { await c.query('ROLLBACK'); return res.status(404).json({ erro: 'Cidade não encontrada.' }); }
     if (resp) await c.query('UPDATE usuarios SET cidade_id = $1 WHERE id = $2 AND nivel = 2', [rows[0].id, resp]);
     await c.query('COMMIT');

@@ -140,7 +140,7 @@
   }
 
   // Abre um formulário e resolve com os valores (ou null se fechar)
-  function formulario(titulo, campos, valores = {}, { salvar = 'Salvar', aoSalvar } = {}) {
+  function formulario(titulo, campos, valores = {}, { salvar = 'Salvar', aoSalvar, aoAbrir } = {}) {
     return new Promise((resolver) => {
       abrirModal(titulo,
         `<form class="form cols" id="f-modal" novalidate>${campos.map((c) => campoHtml(c, valores[c.nome])).join('')}
@@ -164,6 +164,8 @@
         b.parentElement.querySelector('img')?.replaceWith(Object.assign(document.createElement('span'), { className: 'sem-foto', textContent: 'Sem imagem' }));
         b.remove();
       }));
+
+      if (aoAbrir) aoAbrir(f);
 
       f.onsubmit = async (e) => {
         e.preventDefault();
@@ -299,6 +301,51 @@
     if (novo) novo.onclick = (ev) => { ev.preventDefault(); location.hash = '#pessoas'; setTimeout(() => editarPessoa(null, () => rota()), 50); };
   };
 
+  // ================= Países, estados e cidades (seleção) =================
+  const cacheGeo = {};
+  const geo = (tipo, param = '') => (cacheGeo[tipo + param] ??= api(`/geo/${tipo}${param}`).catch((e) => { delete cacheGeo[tipo + param]; throw e; }));
+
+  function preencher(sel, itens, vazio, escolhido) {
+    sel.innerHTML = `<option value="">${h(vazio)}</option>` + itens.map(([v, t]) =>
+      `<option value="${h(v)}"${String(v) === String(escolhido ?? '') ? ' selected' : ''}>${h(t)}</option>`).join('');
+  }
+
+  function ligarGeo(f, atual = {}) {
+    const selPais = f.elements.geo_pais, selEst = f.elements.geo_estado, selCid = f.elements.geo_cidade_id;
+    async function carregarEstados(escolhido) {
+      preencher(selEst, [], 'Carregando…'); preencher(selCid, [], 'Escolha o estado primeiro');
+      const estados = await geo('estados', '?pais=' + selPais.value);
+      preencher(selEst, estados.map((e) => [e.id, e.nome]), estados.length ? 'Selecione o estado' : 'Sem estados cadastrados', escolhido);
+      if (escolhido) await carregarCidades(atual.geo_cidade_id);
+    }
+    // Campo de busca acima da lista de cidades (no iPhone a lista não aceita digitação)
+    const busca = document.createElement('input');
+    busca.type = 'search'; busca.placeholder = 'Ex.: Campinas — digite para buscar';
+    busca.setAttribute('aria-label', 'Buscar cidade'); busca.disabled = true;
+    selCid.before(busca);
+    let todas = [];
+    const semAcento = (t) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    function filtrar() {
+      const q = semAcento(busca.value.trim());
+      const lista = q ? todas.filter((c) => semAcento(c.nome).includes(q)) : todas;
+      const atualSel = selCid.value;
+      preencher(selCid, lista.map((c) => [c.id, c.nome]),
+        lista.length ? `Selecione a cidade (${lista.length})` : 'Nenhuma cidade com esse nome', lista.length === 1 ? lista[0].id : atualSel);
+    }
+    busca.oninput = filtrar;
+    async function carregarCidades(escolhido) {
+      busca.value = ''; todas = [];
+      if (!selEst.value) { busca.disabled = true; return preencher(selCid, [], 'Escolha o estado primeiro'); }
+      preencher(selCid, [], 'Carregando cidades…');
+      todas = await geo('cidades', '?estado_id=' + selEst.value);
+      busca.disabled = false;
+      preencher(selCid, todas.map((c) => [c.id, c.nome]), `Selecione a cidade (${todas.length})`, escolhido);
+    }
+    selPais.onchange = () => carregarEstados();
+    selEst.onchange = () => carregarCidades();
+    carregarEstados(atual.geo_estado_id).catch((e) => aviso(e.message, true));
+  }
+
   // ================= Primeiros passos =================
   function guiaHtml(g, completo) {
     const bloqueado = (p) => p.depende && !g.passos.find((x) => x.id === p.depende)?.feito;
@@ -380,17 +427,23 @@
     const acharCong = (id) => cidades.flatMap((x) => x.congregacoes).find((g) => String(g.id) === String(id));
 
     async function editarCidade(ci = {}) {
+      const paises = await geo('paises');
       const r = await formulario(ci.id ? 'Alterar cidade' : 'Nova cidade', [
-        { nome: 'nome', rotulo: 'Cidade', exemplo: 'Recife', obrigatorio: true },
-        { nome: 'estado', rotulo: 'Estado / província', obrigatorio: true },
-        { nome: 'pais', rotulo: 'País', padrao: 'Brasil' },
+        { nome: 'geo_pais', rotulo: 'País', tipo: 'select', opcoes: paises.map((p) => [p.codigo, p.nome]), vazio: false },
+        { nome: 'geo_estado', rotulo: 'Estado', tipo: 'select', opcoes: [], vazio: 'Carregando…', obrigatorio: true },
+        { nome: 'geo_cidade_id', rotulo: 'Cidade', tipo: 'select', opcoes: [], vazio: 'Escolha o estado primeiro', obrigatorio: true, inteira: true,
+          ajuda: 'Digite no campo de busca para encontrar a cidade mais rápido.' },
         { nome: 'responsavel_id', rotulo: 'Pastor local (responsável)', tipo: 'select', opcoes: pastoresLocais, vazio: 'Sem responsável por enquanto',
           ajuda: pastoresLocais.length ? 'Pastor, evangelista ou presbítero com ação pastoral, já cadastrado em Usuários.' : 'Cadastre o pastor em Usuários (Nível 2) e volte aqui para vinculá-lo.' },
         { nome: 'responsavel_todas', rotulo: 'Responsável por todas as congregações da cidade', tipo: 'checkbox',
           ajuda: 'Se não marcar, cada congregação fica em laranja até ganhar o seu próprio responsável.' },
         { nome: 'is_sede', rotulo: 'Esta é a cidade da igreja sede', tipo: 'checkbox' }
-      ], ci, {
-        aoSalvar: (d) => api(ci.id ? '/estrutura/cidades/' + ci.id : '/estrutura/cidades', { metodo: ci.id ? 'PUT' : 'POST', corpo: d })
+      ], { ...ci, geo_pais: ci.geo_pais || 'BR' }, {
+        aoAbrir: (f) => ligarGeo(f, ci),
+        aoSalvar: (d) => api(ci.id ? '/estrutura/cidades/' + ci.id : '/estrutura/cidades', {
+          metodo: ci.id ? 'PUT' : 'POST',
+          corpo: { geo_cidade_id: Number(d.geo_cidade_id), responsavel_id: d.responsavel_id, responsavel_todas: d.responsavel_todas, is_sede: d.is_sede }
+        })
       });
       if (r) { aviso('Cidade salva.'); await carregarEu(); rota(); }
     }

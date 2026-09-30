@@ -249,3 +249,25 @@ CREATE TABLE IF NOT EXISTS visitas (
 );
 
 INSERT INTO ide_versao (versao) VALUES (2) ON CONFLICT DO NOTHING;
+
+-- ============ Base geográfica (países, estados e cidades para seleção) ============
+CREATE TABLE IF NOT EXISTS geo_paises (
+  codigo CHAR(2) PRIMARY KEY,           -- ISO 3166-1 (BR, US, PT…)
+  nome VARCHAR(120) NOT NULL
+);
+CREATE TABLE IF NOT EXISTS geo_estados (
+  id SERIAL PRIMARY KEY,
+  pais CHAR(2) NOT NULL REFERENCES geo_paises(codigo),
+  codigo VARCHAR(10) NOT NULL,          -- sigla (PE, SP…) ou código ISO
+  nome VARCHAR(120) NOT NULL,
+  UNIQUE (pais, codigo)
+);
+CREATE TABLE IF NOT EXISTS geo_cidades (
+  id SERIAL PRIMARY KEY,
+  estado_id INTEGER NOT NULL REFERENCES geo_estados(id),
+  nome VARCHAR(160) NOT NULL,
+  ibge INTEGER                           -- código IBGE (municípios do Brasil)
+);
+CREATE INDEX IF NOT EXISTS geo_cidades_estado_idx ON geo_cidades (estado_id, nome);
+
+ALTER TABLE cidades ADD COLUMN IF NOT EXISTS geo_cidade_id INTEGER REFERENCES geo_cidades(id);

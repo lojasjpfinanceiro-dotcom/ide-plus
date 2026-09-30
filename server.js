@@ -17,6 +17,7 @@ app.use('/api/cargos', require('./src/routes/cargos'));
 app.use('/api/pessoas', require('./src/routes/pessoas'));
 app.use('/api/config', require('./src/routes/config'));
 app.use('/api/painel', require('./src/routes/painel'));
+app.use('/api/geo', require('./src/routes/geo'));
 app.get('/api/health', (req, res) => res.json({ ok: true, app: 'IDE+', versao: 2 }));
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 

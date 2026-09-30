@@ -1,7 +1,37 @@
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
+const zlib = require('zlib');
 const db = require('./db');
+
+// Carrega países, estados e cidades uma única vez (Brasil: lista oficial do IBGE)
+async function carregarGeo() {
+  const ja = (await db.query('SELECT COUNT(*)::int AS n FROM geo_cidades')).rows[0].n;
+  if (ja > 0) return;
+  const inicio = Date.now();
+  const dados = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(__dirname, '..', 'db', 'geo.json.gz'))));
+  const c = await db.connect();
+  try {
+    await c.query('BEGIN');
+    await c.query(
+      `INSERT INTO geo_paises (codigo, nome) SELECT * FROM unnest($1::text[], $2::text[]) ON CONFLICT DO NOTHING`,
+      [dados.paises.map(p => p[0]), dados.paises.map(p => p[1])]);
+    await c.query(
+      `INSERT INTO geo_estados (pais, codigo, nome) SELECT * FROM unnest($1::text[], $2::text[], $3::text[]) ON CONFLICT DO NOTHING`,
+      [dados.estados.map(e => e[0]), dados.estados.map(e => e[1]), dados.estados.map(e => e[2])]);
+    const ids = {};
+    for (const r of (await c.query('SELECT id, pais, codigo FROM geo_estados')).rows) ids[r.pais + '|' + r.codigo] = r.id;
+    const cidades = dados.cidades.filter(x => ids[x[0] + '|' + x[1]]);
+    for (let i = 0; i < cidades.length; i += 10000) {
+      const lote = cidades.slice(i, i + 10000);
+      await c.query(
+        `INSERT INTO geo_cidades (estado_id, nome, ibge) SELECT * FROM unnest($1::int[], $2::text[], $3::int[])`,
+        [lote.map(x => ids[x[0] + '|' + x[1]]), lote.map(x => x[2]), lote.map(x => x[3])]);
+    }
+    await c.query('COMMIT');
+    console.log(`[geo] ${dados.paises.length} países, ${dados.estados.length} estados e ${cidades.length} cidades carregados em ${((Date.now() - inicio) / 1000).toFixed(1)}s.`);
+  } catch (e) { await c.query('ROLLBACK'); throw e; } finally { c.release(); }
+}
 
 const PERMISSOES = [
   ['estrutura.gerenciar', 'Estrutura', 'Cadastrar cidades e congregações', 1],
@@ -74,4 +104,5 @@ module.exports = async function migrate() {
   } finally {
     c.release();
   }
+  await carregarGeo();
 };
