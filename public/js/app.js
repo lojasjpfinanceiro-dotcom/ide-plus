@@ -90,6 +90,27 @@
     return modal;
   }
 
+  // Exemplo que aparece dentro do campo e some quando a pessoa digita
+  const EXEMPLOS = {
+    email: 'nome@email.com', admin_email: 'pastor@email.com',
+    senha: 'Mínimo de 6 caracteres', admin_senha: 'Mínimo de 6 caracteres', senha_atual: 'Sua senha de hoje', senha_nova: 'Mínimo de 6 caracteres',
+    telefone: '(81) 99999-0000', contato_telefone: '(81) 99999-0000',
+    cpf: '000.000.000-00', estado: 'Pernambuco', pais: 'Brasil',
+    bairro: 'Centro', endereco: 'Rua das Flores', numero: '120',
+    observacao: 'Veio com a esposa; prefere visita à noite',
+    admin_nome: 'Pr. José da Silva', contato_nome: 'Pr. José da Silva',
+    preco_mensal: '49,90', max_congregacoes: '20', valor: '49,90',
+    confirmar: 'EXCLUIR'
+  };
+  const EXEMPLO_TIPO = {
+    COMO_CHEGOU: 'Culto evangelístico', TIPO_TRABALHO: 'Evangelismo de rua',
+    TIPO_EVENTO: 'Culto de jovens', TIPO_VISITA: 'Visita no lar'
+  };
+  const exemploDe = (c) => {
+    const ex = c.exemplo ?? EXEMPLOS[c.nome];
+    return ex ? ` placeholder="Ex.: ${h(ex)}"` : '';
+  };
+
   function campoHtml(c, v) {
     const val = v ?? c.padrao ?? '';
     const cls = c.inteira ? ' inteira' : '';
@@ -104,7 +125,7 @@
       case 'checkbox':
         return `<label class="check${cls} inteira"><input type="checkbox" name="${c.nome}"${val ? ' checked' : ''}><span>${h(c.rotulo)}${ajuda ? '<br>' + ajuda : ''}</span></label>`;
       case 'textarea':
-        return `<label class="campo inteira">${h(c.rotulo)}<textarea name="${c.nome}">${h(val)}</textarea>${ajuda}</label>`;
+        return `<label class="campo inteira">${h(c.rotulo)}<textarea name="${c.nome}"${exemploDe(c)}>${h(val)}</textarea>${ajuda}</label>`;
       case 'imagem':
         return `<div class="campo inteira"><span>${h(c.rotulo)}</span><div class="foto-campo">
           ${val ? `<img src="${h(val)}" alt="">` : '<span class="sem-foto">Sem imagem</span>'}
@@ -113,8 +134,8 @@
           ${val ? `<button type="button" class="botao sec p" data-limpar="${c.nome}">Remover</button>` : ''}
         </div>${ajuda}</div>`;
       default:
-        return `<label class="campo${cls}">${h(c.rotulo)}<input name="${c.nome}" type="${c.tipo || 'text'}" value="${h(val)}"${req}
-          ${c.tipo === 'number' ? ' step="any"' : ''}${c.auto ? ` autocomplete="${c.auto}"` : ''}>${ajuda}</label>`;
+        return `<label class="campo${cls}">${h(c.rotulo)}<input name="${c.nome}" type="${c.tipo || 'text'}" value="${h(val)}"${req}${exemploDe(c)}
+          ${c.tipo === 'number' ? ' step="any" inputmode="decimal"' : ''}${c.auto ? ` autocomplete="${c.auto}"` : ''}>${ajuda}</label>`;
     }
   }
 
@@ -360,7 +381,7 @@
 
     async function editarCidade(ci = {}) {
       const r = await formulario(ci.id ? 'Alterar cidade' : 'Nova cidade', [
-        { nome: 'nome', rotulo: 'Cidade', obrigatorio: true },
+        { nome: 'nome', rotulo: 'Cidade', exemplo: 'Recife', obrigatorio: true },
         { nome: 'estado', rotulo: 'Estado / província', obrigatorio: true },
         { nome: 'pais', rotulo: 'País', padrao: 'Brasil' },
         { nome: 'responsavel_id', rotulo: 'Pastor local (responsável)', tipo: 'select', opcoes: pastoresLocais, vazio: 'Sem responsável por enquanto',
@@ -383,7 +404,7 @@
         return;
       }
       const r = await formulario(g.id ? 'Alterar congregação' : 'Nova congregação', [
-        { nome: 'nome', rotulo: 'Nome da congregação', obrigatorio: true, inteira: true },
+        { nome: 'nome', rotulo: 'Nome da congregação', exemplo: 'Congregação Vila Nova', obrigatorio: true, inteira: true },
         { nome: 'cidade_id', rotulo: 'Cidade', tipo: 'select', opcoes: cidades.map((x) => [x.id, `${x.nome}/${x.estado}`]), vazio: false, obrigatorio: true },
         { nome: 'bairro', rotulo: 'Bairro' },
         { nome: 'endereco', rotulo: 'Endereço', inteira: true },
@@ -399,7 +420,7 @@
     $('#nova-cidade')?.addEventListener('click', () => editarCidade({ is_sede: !cidades.length }));
     $('#editar-den')?.addEventListener('click', async () => {
       const r = await formulario('Denominação', [
-        { nome: 'nome', rotulo: 'Nome da denominação', obrigatorio: true, inteira: true, ajuda: 'Ex.: Assembleia de Deus' },
+        { nome: 'nome', rotulo: 'Nome da denominação', exemplo: 'Assembleia de Deus Ministério Missão', obrigatorio: true, inteira: true },
         { nome: 'logo', rotulo: 'Logotipo', tipo: 'imagem', ajuda: 'Aparece no topo do app para todos os níveis.' }
       ], den, { aoSalvar: (d) => api('/estrutura/denominacao', { metodo: 'PUT', corpo: d }) });
       if (r) { aviso('Denominação salva.'); await carregarEu(); rota(); }
@@ -436,7 +457,7 @@
     const achar = (id) => lista.find((u) => String(u.id) === String(id));
     async function editar(u = {}) {
       const campos = [
-        { nome: 'nome', rotulo: 'Nome', obrigatorio: true },
+        { nome: 'nome', rotulo: 'Nome', exemplo: 'Maria da Silva Santos', obrigatorio: true },
         { nome: 'email', rotulo: 'E-mail (login)', tipo: 'email', obrigatorio: true, auto: 'off' },
         { nome: 'senha', rotulo: u.id ? 'Nova senha (deixe em branco para manter)' : 'Senha inicial', tipo: 'password', obrigatorio: !u.id, auto: 'new-password' },
         { nome: 'telefone', rotulo: 'Telefone', tipo: 'tel' },
@@ -501,7 +522,7 @@
     async function editar(k = { permissoes: [], ativo: true }) {
       const niveis = [1, 2, 3, 4].filter((n) => eu.nivel === 1 || n > eu.nivel);
       const campos = [
-        { nome: 'nome', rotulo: 'Nome do cargo', obrigatorio: true },
+        { nome: 'nome', rotulo: 'Nome do cargo', exemplo: 'Superintendente de Campanhas', obrigatorio: true },
         { nome: 'nivel', rotulo: 'Nível', tipo: 'select', opcoes: niveis.map((n) => [n, `${n} — ${NIVEIS[n]}`]), vazio: false },
         ...perms.map((p) => ({ nome: 'p_' + p.codigo, rotulo: `${p.modulo}: ${p.descricao}`, tipo: 'checkbox' })),
         ...(k.id ? [{ nome: 'ativo', rotulo: 'Cargo ativo', tipo: 'checkbox' }] : [])
@@ -570,7 +591,7 @@
     const congs = (minha?.congregacoes || []).map((g) => [g.id, g.nome]);
     const editavel = id ? pode('pessoas.editar') : pode('pessoas.cadastrar');
     const campos = [
-      { nome: 'nome', rotulo: 'Nome completo', obrigatorio: true, inteira: true },
+      { nome: 'nome', rotulo: 'Nome completo', exemplo: 'João Carlos Pereira', obrigatorio: true, inteira: true },
       { nome: 'telefone', rotulo: 'Telefone / WhatsApp', tipo: 'tel' },
       { nome: 'cpf', rotulo: 'CPF' },
       { nome: 'nascimento', rotulo: 'Nascimento', tipo: 'date' },
@@ -646,13 +667,13 @@
       const b = ev.target.closest('button'); if (!b) return;
       try {
         if (b.dataset.novo) {
-          const r = await formulario('Nova opção — ' + tipos[b.dataset.novo], [{ nome: 'nome', rotulo: 'Nome', obrigatorio: true, inteira: true }], {},
+          const r = await formulario('Nova opção — ' + tipos[b.dataset.novo], [{ nome: 'nome', rotulo: 'Nome', exemplo: EXEMPLO_TIPO[b.dataset.novo], obrigatorio: true, inteira: true }], {},
             { aoSalvar: (d) => api('/config', { metodo: 'POST', corpo: { tipo: b.dataset.novo, nome: d.nome } }) });
           if (r) { aviso('Opção adicionada.'); rota(); }
         }
         if (b.dataset.ed) {
           const i = achar(b.dataset.ed);
-          const r = await formulario('Alterar opção', [{ nome: 'nome', rotulo: 'Nome', obrigatorio: true, inteira: true }], i,
+          const r = await formulario('Alterar opção', [{ nome: 'nome', rotulo: 'Nome', exemplo: EXEMPLO_TIPO[i.tipo], obrigatorio: true, inteira: true }], i,
             { aoSalvar: (d) => api('/config/' + i.id, { metodo: 'PUT', corpo: d }) });
           if (r) { aviso('Opção salva.'); rota(); }
         }
@@ -720,7 +741,7 @@
     const achar = (id) => lista.find((d) => String(d.id) === String(id));
     $('#novo').onclick = async () => {
       const r = await formulario('Novo cliente', [
-        { nome: 'nome', rotulo: 'Denominação', obrigatorio: true, inteira: true },
+        { nome: 'nome', rotulo: 'Denominação', exemplo: 'Igreja Batista Esperança', obrigatorio: true, inteira: true },
         { nome: 'plano_id', rotulo: 'Plano', tipo: 'select', opcoes: opcPlanos, vazio: false },
         { nome: 'contato_telefone', rotulo: 'Telefone de contato', tipo: 'tel' },
         { nome: 'admin_nome', rotulo: 'Nome do Pastor Presidente', obrigatorio: true },
@@ -741,7 +762,7 @@
       if (b.dataset.ed) {
         const d = achar(b.dataset.ed);
         const r = await formulario('Alterar cliente', [
-          { nome: 'nome', rotulo: 'Denominação', obrigatorio: true, inteira: true },
+          { nome: 'nome', rotulo: 'Denominação', exemplo: 'Igreja Batista Esperança', obrigatorio: true, inteira: true },
           { nome: 'plano_id', rotulo: 'Plano', tipo: 'select', opcoes: opcPlanos, vazio: false },
           { nome: 'status', rotulo: 'Situação', tipo: 'select', opcoes: [['ATIVO', 'Ativo'], ['SUSPENSO', 'Suspenso (sem acesso)'], ['CANCELADO', 'Cancelado']], vazio: false },
           { nome: 'contato_nome', rotulo: 'Contato' },
@@ -765,7 +786,7 @@
         <li><div class="info"><strong>${h(p.nome)}</strong><small>${moeda(p.preco_mensal)}/mês · ${p.max_congregacoes ? 'até ' + p.max_congregacoes + ' congregações' : 'congregações ilimitadas'} · ${p.clientes} cliente(s)${p.ativo ? '' : ' · inativo'}</small></div>
           <div class="acoes"><button class="botao sec p" data-ed="${p.id}">Alterar</button><button class="botao sec p" data-ex="${p.id}">Excluir</button></div></li>`).join('')}</ul></section>`;
     const campos = (id) => [
-      { nome: 'nome', rotulo: 'Nome do plano', obrigatorio: true },
+      { nome: 'nome', rotulo: 'Nome do plano', exemplo: 'Plano Igreja', obrigatorio: true },
       { nome: 'preco_mensal', rotulo: 'Preço mensal (R$)', tipo: 'number' },
       { nome: 'max_congregacoes', rotulo: 'Máximo de congregações', tipo: 'number', ajuda: 'Deixe em branco para ilimitado.' },
       ...(id ? [{ nome: 'ativo', rotulo: 'Plano ativo para novos clientes', tipo: 'checkbox' }] : [])

@@ -205,6 +205,7 @@ input, select, textarea {
   font: inherit; font-weight: 400;
 }
 textarea { min-height: 88px; resize: vertical; }
+::placeholder { color: var(--suave); opacity: .6; font-style: italic; }
 .check { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; }
 .check input { width: 22px; min-height: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--agua); flex: none; }
 .form { display: grid; gap: 14px; }
