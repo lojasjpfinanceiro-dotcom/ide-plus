@@ -11,21 +11,28 @@ router.get('/resumo', async (req, res) => {
   const params = [u.denominacao_id, geral ? null : u.cidade_id];
   const filtro = 'p.denominacao_id = $1 AND ($2::bigint IS NULL OR p.cidade_id = $2)';
 
-  // "Discipulados" e "batizados" contam quem já passou pela etapa
+  // Etapa alcançada: para o afastado, vale a etapa em que ele estava quando se afastou
+  const ALC = `CASE WHEN p.status = 'AFASTADO' THEN COALESCE(p.etapa_antes_afastar, 'CONVERTIDO') ELSE p.status END`;
   const funil = (await db.query(
     `SELECT COUNT(*)::int AS convertidos,
-            COUNT(*) FILTER (WHERE status IN ('DISCIPULADO','BATIZADO'))::int AS discipulados,
-            COUNT(*) FILTER (WHERE status = 'BATIZADO')::int AS batizados,
-            COUNT(*) FILTER (WHERE data_conversao >= date_trunc('month', CURRENT_DATE))::int AS convertidos_mes,
-            COUNT(*) FILTER (WHERE data_batismo >= date_trunc('month', CURRENT_DATE))::int AS batizados_mes
+            COUNT(*) FILTER (WHERE ${ALC} IN ('DISCIPULADO','BATIZADO'))::int AS discipulados,
+            COUNT(*) FILTER (WHERE ${ALC} = 'BATIZADO')::int AS batizados,
+            COUNT(*) FILTER (WHERE p.status = 'AFASTADO')::int AS afastados,
+            COUNT(*) FILTER (WHERE p.status = 'AFASTADO' AND ${ALC} = 'CONVERTIDO')::int AS afastados_convertidos,
+            COUNT(*) FILTER (WHERE p.status = 'AFASTADO' AND ${ALC} = 'DISCIPULADO')::int AS afastados_discipulado,
+            COUNT(*) FILTER (WHERE p.status = 'AFASTADO' AND ${ALC} = 'BATIZADO')::int AS afastados_batizados,
+            COUNT(*) FILTER (WHERE p.data_conversao >= date_trunc('month', CURRENT_DATE))::int AS convertidos_mes,
+            COUNT(*) FILTER (WHERE p.data_batismo >= date_trunc('month', CURRENT_DATE))::int AS batizados_mes,
+            COUNT(*) FILTER (WHERE p.data_afastamento >= date_trunc('month', CURRENT_DATE))::int AS afastados_mes
        FROM pessoas p WHERE ${filtro}`, params)).rows[0];
 
   const porCidade = geral ? (await db.query(
     `SELECT c.id, c.nome, c.estado, c.is_sede,
             (SELECT COUNT(*) FROM congregacoes g WHERE g.cidade_id = c.id)::int AS congregacoes,
             COUNT(p.id)::int AS convertidos,
-            COUNT(p.id) FILTER (WHERE p.status IN ('DISCIPULADO','BATIZADO'))::int AS discipulados,
-            COUNT(p.id) FILTER (WHERE p.status = 'BATIZADO')::int AS batizados
+            COUNT(p.id) FILTER (WHERE ${ALC} IN ('DISCIPULADO','BATIZADO'))::int AS discipulados,
+            COUNT(p.id) FILTER (WHERE ${ALC} = 'BATIZADO')::int AS batizados,
+            COUNT(p.id) FILTER (WHERE p.status = 'AFASTADO')::int AS afastados
        FROM cidades c LEFT JOIN pessoas p ON p.cidade_id = c.id
       WHERE c.denominacao_id = $1
       GROUP BY c.id ORDER BY c.is_sede DESC, convertidos DESC, c.nome`, [u.denominacao_id])).rows : [];
@@ -33,7 +40,8 @@ router.get('/resumo', async (req, res) => {
   const mensal = (await db.query(
     `SELECT to_char(m, 'YYYY-MM') AS mes,
             (SELECT COUNT(*) FROM pessoas p WHERE ${filtro} AND date_trunc('month', p.data_conversao) = m)::int AS convertidos,
-            (SELECT COUNT(*) FROM pessoas p WHERE ${filtro} AND date_trunc('month', p.data_batismo) = m)::int AS batizados
+            (SELECT COUNT(*) FROM pessoas p WHERE ${filtro} AND date_trunc('month', p.data_batismo) = m)::int AS batizados,
+            (SELECT COUNT(*) FROM pessoas p WHERE ${filtro} AND date_trunc('month', p.data_afastamento) = m)::int AS afastados
        FROM generate_series(date_trunc('month', CURRENT_DATE) - INTERVAL '11 months', date_trunc('month', CURRENT_DATE), INTERVAL '1 month') m
       ORDER BY m`, params)).rows;
 

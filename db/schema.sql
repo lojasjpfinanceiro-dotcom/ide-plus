@@ -280,3 +280,10 @@ ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS trocar_senha BOOLEAN NOT NULL DEFA
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tentativas_login SMALLINT NOT NULL DEFAULT 0;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS bloqueado_ate TIMESTAMPTZ;
 CREATE UNIQUE INDEX IF NOT EXISTS usuarios_cpf_unq ON usuarios (cpf) WHERE cpf IS NOT NULL;
+
+-- ============ Afastados ============
+ALTER TABLE pessoas DROP CONSTRAINT IF EXISTS pessoas_status_check;
+ALTER TABLE pessoas ADD CONSTRAINT pessoas_status_check CHECK (status IN ('CONVERTIDO','DISCIPULADO','BATIZADO','AFASTADO'));
+ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS etapa_antes_afastar VARCHAR(20);  -- etapa em que estava quando se afastou
+ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS data_afastamento DATE;
+ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS motivo_afastamento TEXT;

@@ -182,11 +182,13 @@ input, select, textarea, img, video { max-width: 100%; }
 .etiqueta.CONVERTIDO { background: rgba(217, 164, 65, .18); color: #8A6414; }
 .etiqueta.DISCIPULADO { background: rgba(31, 138, 158, .15); color: #136475; }
 .etiqueta.BATIZADO { background: rgba(19, 41, 75, .12); color: var(--noite); }
+.etiqueta.AFASTADO { background: rgba(224, 122, 46, .16); color: #A24E12; }
 .etiqueta.laranja { background: rgba(224, 122, 46, .16); color: #A24E12; }
 .etiqueta.verde { background: rgba(46, 139, 87, .15); color: #1E6B41; }
 @media (prefers-color-scheme: dark) {
   .etiqueta.CONVERTIDO { color: var(--trigo); } .etiqueta.DISCIPULADO { color: #6FD0E0; }
-  .etiqueta.laranja { color: #F3A76E; } .etiqueta.verde { color: #7FD3A3; }
+  .etiqueta.AFASTADO { background: rgba(224, 122, 46, .16); color: #A24E12; }
+.etiqueta.laranja { color: #F3A76E; } .etiqueta.verde { color: #7FD3A3; }
 }
 
 .vazio { text-align: center; padding: 32px 16px; color: var(--suave); }
@@ -250,11 +252,13 @@ dialog.modal::backdrop { background: rgba(10, 19, 34, .55); }
 .funil .e1 .barra i { background: var(--trigo); }
 .funil .e2 .barra i { background: var(--agua); }
 .funil .e3 .barra i { background: var(--noite); }
+.funil .e4 { padding-top: 10px; border-top: 1px dashed var(--linha); }
+.funil .e4 .barra i { background: var(--brasa); }
 .funil .taxa { grid-column: 1 / -1; font-size: .85rem; color: var(--suave); }
 @media (prefers-reduced-motion: reduce) { .funil .barra i { transition: none; } .lateral { transition: none; } }
 
 .numeros { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-@media (min-width: 700px) { .numeros { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 700px) { .numeros { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); } }
 .numeros div { background: var(--superficie); border-radius: var(--raio); box-shadow: var(--sombra); padding: 14px; }
 .numeros b { display: block; font-family: var(--titulo); font-size: 1.5rem; }
 .numeros span { color: var(--suave); font-size: .88rem; }
@@ -264,10 +268,12 @@ dialog.modal::backdrop { background: rgba(10, 19, 34, .55); }
 .meses .m .col { flex: 1; width: 100%; display: flex; gap: 2px; align-items: flex-end; justify-content: center; }
 .meses .m i { width: 100%; max-width: 22px; border-radius: 6px 6px 2px 2px; background: var(--trigo); min-height: 2px; }
 .meses .m i.b { background: var(--noite); }
+.meses .m i.a { background: var(--brasa); }
 .meses .m small { font-size: .7rem; color: var(--suave); }
 .legenda { display: flex; gap: 16px; font-size: .85rem; color: var(--suave); margin-top: 8px; }
 .legenda span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; background: var(--trigo); }
 .legenda span.b::before { background: var(--noite); }
+.legenda span.a::before { background: var(--brasa); }
 
 /* ---------- Estrutura (árvore) ---------- */
 .cidade { border: 1px solid var(--linha); border-radius: var(--raio); background: var(--superficie); }

@@ -17,7 +17,7 @@
   const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
   const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   const NIVEIS = { 0: 'Fornecedor', 1: 'Pastor Presidente', 2: 'Pastor Local', 3: 'Coordenador', 4: 'Líder / Equipe' };
-  const STATUS = { CONVERTIDO: 'Novo convertido', DISCIPULADO: 'Em discipulado', BATIZADO: 'Batizado' };
+  const STATUS = { CONVERTIDO: 'Novo convertido', DISCIPULADO: 'Em discipulado', BATIZADO: 'Batizado', AFASTADO: 'Afastado' };
 
   let eu = null;
 
@@ -313,7 +313,7 @@
     const titulo = eu.nivel === 1 ? 'Fechamento geral' : `Cidade de ${h(eu.cidade || '')}`;
     const pendente = g && g.total && !g.concluido ? `<div style="margin-bottom:16px">${guiaHtml(g, false)}</div>` : '';
     const meses = r.mensal;
-    const topo = Math.max(1, ...meses.map((m) => Math.max(m.convertidos, m.batizados)));
+    const topo = Math.max(1, ...meses.map((m) => Math.max(m.convertidos, m.batizados, m.afastados)));
 
     c.innerHTML = `
       <div class="cabecalho"><div><h1>Olá, ${h(primeiroNome(eu.nome))}</h1><p>${titulo}${eu.nivel === 1 ? ' — sede e todas as cidades' : ''}</p></div>
@@ -326,28 +326,35 @@
             <div class="etapa e1"><span class="nome">Novos convertidos</span><span class="num">${f.convertidos}</span><div class="barra"><i style="width:${pct(f.convertidos, max)}%"></i></div></div>
             <div class="etapa e2"><span class="nome">Discipulados</span><span class="num">${f.discipulados}</span><div class="barra"><i style="width:${pct(f.discipulados, max)}%"></i></div><span class="taxa">${pct(f.discipulados, f.convertidos)}% dos convertidos chegaram ao discipulado</span></div>
             <div class="etapa e3"><span class="nome">Batizados</span><span class="num">${f.batizados}</span><div class="barra"><i style="width:${pct(f.batizados, max)}%"></i></div><span class="taxa">${pct(f.batizados, f.discipulados)}% dos discipulados foram batizados</span></div>
+            <div class="etapa e4"><span class="nome">Afastados</span><span class="num">${f.afastados}</span><div class="barra"><i style="width:${pct(f.afastados, max)}%"></i></div>
+              <span class="taxa">${pct(f.afastados, f.convertidos)}% dos convertidos se afastaram${f.afastados ? ` — ${[
+                f.afastados_convertidos ? f.afastados_convertidos + ' antes do discipulado' : '',
+                f.afastados_discipulado ? f.afastados_discipulado + ' durante o discipulado' : '',
+                f.afastados_batizados ? f.afastados_batizados + ' já batizado(s)' : ''].filter(Boolean).join(', ')}` : ''}</span></div>
           </div>
+          <p class="ajuda" style="margin:10px 0 0">Discipulados e batizados contam todos que chegaram à etapa, inclusive os que depois se afastaram. Permanecem hoje: <strong>${f.convertidos - f.afastados}</strong>.</p>
         </section>
         <section class="painel" aria-labelledby="t-meses">
           <h2 id="t-meses">Últimos 12 meses</h2>
-          <div class="meses">${meses.map((m) => `<div class="m" title="${m.mes}: ${m.convertidos} convertidos, ${m.batizados} batizados">
+          <div class="meses">${meses.map((m) => `<div class="m" title="${m.mes}: ${m.convertidos} convertidos, ${m.batizados} batizados, ${m.afastados} afastados">
             <div class="col">
-              <i style="height:${pct(m.convertidos, topo)}%"></i><i class="b" style="height:${pct(m.batizados, topo)}%"></i></div>
+              <i style="height:${pct(m.convertidos, topo)}%"></i><i class="b" style="height:${pct(m.batizados, topo)}%"></i><i class="a" style="height:${pct(m.afastados, topo)}%"></i></div>
             <small>${MESES[Number(m.mes.slice(5)) - 1]}</small></div>`).join('')}</div>
-          <div class="legenda"><span>Convertidos</span><span class="b">Batizados</span></div>
+          <div class="legenda"><span>Convertidos</span><span class="b">Batizados</span><span class="a">Afastados</span></div>
         </section>
       </div>
       <div class="numeros" style="margin-top:16px">
         <div><b>${f.convertidos_mes}</b><span>convertidos este mês</span></div>
         <div><b>${f.batizados_mes}</b><span>batismos este mês</span></div>
+        <div><b>${f.afastados_mes}</b><span>afastados este mês</span></div>
         <div><b>${e.congregacoes}</b><span>congregações</span></div>
         <div><b>${e.usuarios}</b><span>usuários</span></div>
       </div>
       ${e.aguardando_responsavel && eu.nivel <= 2 ? `<div class="painel" style="margin-top:16px"><span class="etiqueta laranja">${e.aguardando_responsavel} congregação(ões) aguardando responsável</span> <a href="#estrutura">ver</a></div>` : ''}
       ${r.porCidade.length ? `<section class="painel" style="margin-top:16px"><h2>Por cidade</h2><div class="rolagem"><table class="tabela" style="margin-top:8px">
-        <thead><tr><th>Cidade</th><th class="n">Congregações</th><th class="n">Convertidos</th><th class="n">Discipulados</th><th class="n">Batizados</th></tr></thead>
-        <tbody>${r.porCidade.map((x) => `<tr><td>${h(x.nome)}/${h(x.estado)} ${x.is_sede ? '<span class="etiqueta verde">Sede</span>' : ''}</td><td class="n">${x.congregacoes}</td><td class="n">${x.convertidos}</td><td class="n">${x.discipulados}</td><td class="n">${x.batizados}</td></tr>`).join('')}
-        <tr><td><strong>Total</strong></td><td class="n"><strong>${e.congregacoes}</strong></td><td class="n"><strong>${f.convertidos}</strong></td><td class="n"><strong>${f.discipulados}</strong></td><td class="n"><strong>${f.batizados}</strong></td></tr></tbody></table></div></section>` : ''}`;
+        <thead><tr><th>Cidade</th><th class="n">Congregações</th><th class="n">Convertidos</th><th class="n">Discipulados</th><th class="n">Batizados</th><th class="n">Afastados</th></tr></thead>
+        <tbody>${r.porCidade.map((x) => `<tr><td>${h(x.nome)}/${h(x.estado)} ${x.is_sede ? '<span class="etiqueta verde">Sede</span>' : ''}</td><td class="n">${x.congregacoes}</td><td class="n">${x.convertidos}</td><td class="n">${x.discipulados}</td><td class="n">${x.batizados}</td><td class="n">${x.afastados}</td></tr>`).join('')}
+        <tr><td><strong>Total</strong></td><td class="n"><strong>${e.congregacoes}</strong></td><td class="n"><strong>${f.convertidos}</strong></td><td class="n"><strong>${f.discipulados}</strong></td><td class="n"><strong>${f.batizados}</strong></td><td class="n"><strong>${f.afastados}</strong></td></tr></tbody></table></div></section>` : ''}`;
     const novo = $('#novo-conv');
     if (novo) novo.onclick = (ev) => { ev.preventDefault(); location.hash = '#pessoas'; setTimeout(() => editarPessoa(null, () => rota()), 50); };
   };
@@ -673,7 +680,7 @@
         ${pode('pessoas.cadastrar') ? '<button class="botao" id="novo">Cadastrar convertido</button>' : ''}</div>
       <div class="filtros"><input type="search" id="busca" placeholder="Buscar por nome, telefone ou CPF" aria-label="Buscar">
         <div class="chips" role="group" aria-label="Filtrar por etapa">
-          ${[['', 'Todos'], ['CONVERTIDO', 'Convertidos'], ['DISCIPULADO', 'Em discipulado'], ['BATIZADO', 'Batizados']].map(([v, t]) => `<button class="chip${filtroStatus === v ? ' ativo' : ''}" data-st="${v}">${t}</button>`).join('')}
+          ${[['', 'Todos'], ['CONVERTIDO', 'Convertidos'], ['DISCIPULADO', 'Em discipulado'], ['BATIZADO', 'Batizados'], ['AFASTADO', 'Afastados']].map(([v, t]) => `<button class="chip${filtroStatus === v ? ' ativo' : ''}" data-st="${v}">${t}</button>`).join('')}
         </div></div>
       <section class="painel" id="lista-p"><p class="vazio">Carregando…</p></section>`;
     let tempo;
@@ -683,7 +690,7 @@
       const el = $('#lista-p');
       el.innerHTML = lista.length ? `<ul class="lista">${lista.map((p) => `
         <li>${p.foto ? `<img class="avatar p" src="${h(p.foto)}" alt="">` : `<span class="avatar p" style="background:var(--trigo)">${iniciais(p.nome)}</span>`}
-          <div class="info"><strong>${h(p.nome)}</strong><small>${p.congregacao ? h(p.congregacao) + ' · ' : ''}desde ${dataBR(p.data_conversao)}${p.data_batismo ? ' · batizado em ' + dataBR(p.data_batismo) : ''}</small></div>
+          <div class="info"><strong>${h(p.nome)}</strong><small>${p.congregacao ? h(p.congregacao) + ' · ' : ''}desde ${dataBR(p.data_conversao)}${p.data_batismo ? ' · batizado em ' + dataBR(p.data_batismo) : ''}${p.status === 'AFASTADO' ? ` · afastou-se em ${dataBR(p.data_afastamento)} (estava: ${STATUS[p.etapa_antes_afastar || 'CONVERTIDO'].toLowerCase()})` : ''}</small></div>
           <span class="etiqueta ${p.status}">${STATUS[p.status]}</span>
           <div class="acoes">${temAcoes(p) ? `<button class="botao sec p" data-et="${p.id}">Etapa</button>` : ''}<button class="botao sec p" data-ab="${p.id}">${pode('pessoas.editar') ? 'Alterar' : 'Ver'}</button></div></li>`).join('')}</ul>`
         : `<div class="vazio">Nenhuma pessoa encontrada.${pode('pessoas.cadastrar') && !$('#busca').value ? '<br><button class="botao" id="novo2">Cadastrar o primeiro convertido</button>' : ''}</div>`;
@@ -737,22 +744,35 @@
     if (salvo) { aviso(id ? 'Cadastro atualizado.' : 'Convertido cadastrado.'); depois(); }
   }
 
-  const temAcoes = (p) => pode('pessoas.editar') || pode('pessoas.excluir') || (p.status !== 'BATIZADO' && pode('batismo.registrar'));
+  const temAcoes = (p) => pode('pessoas.editar') || pode('pessoas.excluir') || (!['BATIZADO', 'AFASTADO'].includes(p.status) && pode('batismo.registrar'));
 
   function acoesPessoa(p, depois) {
+    const hoje = new Date().toISOString().slice(0, 10);
+    const afastado = p.status === 'AFASTADO';
     const botoes = [];
-    if (p.status === 'CONVERTIDO' && pode('pessoas.editar')) botoes.push('<button class="botao" data-st="DISCIPULADO">Iniciar discipulado</button>');
-    if (p.status !== 'BATIZADO' && pode('batismo.registrar')) botoes.push('<button class="botao" data-st="BATIZADO" style="background:var(--noite)">Registrar batismo</button>');
-    if (p.status !== 'CONVERTIDO' && pode('pessoas.editar')) botoes.push('<button class="botao sec" data-st="CONVERTIDO">Voltar para novo convertido</button>');
+    if (afastado && pode('pessoas.editar')) botoes.push(`<button class="botao" data-st="VOLTOU">Voltou à igreja (retorna para: ${STATUS[p.etapa_antes_afastar || 'CONVERTIDO'].toLowerCase()})</button>`);
+    if (!afastado && p.status === 'CONVERTIDO' && pode('pessoas.editar')) botoes.push('<button class="botao" data-st="DISCIPULADO">Iniciar discipulado</button>');
+    if (!afastado && p.status !== 'BATIZADO' && pode('batismo.registrar')) botoes.push('<button class="botao" data-st="BATIZADO" style="background:var(--noite)">Registrar batismo</button>');
+    if (!afastado && pode('pessoas.editar')) botoes.push('<button class="botao" data-st="AFASTADO" style="background:var(--brasa)">Marcar como afastado</button>');
+    if (!afastado && p.status !== 'CONVERTIDO' && pode('pessoas.editar')) botoes.push('<button class="botao sec" data-st="CONVERTIDO">Voltar para novo convertido</button>');
     if (pode('pessoas.excluir')) botoes.push('<button class="botao sec" data-excluir style="color:var(--perigo)">Excluir cadastro</button>');
     if (!botoes.length) return;
     abrirModal(`Etapa de ${p.nome}`,
-      `<p>Etapa atual: <span class="etiqueta ${p.status}">${STATUS[p.status]}</span></p>
-       ${p.status !== 'BATIZADO' && pode('batismo.registrar') ? '<label class="campo">Data do batismo<input type="date" id="data-bat" value="' + new Date().toISOString().slice(0, 10) + '"></label>' : ''}
+      `<p>Etapa atual: <span class="etiqueta ${p.status}">${STATUS[p.status]}</span>
+        ${afastado ? `<br><small class="ajuda">Afastou-se em ${dataBR(p.data_afastamento)}${p.motivo_afastamento ? ' — ' + h(p.motivo_afastamento) : ''}</small>` : ''}</p>
+       ${!afastado && p.status !== 'BATIZADO' && pode('batismo.registrar') ? `<label class="campo">Data do batismo<input type="date" id="data-bat" value="${hoje}"></label>` : ''}
+       ${!afastado && pode('pessoas.editar') ? `<details style="margin-top:12px"><summary class="ajuda">Dados do afastamento (se for marcar como afastado)</summary>
+          <div class="form" style="margin-top:8px">
+            <label class="campo">Data do afastamento<input type="date" id="data-afast" value="${hoje}"></label>
+            <label class="campo">Motivo (opcional)<input id="motivo-afast" placeholder="Ex.: mudou de cidade; deixou de frequentar"></label>
+          </div></details>` : ''}
        <div class="form" style="margin-top:12px">${botoes.join('')}</div>`);
     modal.querySelectorAll('[data-st]').forEach((b) => (b.onclick = async () => {
+      if (b.dataset.st === 'AFASTADO' && !(await new Promise((ok) => ok(confirm(`Marcar ${p.nome} como afastado(a)?`))))) return;
       try {
-        await api(`/pessoas/${p.id}/status`, { metodo: 'POST', corpo: { status: b.dataset.st, data_batismo: $('#data-bat', modal)?.value } });
+        await api(`/pessoas/${p.id}/status`, { metodo: 'POST', corpo: {
+          status: b.dataset.st, data_batismo: $('#data-bat', modal)?.value,
+          data_afastamento: $('#data-afast', modal)?.value, motivo: $('#motivo-afast', modal)?.value } });
         modal.close(); aviso('Etapa atualizada.'); depois();
       } catch (e) { aviso(e.message, true); }
     }));

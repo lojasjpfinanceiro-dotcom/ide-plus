@@ -18,9 +18,10 @@ const CAMPOS = ['congregacao_id','nome','foto','cpf','telefone','nascimento','en
 router.get('/', async (req, res) => {
   const u = req.usuario;
   const busca = req.query.busca ? `%${String(req.query.busca).trim()}%` : null;
-  const status = ['CONVERTIDO','DISCIPULADO','BATIZADO'].includes(req.query.status) ? req.query.status : null;
+  const status = ['CONVERTIDO','DISCIPULADO','BATIZADO','AFASTADO'].includes(req.query.status) ? req.query.status : null;
   const { rows } = await db.query(
     `SELECT p.id, p.nome, p.foto, p.telefone, p.status, p.data_conversao, p.data_batismo, p.congregacao_id,
+            p.etapa_antes_afastar, p.data_afastamento,
             g.nome AS congregacao, ci.nome AS como_chegou
        FROM pessoas p
        LEFT JOIN congregacoes g ON g.id = p.congregacao_id
@@ -83,20 +84,39 @@ router.put('/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
-// Etapas do fluxo: convertido → discipulado → batizado
+// Etapas do fluxo: convertido → discipulado → batizado; em qualquer etapa a pessoa pode se afastar (e voltar)
 router.post('/:id/status', async (req, res) => {
   const u = req.usuario;
   const p = await buscar(req);
   if (!p) return res.status(404).json({ erro: 'Pessoa não encontrada.' });
-  const { status, data_batismo } = req.body;
-  if (!['CONVERTIDO','DISCIPULADO','BATIZADO'].includes(status)) return res.status(400).json({ erro: 'Etapa inválida.' });
+  const { status, data_batismo, data_afastamento, motivo } = req.body;
+
+  if (status === 'VOLTOU') {
+    if (!pode(u, 'pessoas.editar')) return res.status(403).json({ erro: 'Você não tem permissão para alterar pessoas.' });
+    if (p.status !== 'AFASTADO') return res.status(400).json({ erro: 'Esta pessoa não está afastada.' });
+    await db.query(`UPDATE pessoas SET status = COALESCE(etapa_antes_afastar, 'CONVERTIDO'), etapa_antes_afastar = NULL,
+                           data_afastamento = NULL, motivo_afastamento = NULL WHERE id = $1`, [p.id]);
+    return res.json({ ok: true });
+  }
+  if (!['CONVERTIDO','DISCIPULADO','BATIZADO','AFASTADO'].includes(status)) return res.status(400).json({ erro: 'Etapa inválida.' });
+
+  if (status === 'AFASTADO') {
+    if (!pode(u, 'pessoas.editar')) return res.status(403).json({ erro: 'Você não tem permissão para alterar pessoas.' });
+    if (p.status === 'AFASTADO') return res.status(400).json({ erro: 'Esta pessoa já está como afastada.' });
+    await db.query(`UPDATE pessoas SET status = 'AFASTADO', etapa_antes_afastar = $1,
+                           data_afastamento = COALESCE($2::date, CURRENT_DATE), motivo_afastamento = $3 WHERE id = $4`,
+      [p.status, data_afastamento || null, motivo || null, p.id]);
+    return res.json({ ok: true });
+  }
+
+  const limparAfastamento = 'etapa_antes_afastar = NULL, data_afastamento = NULL, motivo_afastamento = NULL';
   if (status === 'BATIZADO') {
     if (!pode(u, 'batismo.registrar')) return res.status(403).json({ erro: 'O batismo é registrado pelo Pastor Local.' });
-    await db.query(`UPDATE pessoas SET status = 'BATIZADO', data_batismo = COALESCE($1::date, CURRENT_DATE), batizado_por = $2 WHERE id = $3`,
+    await db.query(`UPDATE pessoas SET status = 'BATIZADO', data_batismo = COALESCE($1::date, CURRENT_DATE), batizado_por = $2, ${limparAfastamento} WHERE id = $3`,
       [data_batismo || null, u.id, p.id]);
   } else {
     if (!pode(u, 'pessoas.editar')) return res.status(403).json({ erro: 'Você não tem permissão para alterar pessoas.' });
-    await db.query('UPDATE pessoas SET status = $1, data_batismo = NULL, batizado_por = NULL WHERE id = $2', [status, p.id]);
+    await db.query(`UPDATE pessoas SET status = $1, data_batismo = NULL, batizado_por = NULL, ${limparAfastamento} WHERE id = $2`, [status, p.id]);
   }
   res.json({ ok: true });
 });
