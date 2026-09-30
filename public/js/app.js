@@ -646,40 +646,83 @@
   // ================= Cargos e permissões =================
   VISTAS.cargos = async (c) => {
     const [cargos, perms] = await Promise.all([api('/cargos'), api('/cargos/permissoes')]);
+    // Cargo que eu altero e excluo por inteiro (os meus; no Nível 1, todos)
     const meus = (k) => eu.nivel === 1 || (!k.padrao && String(k.cidade_id) === String(eu.cidade_id));
+    // Cargo padrão da denominação que eu só posso desativar ou personalizar para a minha cidade
+    const ajustavel = (k) => eu.nivel > 1 && k.padrao && k.nivel > eu.nivel;
+    const detalhe = (k) => [
+      `Nível ${k.nivel} — ${NIVEIS[k.nivel]}`, `${k.permissoes.length} permissão(ões)`, `${k.usuarios} usuário(s)`,
+      k.padrao && eu.nivel > 1 ? (k.personalizado ? 'padrão personalizado' : 'padrão da denominação') : '',
+      k.ativo ? '' : 'inativo'
+    ].filter(Boolean).join(' · ');
+    const botoes = (k) => meus(k)
+      ? `<div class="acoes"><button class="botao sec p" data-ed="${k.id}">Alterar</button><button class="botao sec p" data-ex="${k.id}">Excluir</button></div>`
+      : ajustavel(k)
+        ? `<div class="acoes"><button class="botao sec p" data-pe="${k.id}">Permissões</button><button class="botao sec p" data-at="${k.id}">${k.ativo ? 'Desativar' : 'Reativar'}</button></div>`
+        : '';
     c.innerHTML = `
       <div class="cabecalho"><div><h1>Cargos e permissões</h1>
-        <p>Os nomes dos cargos são seus (ex.: Superintendente). Cada cargo define o que as pessoas dele podem fazer.</p></div>
+        <p>Os nomes dos cargos são seus (ex.: Superintendente). Cada cargo define o que as pessoas dele podem fazer.${eu.nivel > 1 ? ' Os cargos padrão da denominação podem ser desativados ou ter as permissões ajustadas só para a sua cidade.' : ''}</p></div>
         <button class="botao" id="novo">Novo cargo</button></div>
       <section class="painel">${cargos.length ? `<ul class="lista">${cargos.map((k) => `
-        <li><div class="info"><strong>${h(k.nome)}</strong><small>Nível ${k.nivel} — ${NIVEIS[k.nivel]} · ${k.permissoes.length} permissão(ões) · ${k.usuarios} usuário(s)${k.padrao && eu.nivel > 1 ? ' · padrão da denominação' : ''}${k.ativo ? '' : ' · inativo'}</small></div>
-          ${meus(k) ? `<div class="acoes"><button class="botao sec p" data-ed="${k.id}">Alterar</button><button class="botao sec p" data-ex="${k.id}">Excluir</button></div>` : ''}</li>`).join('')}</ul>`
+        <li><div class="info"><strong>${h(k.nome)}</strong><small>${detalhe(k)}</small></div>${botoes(k)}</li>`).join('')}</ul>`
         : '<div class="vazio">Nenhum cargo criado. Crie cargos como “Superintendente de Campanhas” ou “Professor”.</div>'}</section>`;
 
     const achar = (id) => cargos.find((k) => String(k.id) === String(id));
+    const camposPerms = () => perms.map((p) => ({ nome: 'p_' + p.codigo, rotulo: `${p.modulo}: ${p.descricao}`, tipo: 'checkbox' }));
+    const marcadas = (d) => perms.filter((p) => d['p_' + p.codigo]).map((p) => p.codigo);
+
     async function editar(k = { permissoes: [], ativo: true }) {
       const niveis = [1, 2, 3, 4].filter((n) => eu.nivel === 1 || n > eu.nivel);
       const campos = [
         { nome: 'nome', rotulo: 'Nome do cargo', exemplo: 'Superintendente de Campanhas', obrigatorio: true },
         { nome: 'nivel', rotulo: 'Nível', tipo: 'select', opcoes: niveis.map((n) => [n, `${n} — ${NIVEIS[n]}`]), vazio: false },
-        ...perms.map((p) => ({ nome: 'p_' + p.codigo, rotulo: `${p.modulo}: ${p.descricao}`, tipo: 'checkbox' })),
+        ...camposPerms(),
         ...(k.id ? [{ nome: 'ativo', rotulo: 'Cargo ativo', tipo: 'checkbox' }] : [])
       ];
       const valores = { ...k, nivel: k.nivel || niveis[niveis.length > 1 ? 1 : 0] };
       k.permissoes.forEach((cod) => (valores['p_' + cod] = true));
       const r = await formulario(k.id ? 'Alterar cargo' : 'Novo cargo', campos, valores, {
         aoSalvar: (d) => {
-          const corpo = { nome: d.nome, nivel: Number(d.nivel), ativo: d.ativo !== false, permissoes: perms.filter((p) => d['p_' + p.codigo]).map((p) => p.codigo) };
+          const corpo = { nome: d.nome, nivel: Number(d.nivel), ativo: d.ativo !== false, permissoes: marcadas(d) };
           return api(k.id ? '/cargos/' + k.id : '/cargos', { metodo: k.id ? 'PUT' : 'POST', corpo });
         }
       });
       if (r) { aviso('Cargo salvo.'); rota(); }
     }
+
+    // Cargo padrão: permissões só para esta cidade, com opção de voltar ao padrão
+    async function ajustarPermissoes(k) {
+      const campos = [
+        ...camposPerms(),
+        ...(k.personalizado ? [{ nome: 'restaurar', rotulo: 'Voltar às permissões padrão da denominação', tipo: 'checkbox' }] : [])
+      ];
+      const valores = {};
+      k.permissoes.forEach((cod) => (valores['p_' + cod] = true));
+      const r = await formulario(`Permissões — ${k.nome}`, campos, valores, {
+        aoSalvar: (d) => api('/cargos/' + k.id, { metodo: 'PUT',
+          corpo: d.restaurar ? { restaurar: true } : { permissoes: marcadas(d) } })
+      });
+      if (r) { aviso('Permissões salvas para a sua cidade.'); rota(); }
+    }
+
+    async function alternarAtivo(k) {
+      const acao = k.ativo ? 'Desativar' : 'Reativar';
+      const msg = k.ativo
+        ? `Desativar "${k.nome}" na sua cidade? Ele deixa de aparecer para novos usuários. O padrão da denominação não muda.`
+        : `Reativar "${k.nome}" na sua cidade?`;
+      if (!(await confirmar(acao, msg, { botao: acao, perigo: k.ativo }))) return;
+      try { await api('/cargos/' + k.id, { metodo: 'PUT', corpo: { ativo: !k.ativo } }); aviso(k.ativo ? 'Cargo desativado.' : 'Cargo reativado.'); rota(); }
+      catch (e) { aviso(e.message, true); }
+    }
+
     $('#novo').onclick = () => editar();
     c.onclick = (ev) => {
       const b = ev.target.closest('button'); if (!b) return;
       if (b.dataset.ed) editar(achar(b.dataset.ed));
       if (b.dataset.ex) excluir('/cargos/' + b.dataset.ex, achar(b.dataset.ex).nome, rota);
+      if (b.dataset.pe) ajustarPermissoes(achar(b.dataset.pe));
+      if (b.dataset.at) alternarAtivo(achar(b.dataset.at));
     };
   };
 

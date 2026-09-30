@@ -2,7 +2,7 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const db = require('../db');
-const { autenticar, exigirNivel, pode, BASE_POR_NIVEL } = require('../auth');
+const { autenticar, exigirNivel, pode, BASE_POR_NIVEL, JOIN_DO_CARGO, SQL_DO_CARGO } = require('../auth');
 const { limparCpf, cpfValido, mascararCpf } = require('../cpf');
 
 router.use(autenticar, exigirNivel(1, 2, 3));
@@ -136,12 +136,11 @@ router.get('/:id/permissoes', async (req, res) => {
   if (!alvo) return res.status(404).json({ erro: 'Usuário não encontrado.' });
   const { rows } = await db.query(
     `SELECT p.codigo, p.modulo, p.descricao,
-            (cp.codigo IS NOT NULL OR p.codigo = ANY($3::text[])) AS padrao, up.permitido AS individual,
-            COALESCE(up.permitido, cp.codigo IS NOT NULL OR p.codigo = ANY($3::text[])) AS efetivo
-       FROM permissoes p
-       LEFT JOIN cargo_permissoes cp ON cp.codigo = p.codigo AND cp.cargo_id = $2
+            (${SQL_DO_CARGO} OR p.codigo = ANY($3::text[])) AS padrao, up.permitido AS individual,
+            COALESCE(up.permitido, ${SQL_DO_CARGO} OR p.codigo = ANY($3::text[])) AS efetivo
+       FROM permissoes p ${JOIN_DO_CARGO}
        LEFT JOIN usuario_permissoes up ON up.codigo = p.codigo AND up.usuario_id = $1
-      ORDER BY p.ordem`, [alvo.id, alvo.cargo_id, BASE_POR_NIVEL[alvo.nivel] || []]);
+      ORDER BY p.ordem`, [alvo.id, alvo.cargo_id, BASE_POR_NIVEL[alvo.nivel] || [], alvo.cidade_id]);
   res.json({ nivel: alvo.nivel, acesso_total: alvo.nivel === 1, permissoes: rows });
 });
 

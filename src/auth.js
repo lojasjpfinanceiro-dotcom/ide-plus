@@ -5,12 +5,21 @@ const db = require('./db');
 // (sim/não) prevalece sobre tudo. O Nível 1 tem acesso total.
 const BASE_POR_NIVEL = {
   2: ['usuarios.gerenciar', 'cargos.gerenciar', 'pessoas.cadastrar', 'pessoas.editar', 'pessoas.excluir',
-      'batismo.registrar', 'campanhas.gerenciar', 'discipulado.gerenciar', 'agenda.gerenciar',
-      'config.gerenciar', 'relatorios.ver'],
+      'batismo.registrar', 'campanhas.gerenciar', 'discipulado.gerenciar', 'discipulado.curriculo',
+      'discipulado.turmas', 'agenda.gerenciar', 'config.gerenciar', 'relatorios.ver'],
   3: ['usuarios.gerenciar', 'pessoas.cadastrar', 'pessoas.editar', 'campanhas.gerenciar',
-      'discipulado.gerenciar', 'agenda.gerenciar', 'relatorios.ver'],
+      'discipulado.gerenciar', 'discipulado.turmas', 'agenda.gerenciar', 'relatorios.ver'],
   4: ['pessoas.cadastrar']
 };
+
+// Permissão vinda do cargo, respeitando o ajuste da cidade ($2 = cargo, $4 = cidade):
+// cargo inativo não concede nada; permissões personalizadas na cidade substituem as do padrão.
+const JOIN_DO_CARGO = `
+  LEFT JOIN cargos cg ON cg.id = $2
+  LEFT JOIN cargo_cidade_ajustes aj ON aj.cargo_id = $2 AND aj.cidade_id = $4
+  LEFT JOIN cargo_permissoes cp ON cp.codigo = p.codigo AND cp.cargo_id = $2`;
+const SQL_DO_CARGO = `(COALESCE(cg.ativo, FALSE) AND COALESCE(aj.ativo, TRUE) AND
+  CASE WHEN aj.permissoes IS NOT NULL THEN p.codigo = ANY(aj.permissoes) ELSE cp.codigo IS NOT NULL END)`;
 
 const SEGREDO = () => process.env.JWT_SECRET || 'dev-inseguro';
 
@@ -46,12 +55,10 @@ async function autenticar(req, res, next) {
     u.permissoes = null; // acesso total
   } else {
     const p = await db.query(
-      `SELECT p.codigo,
-              COALESCE(up.permitido, cp.codigo IS NOT NULL OR p.codigo = ANY($3::text[])) AS ok
-         FROM permissoes p
-         LEFT JOIN cargo_permissoes cp ON cp.codigo = p.codigo AND cp.cargo_id = $2
+      `SELECT p.codigo, COALESCE(up.permitido, ${SQL_DO_CARGO} OR p.codigo = ANY($3::text[])) AS ok
+         FROM permissoes p ${JOIN_DO_CARGO}
          LEFT JOIN usuario_permissoes up ON up.codigo = p.codigo AND up.usuario_id = $1`,
-      [u.id, u.cargo_id, BASE_POR_NIVEL[u.nivel] || []]);
+      [u.id, u.cargo_id, BASE_POR_NIVEL[u.nivel] || [], u.cidade_id]);
     u.permissoes = p.rows.filter(r => r.ok).map(r => r.codigo);
   }
   req.usuario = u;
@@ -70,4 +77,4 @@ function exigir(codigo) {
     ? next() : res.status(403).json({ erro: 'Você não tem permissão para esta ação.' });
 }
 
-module.exports = { BASE_POR_NIVEL, gerarToken, autenticar, exigirNivel, exigir, pode };
+module.exports = { BASE_POR_NIVEL, JOIN_DO_CARGO, SQL_DO_CARGO, gerarToken, autenticar, exigirNivel, exigir, pode };

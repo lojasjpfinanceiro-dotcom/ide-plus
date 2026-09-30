@@ -43,9 +43,11 @@ const PERMISSOES = [
   ['batismo.registrar', 'Pessoas', 'Registrar batismo', 7],
   ['campanhas.gerenciar', 'Campanhas', 'Criar campanhas e eventos', 8],
   ['discipulado.gerenciar', 'Discipulado', 'Aulas, lições e visitas', 9],
-  ['agenda.gerenciar', 'Agenda', 'Criar e alterar eventos da agenda', 10],
-  ['config.gerenciar', 'Configurações', 'Alterar listas e opções do sistema', 11],
-  ['relatorios.ver', 'Relatórios', 'Ver números e fechamentos', 12]
+  ['discipulado.curriculo', 'Discipulado', 'Montar currículo, módulos e lições', 10],
+  ['discipulado.turmas', 'Discipulado', 'Criar e gerenciar turmas', 11],
+  ['agenda.gerenciar', 'Agenda', 'Criar e alterar eventos da agenda', 12],
+  ['config.gerenciar', 'Configurações', 'Alterar listas e opções do sistema', 13],
+  ['relatorios.ver', 'Relatórios', 'Ver números e fechamentos', 14]
 ];
 
 module.exports = async function migrate() {

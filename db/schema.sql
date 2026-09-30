@@ -120,6 +120,15 @@ CREATE TABLE IF NOT EXISTS cargo_permissoes (
   PRIMARY KEY (cargo_id, codigo)
 );
 
+-- Ajuste de um cargo padrão (do Nível 1) só para uma cidade: desativar ou personalizar permissões
+CREATE TABLE IF NOT EXISTS cargo_cidade_ajustes (
+  cargo_id BIGINT NOT NULL REFERENCES cargos(id) ON DELETE CASCADE,
+  cidade_id BIGINT NOT NULL REFERENCES cidades(id) ON DELETE CASCADE,
+  ativo BOOLEAN NOT NULL DEFAULT TRUE,
+  permissoes TEXT[], -- NULL = segue o padrão da denominação
+  PRIMARY KEY (cargo_id, cidade_id)
+);
+
 -- Exceção individual: marca acesso sim/não para um usuário específico
 CREATE TABLE IF NOT EXISTS usuario_permissoes (
   usuario_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
