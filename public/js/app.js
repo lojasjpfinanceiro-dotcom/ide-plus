@@ -6,7 +6,11 @@
   const $ = (s, el = document) => el.querySelector(s);
   const h = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   // "Pr. João Silva" → "Pr. João"
-  const primeiroNome = (n) => { const p = String(n || '').split(/\s+/); return /\.$/.test(p[0]) && p[1] ? p[0] + ' ' + p[1] : p[0]; };
+  const primeiroNome = (n) => {
+    const p = String(n || '').trim().split(/\s+/);
+    const titulo = /^(pr|pra|pb|ev|eva|dc|dca|diac|miss|bp|bispo|ap|apóstolo|pastor|pastora|irmão|irmã|ir|missionário|missionária|presb)\.?$/i;
+    return titulo.test(p[0]) && p[1] ? p[0] + ' ' + p[1] : p[0];
+  };
   const iniciais = (n) => String(n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
   const dataBR = (d) => (d ? String(d).slice(0, 10).split('-').reverse().join('/') : '');
   const moeda = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -34,6 +38,7 @@
     let dados = null;
     try { dados = await r.json(); } catch { /* sem corpo */ }
     if (r.status === 401 && caminho !== '/auth/login') { sair(); throw new Error(dados?.erro || 'Sessão expirada.'); }
+    if (r.status === 403 && dados?.trocar_senha) { trocarSenhaObrigatoria(); throw new Error(dados.erro); }
     if (!r.ok) { const e = new Error(dados?.erro || 'Não foi possível concluir.'); Object.assign(e, dados || {}); throw e; }
     return dados;
   }
@@ -76,6 +81,50 @@
     });
   }
 
+  // CPF: formata enquanto digita (000.000.000-00)
+  function formatarCpf(v) {
+    const d = String(v).replace(/\D/g, '').slice(0, 11);
+    return d.replace(/^(\d{3})(\d)/, '$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d{1,2})$/, '.$1-$2');
+  }
+  function ligarCpf(input, soSeNumero = false) {
+    input.addEventListener('input', () => {
+      if (soSeNumero && /[^\d.\-\s]/.test(input.value)) return; // e-mail: não formata
+      const fim = input.selectionEnd === input.value.length;
+      input.value = formatarCpf(input.value);
+      if (fim) input.setSelectionRange(input.value.length, input.value.length);
+    });
+  }
+
+  // Primeiro acesso com senha provisória: não deixa usar o app antes de criar a própria senha
+  let trocandoSenha = false;
+  function trocarSenhaObrigatoria() {
+    if (trocandoSenha) return;
+    trocandoSenha = true;
+    abrirModal('Crie a sua senha',
+      `<p>Você entrou com uma <strong>senha provisória</strong>. Para continuar, crie a sua senha pessoal.</p>
+       <form class="form" id="f-troca" novalidate>
+         ${campoHtml({ nome: 'senha_nova', rotulo: 'Nova senha', tipo: 'password', obrigatorio: true, auto: 'new-password' })}
+         ${campoHtml({ nome: 'senha_conf', rotulo: 'Repita a nova senha', tipo: 'password', obrigatorio: true, auto: 'new-password', exemplo: 'A mesma senha de cima' })}
+         <p class="erro-form" id="e-troca" hidden></p>
+       </form>`,
+      '<button class="botao sec" id="troca-sair" type="button">Sair</button><button class="botao" type="submit" form="f-troca">Salvar e entrar</button>');
+    modal.querySelector('[data-fechar]')?.remove();
+    modal.addEventListener('cancel', (e) => e.preventDefault());
+    $('#troca-sair', modal).onclick = () => { trocandoSenha = false; modal.close(); sair(); };
+    $('#f-troca', modal).onsubmit = async (e) => {
+      e.preventDefault();
+      const f = e.target, erro = $('#e-troca', modal);
+      const erroMsg = (m) => { erro.textContent = m; erro.hidden = false; };
+      if (f.senha_nova.value.length < 6) return erroMsg('A senha precisa ter ao menos 6 caracteres.');
+      if (f.senha_nova.value !== f.senha_conf.value) return erroMsg('As duas senhas não são iguais.');
+      try {
+        await api('/auth/me', { metodo: 'PUT', corpo: { senha_nova: f.senha_nova.value } });
+        trocandoSenha = false; modal.close(); aviso('Senha criada. Bem-vindo ao IDE+!');
+        await carregarEu(); $('#tela-login').hidden = true; $('#tela-app').hidden = false; rota();
+      } catch (err) { erroMsg(err.message); }
+    };
+  }
+
   // ================= Modal e formulários =================
   const modal = $('#modal');
 
@@ -95,7 +144,7 @@
     email: 'nome@email.com', admin_email: 'pastor@email.com',
     senha: 'Mínimo de 6 caracteres', admin_senha: 'Mínimo de 6 caracteres', senha_atual: 'Sua senha de hoje', senha_nova: 'Mínimo de 6 caracteres',
     telefone: '(81) 99999-0000', contato_telefone: '(81) 99999-0000',
-    cpf: '000.000.000-00', estado: 'Pernambuco', pais: 'Brasil',
+    cpf: '123.456.789-09', estado: 'Pernambuco', pais: 'Brasil',
     bairro: 'Centro', endereco: 'Rua das Flores', numero: '120',
     observacao: 'Veio com a esposa; prefere visita à noite',
     admin_nome: 'Pr. José da Silva', contato_nome: 'Pr. José da Silva',
@@ -166,6 +215,7 @@
         b.remove();
       }));
 
+      f.querySelectorAll('input[name=cpf]').forEach((i) => { i.inputMode = 'numeric'; i.value = i.value ? formatarCpf(i.value) : ''; ligarCpf(i); });
       if (aoAbrir) aoAbrir(f);
 
       f.onsubmit = async (e) => {
@@ -512,7 +562,8 @@
         <button class="botao" id="novo">Novo usuário</button></div>
       <section class="painel">${lista.length ? `<ul class="lista">${lista.map((u) => `
         <li>${u.foto ? `<img class="avatar p" src="${h(u.foto)}" alt="">` : `<span class="avatar p">${iniciais(u.nome)}</span>`}
-          <div class="info"><strong>${h(u.nome)}</strong><small>${NIVEIS[u.nivel]}${u.cargo && u.cargo !== NIVEIS[u.nivel] ? ' · ' + h(u.cargo) : ''}${u.cidade ? ' · ' + h(u.cidade) : ''}${u.ativo ? '' : ' · inativo'}</small></div>
+          <div class="info"><strong>${h(u.nome)}</strong><small>${NIVEIS[u.nivel]}${u.cargo && u.cargo !== NIVEIS[u.nivel] ? ' · ' + h(u.cargo) : ''}${u.cidade ? ' · ' + h(u.cidade) : ''}${u.ativo ? '' : ' · inativo'}</small>
+            <small>${u.cpf_mascarado ? 'CPF ' + u.cpf_mascarado : u.email ? h(u.email) : '<span class="etiqueta laranja">sem CPF</span>'}${u.trocar_senha ? ' · <span class="etiqueta">senha provisória</span>' : ''}</small></div>
           <div class="acoes">
             ${u.nivel > 1 && String(u.id) !== String(eu.id) ? `<button class="botao sec p" data-perm="${u.id}">Acessos</button>` : ''}
             <button class="botao sec p" data-ed="${u.id}">Alterar</button>
@@ -523,8 +574,12 @@
     async function editar(u = {}) {
       const campos = [
         { nome: 'nome', rotulo: 'Nome', exemplo: 'Maria da Silva Santos', obrigatorio: true },
-        { nome: 'email', rotulo: 'E-mail (login)', tipo: 'email', obrigatorio: true, auto: 'off' },
-        { nome: 'senha', rotulo: u.id ? 'Nova senha (deixe em branco para manter)' : 'Senha inicial', tipo: 'password', obrigatorio: !u.id, auto: 'new-password' },
+        { nome: 'cpf', rotulo: 'CPF (login)', inteira: false,
+          ajuda: u.id && u.tem_cpf && !u.cpf ? `Cadastrado: ${u.cpf_mascarado}. Deixe em branco para manter.` : 'Quem mora no Brasil entra no sistema com o CPF.' },
+        { nome: 'fora_do_brasil', rotulo: 'Mora fora do Brasil (entra com e-mail em vez do CPF)', tipo: 'checkbox' },
+        { nome: 'email', rotulo: 'E-mail', tipo: 'email', auto: 'off', ajuda: 'Obrigatório para o Pastor Presidente e para quem mora fora do Brasil.' },
+        { nome: 'senha', rotulo: u.id ? 'Nova senha provisória (deixe em branco para manter)' : 'Senha provisória', tipo: 'text', obrigatorio: !u.id, auto: 'off',
+          ajuda: 'Passe esta senha para a pessoa. No primeiro acesso ela cria a própria senha.' },
         { nome: 'telefone', rotulo: 'Telefone', tipo: 'tel' },
         { nome: 'nivel', rotulo: 'Nível de acesso', tipo: 'select', opcoes: niveisPermitidos.map((n) => [n, `${n} — ${NIVEIS[n]}`]), obrigatorio: true },
         { nome: 'cargo_id', rotulo: 'Cargo', tipo: 'select', opcoes: cargos.filter((k) => k.ativo).map((k) => [k.id, `${k.nome} (nível ${k.nivel})`]), vazio: 'Sem cargo' }
@@ -760,7 +815,7 @@
       <section class="painel" style="max-width:560px"><form class="form" id="f-perfil">
         ${campoHtml({ nome: 'foto', rotulo: 'Sua foto', tipo: 'imagem', ajuda: 'Aparece no topo do app.' }, eu.foto)}
         ${campoHtml({ nome: 'telefone', rotulo: 'Telefone', tipo: 'tel' }, eu.telefone)}
-        <label class="campo">E-mail<input value="${h(eu.email)}" disabled></label>
+        <label class="campo">${eu.cpf ? 'CPF (login)' : 'E-mail (login)'}<input value="${h(eu.cpf || eu.email || '')}" disabled></label>
         <h3 style="margin-top:8px">Trocar senha</h3>
         ${campoHtml({ nome: 'senha_atual', rotulo: 'Senha atual', tipo: 'password', auto: 'current-password' })}
         ${campoHtml({ nome: 'senha_nova', rotulo: 'Nova senha', tipo: 'password', auto: 'new-password' })}
@@ -920,8 +975,9 @@
     try {
       await carregarEu();
       $('#tela-login').hidden = true; $('#tela-app').hidden = false;
+      if (eu.trocar_senha) return trocarSenhaObrigatoria();
       rota();
-    } catch { sair(); }
+    } catch { if (!trocandoSenha) sair(); }
   }
 
   $('#form-login').onsubmit = async (e) => {
@@ -929,10 +985,11 @@
     const f = e.target, erro = $('#erro-login');
     erro.hidden = true;
     try {
-      const r = await api('/auth/login', { metodo: 'POST', corpo: { email: f.email.value, senha: f.senha.value } });
+      const r = await api('/auth/login', { metodo: 'POST', corpo: { login: f.login.value, senha: f.senha.value } });
       localToken(r.token); f.reset(); iniciar();
     } catch (err) { erro.textContent = err.message; erro.hidden = false; }
   };
+  ligarCpf($('#form-login').login, true);
   $('#sair').onclick = (e) => { e.preventDefault(); sair(); };
   $('#topo-avatar').onclick = () => (location.hash = '#perfil');
   $('#abrir-menu').onclick = () => {

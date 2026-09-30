@@ -169,7 +169,7 @@ input, select, textarea, img, video { max-width: 100%; }
 .lista > li:first-child { border-top: 0; }
 .lista .info { flex: 1; min-width: 0; }
 .lista .info strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lista .info small { color: var(--suave); }
+.lista .info small { color: var(--suave); display: block; }
 .acoes { display: flex; gap: 4px; flex: none; }
 @media (max-width: 599px) {
   .lista > li { flex-wrap: wrap; }

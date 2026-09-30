@@ -271,3 +271,12 @@ CREATE TABLE IF NOT EXISTS geo_cidades (
 CREATE INDEX IF NOT EXISTS geo_cidades_estado_idx ON geo_cidades (estado_id, nome);
 
 ALTER TABLE cidades ADD COLUMN IF NOT EXISTS geo_cidade_id INTEGER REFERENCES geo_cidades(id);
+
+-- ============ Login por CPF (Brasil) ou e-mail (fora do país) ============
+ALTER TABLE usuarios ALTER COLUMN email DROP NOT NULL;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cpf VARCHAR(11);
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS fora_do_brasil BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS trocar_senha BOOLEAN NOT NULL DEFAULT FALSE;   -- senha provisória
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tentativas_login SMALLINT NOT NULL DEFAULT 0;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS bloqueado_ate TIMESTAMPTZ;
+CREATE UNIQUE INDEX IF NOT EXISTS usuarios_cpf_unq ON usuarios (cpf) WHERE cpf IS NOT NULL;

@@ -27,7 +27,7 @@ async function autenticar(req, res, next) {
   catch { return res.status(401).json({ erro: 'Sessão expirada. Entre novamente.' }); }
 
   const { rows } = await db.query(
-    `SELECT u.id, u.nivel, u.nome, u.email, u.foto, u.telefone, u.denominacao_id, u.cidade_id, u.cargo_id, u.ativo,
+    `SELECT u.id, u.nivel, u.nome, u.email, u.foto, u.telefone, u.denominacao_id, u.cidade_id, u.cargo_id, u.ativo, u.trocar_senha,
             d.status AS denominacao_status
        FROM usuarios u LEFT JOIN denominacoes d ON d.id = u.denominacao_id
       WHERE u.id = $1`, [dados.id]);
@@ -35,6 +35,11 @@ async function autenticar(req, res, next) {
   if (!u || !u.ativo) return res.status(401).json({ erro: 'Usuário inativo.' });
   if (u.nivel > 0 && u.denominacao_status !== 'ATIVO') {
     return res.status(403).json({ erro: 'Acesso suspenso. Fale com o administrador do IDE+.' });
+  }
+
+  // Senha provisória: antes de qualquer coisa, a pessoa precisa criar a própria senha
+  if (u.trocar_senha && !/^\/api\/auth\/me\/?$/.test(req.originalUrl.split('?')[0])) {
+    return res.status(403).json({ erro: 'Crie a sua senha para continuar.', trocar_senha: true });
   }
 
   if (u.nivel <= 1) {

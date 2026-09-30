@@ -3,6 +3,7 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const db = require('../db');
 const { autenticar, exigirNivel, pode, BASE_POR_NIVEL } = require('../auth');
+const { limparCpf, cpfValido, mascararCpf } = require('../cpf');
 
 router.use(autenticar, exigirNivel(1, 2, 3));
 
@@ -21,22 +22,39 @@ router.get('/', async (req, res) => {
   const e = escopo(req.usuario);
   const { rows } = await db.query(
     `SELECT u.id, u.nivel, u.nome, u.email, u.telefone, u.foto, u.cidade_id, u.cargo_id, u.ativo,
+            u.cpf, u.fora_do_brasil, u.trocar_senha, u.criado_por,
             c.nome AS cidade, cg.nome AS cargo
        FROM usuarios u
        LEFT JOIN cidades c ON c.id = u.cidade_id
        LEFT JOIN cargos cg ON cg.id = u.cargo_id
       WHERE ${e.sql}
       ORDER BY u.nivel, u.nome`, e.params);
-  res.json(rows);
+  // CPF completo só para o Nível 1 e para quem cadastrou a pessoa
+  const eu = req.usuario;
+  res.json(rows.map(({ cpf, criado_por, ...u }) => ({
+    ...u, tem_cpf: !!cpf, cpf_mascarado: mascararCpf(cpf),
+    cpf: eu.nivel === 1 || String(criado_por) === String(eu.id) ? cpf : null
+  })));
 });
 
-async function validar(req, dados, idAtual) {
+async function validar(req, dados, atual) {
   const u = req.usuario;
   const nivel = Number(dados.nivel);
   if (!(nivel >= 1 && nivel <= 4)) return 'Escolha o nível do usuário.';
   if (u.nivel !== 1 && nivel <= u.nivel) return 'Você só pode cadastrar usuários de níveis abaixo do seu.';
-  if (!dados.nome || !dados.email) return 'Informe nome e e-mail.';
-  if (!idAtual && String(dados.senha || '').length < 6) return 'A senha precisa ter ao menos 6 caracteres.';
+  if (!dados.nome) return 'Informe o nome.';
+
+  // Login: CPF para quem está no Brasil; e-mail para o Nível 1 e para quem mora fora do país
+  dados.fora_do_brasil = !!dados.fora_do_brasil;
+  dados.cpf = limparCpf(dados.cpf) || (atual ? atual.cpf : null);
+  dados.email = String(dados.email || '').trim().toLowerCase() || null;
+  if (dados.cpf && !cpfValido(dados.cpf)) return 'CPF inválido. Confira os números.';
+  if (nivel >= 2 && !dados.fora_do_brasil && !dados.cpf) return 'Informe o CPF: é com ele que a pessoa entra no sistema.';
+  if ((nivel === 1 || dados.fora_do_brasil) && !dados.email) return nivel === 1 ? 'Informe o e-mail do Pastor Presidente.' : 'Quem mora fora do Brasil entra com e-mail. Informe o e-mail.';
+  if (dados.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(dados.email)) return 'E-mail inválido.';
+
+  if (!atual && String(dados.senha || '').length < 6) return 'A senha provisória precisa ter ao menos 6 caracteres.';
+  if (dados.senha && String(dados.senha).length < 6) return 'A senha precisa ter ao menos 6 caracteres.';
   if (u.nivel !== 1) dados.cidade_id = u.cidade_id; // 2 e 3 só cadastram na própria cidade
   if (dados.cidade_id) {
     const ok = (await db.query('SELECT 1 FROM cidades WHERE id = $1 AND denominacao_id = $2', [dados.cidade_id, u.denominacao_id])).rowCount;
@@ -49,6 +67,11 @@ async function validar(req, dados, idAtual) {
   return null;
 }
 
+function duplicado(e, res) {
+  if (e.code !== '23505') throw e;
+  return res.status(409).json({ erro: /cpf/.test(e.constraint || '') ? 'Este CPF já está cadastrado.' : 'Este e-mail já está em uso.' });
+}
+
 router.post('/', async (req, res) => {
   if (!podeGerenciar(req.usuario)) return res.status(403).json({ erro: 'Você não tem permissão para cadastrar usuários.' });
   const b = { ...req.body };
@@ -56,16 +79,14 @@ router.post('/', async (req, res) => {
   if (erro) return res.status(400).json({ erro });
   try {
     const { rows } = await db.query(
-      `INSERT INTO usuarios (denominacao_id, nivel, nome, email, senha_hash, telefone, foto, cidade_id, cargo_id, criado_por)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
-      [req.usuario.denominacao_id, Number(b.nivel), b.nome, String(b.email).trim().toLowerCase(),
-       await bcrypt.hash(String(b.senha), 10), b.telefone || null, b.foto || null,
-       b.cidade_id || null, b.cargo_id || null, req.usuario.id]);
+      `INSERT INTO usuarios (denominacao_id, nivel, nome, email, cpf, fora_do_brasil, senha_hash, trocar_senha,
+                             telefone, foto, cidade_id, cargo_id, criado_por)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+      [req.usuario.denominacao_id, Number(b.nivel), b.nome, b.email, b.cpf, b.fora_do_brasil,
+       await bcrypt.hash(String(b.senha), 10), Number(b.nivel) >= 2,
+       b.telefone || null, b.foto || null, b.cidade_id || null, b.cargo_id || null, req.usuario.id]);
     res.status(201).json(rows[0]);
-  } catch (e) {
-    if (e.code === '23505') return res.status(409).json({ erro: 'Este e-mail já está em uso.' });
-    throw e;
-  }
+  } catch (e) { return duplicado(e, res); }
 });
 
 async function buscarNoEscopo(req, id) {
@@ -79,26 +100,25 @@ router.put('/:id', async (req, res) => {
   const alvo = await buscarNoEscopo(req, req.params.id);
   if (!alvo) return res.status(404).json({ erro: 'Usuário não encontrado.' });
   const b = { ...req.body };
-  const erro = await validar(req, b, alvo.id);
+  const erro = await validar(req, b, alvo);
   if (erro) return res.status(400).json({ erro });
   if (String(alvo.id) === String(req.usuario.id) && Number(b.nivel) !== alvo.nivel) {
     return res.status(400).json({ erro: 'Você não pode mudar o seu próprio nível.' });
   }
-  if (b.senha && String(b.senha).length < 6) return res.status(400).json({ erro: 'A senha precisa ter ao menos 6 caracteres.' });
   try {
     await db.query(
-      `UPDATE usuarios SET nivel = $1, nome = $2, email = $3, telefone = $4, foto = $5, cidade_id = $6,
-              cargo_id = $7, ativo = $8 WHERE id = $9`,
-      [Number(b.nivel), b.nome, String(b.email).trim().toLowerCase(), b.telefone || null, b.foto || null,
+      `UPDATE usuarios SET nivel = $1, nome = $2, email = $3, cpf = $4, fora_do_brasil = $5, telefone = $6, foto = $7,
+              cidade_id = $8, cargo_id = $9, ativo = $10 WHERE id = $11`,
+      [Number(b.nivel), b.nome, b.email, b.cpf, b.fora_do_brasil, b.telefone || null, b.foto || null,
        b.cidade_id || null, b.cargo_id || null, b.ativo !== false, alvo.id]);
     if (b.senha) {
-      await db.query('UPDATE usuarios SET senha_hash = $1 WHERE id = $2', [await bcrypt.hash(String(b.senha), 10), alvo.id]);
+      // Nova senha dada por outra pessoa é provisória: no próximo acesso, troca obrigatória (níveis 2 a 4)
+      const provisoria = String(alvo.id) !== String(req.usuario.id) && Number(b.nivel) >= 2;
+      await db.query('UPDATE usuarios SET senha_hash = $1, trocar_senha = $2, tentativas_login = 0, bloqueado_ate = NULL WHERE id = $3',
+        [await bcrypt.hash(String(b.senha), 10), provisoria, alvo.id]);
     }
     res.json({ ok: true });
-  } catch (e) {
-    if (e.code === '23505') return res.status(409).json({ erro: 'Este e-mail já está em uso.' });
-    throw e;
-  }
+  } catch (e) { return duplicado(e, res); }
 });
 
 router.delete('/:id', async (req, res) => {
