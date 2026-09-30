@@ -20,6 +20,16 @@
   const STATUS = { CONVERTIDO: 'Novo convertido', DISCIPULADO: 'Em discipulado', BATIZADO: 'Batizado', AFASTADO: 'Afastado' };
 
   let eu = null;
+  // Versão com que esta página foi carregada (vem no ?v= do script)
+  const VERSAO_PAGINA = (document.currentScript && new URL(document.currentScript.src).searchParams.get('v')) || null;
+  let recarregando = false;
+  function verificarVersao(v) {
+    if (!v || !VERSAO_PAGINA || v === VERSAO_PAGINA || recarregando) return;
+    if (modal.open) return; // não interrompe quem está preenchendo um formulário
+    recarregando = true;
+    aviso('Nova versão do IDE+. Atualizando…');
+    setTimeout(() => location.reload(), 700);
+  }
 
   async function api(caminho, { metodo = 'GET', corpo } = {}) {
     const pedir = () => fetch('/api' + caminho, {
@@ -37,6 +47,7 @@
     }
     let dados = null;
     try { dados = await r.json(); } catch { /* sem corpo */ }
+    verificarVersao(r.headers.get('X-IDE-Versao'));
     if (r.status === 401 && caminho !== '/auth/login') { sair(); throw new Error(dados?.erro || 'Sessão expirada.'); }
     if (r.status === 403 && dados?.trocar_senha) { trocarSenhaObrigatoria(); throw new Error(dados.erro); }
     if (!r.ok) { const e = new Error(dados?.erro || 'Não foi possível concluir.'); Object.assign(e, dados || {}); throw e; }
@@ -351,10 +362,10 @@
         <div><b>${e.usuarios}</b><span>usuários</span></div>
       </div>
       ${e.aguardando_responsavel && eu.nivel <= 2 ? `<div class="painel" style="margin-top:16px"><span class="etiqueta laranja">${e.aguardando_responsavel} congregação(ões) aguardando responsável</span> <a href="#estrutura">ver</a></div>` : ''}
-      ${r.porCidade.length ? `<section class="painel" style="margin-top:16px"><h2>Por cidade</h2><div class="rolagem"><table class="tabela" style="margin-top:8px">
+      ${r.porCidade.length ? `<section class="painel" style="margin-top:16px"><h2>Por cidade</h2><div class="rolagem"><table class="tabela cartoes" style="margin-top:8px">
         <thead><tr><th>Cidade</th><th class="n">Congregações</th><th class="n">Convertidos</th><th class="n">Discipulados</th><th class="n">Batizados</th><th class="n">Afastados</th></tr></thead>
-        <tbody>${r.porCidade.map((x) => `<tr><td>${h(x.nome)}/${h(x.estado)} ${x.is_sede ? '<span class="etiqueta verde">Sede</span>' : ''}</td><td class="n">${x.congregacoes}</td><td class="n">${x.convertidos}</td><td class="n">${x.discipulados}</td><td class="n">${x.batizados}</td><td class="n">${x.afastados}</td></tr>`).join('')}
-        <tr><td><strong>Total</strong></td><td class="n"><strong>${e.congregacoes}</strong></td><td class="n"><strong>${f.convertidos}</strong></td><td class="n"><strong>${f.discipulados}</strong></td><td class="n"><strong>${f.batizados}</strong></td><td class="n"><strong>${f.afastados}</strong></td></tr></tbody></table></div></section>` : ''}`;
+        <tbody>${r.porCidade.map((x) => `<tr><td class="cid">${h(x.nome)}/${h(x.estado)} ${x.is_sede ? '<span class="etiqueta verde">Sede</span>' : ''}</td><td class="n" data-r="Congreg.">${x.congregacoes}</td><td class="n" data-r="Convert.">${x.convertidos}</td><td class="n" data-r="Discip.">${x.discipulados}</td><td class="n" data-r="Batiz.">${x.batizados}</td><td class="n" data-r="Afast.">${x.afastados}</td></tr>`).join('')}
+        <tr class="total"><td class="cid"><strong>Total geral</strong></td><td class="n" data-r="Congreg."><strong>${e.congregacoes}</strong></td><td class="n" data-r="Convert."><strong>${f.convertidos}</strong></td><td class="n" data-r="Discip."><strong>${f.discipulados}</strong></td><td class="n" data-r="Batiz."><strong>${f.batizados}</strong></td><td class="n" data-r="Afast."><strong>${f.afastados}</strong></td></tr></tbody></table></div></section>` : ''}`;
     const novo = $('#novo-conv');
     if (novo) novo.onclick = (ev) => { ev.preventDefault(); location.hash = '#pessoas'; setTimeout(() => editarPessoa(null, () => rota()), 50); };
   };
@@ -1019,22 +1030,17 @@
   $('#veu').onclick = fecharMenu;
   window.addEventListener('hashchange', () => eu && rota());
 
-  // Atualização automática: se houver versão nova publicada, recarrega a página
-  let versaoAtual = null;
+  // Atualização automática também quando o app volta a aparecer na tela
   async function checarVersao() {
     try {
       const r = await fetch('/api/versao', { cache: 'no-store' });
-      const { versao } = await r.json();
-      if (versaoAtual && versao !== versaoAtual && !modal.open) {
-        aviso('Nova versão do IDE+. Atualizando…');
-        setTimeout(() => location.reload(), 900);
-      }
-      versaoAtual = versaoAtual || versao;
+      verificarVersao((await r.json()).versao);
     } catch { /* sem rede: tenta depois */ }
   }
-  checarVersao();
   setInterval(checarVersao, 120000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checarVersao(); });
+  window.addEventListener('pageshow', checarVersao);
+  window.addEventListener('focus', checarVersao);
 
   iniciar();
 })();

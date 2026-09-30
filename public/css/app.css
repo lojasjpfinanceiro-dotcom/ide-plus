@@ -315,3 +315,15 @@ dialog.modal::backdrop { background: rgba(10, 19, 34, .55); }
 .passos li.feito .info strong { color: var(--suave); text-decoration: line-through; text-decoration-color: var(--linha); }
 .passos li.proximo { background: linear-gradient(90deg, rgba(217, 164, 65, .10), transparent 70%); margin: 0 -18px; padding-left: 18px; padding-right: 18px; }
 @media (max-width: 599px) { .passos li { flex-wrap: wrap; } .passos .info { flex-basis: calc(100% - 44px); } .passos li .botao { margin-left: 44px; } }
+
+/* Tabela por cidade vira cartões no celular (sem rolar para o lado) */
+@media (max-width: 599px) {
+  .tabela.cartoes thead { display: none; }
+  .tabela.cartoes, .tabela.cartoes tbody { display: block; }
+  .tabela.cartoes tr { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; padding: 12px 0; border-top: 1px solid var(--linha); }
+  .tabela.cartoes tr:first-child { border-top: 0; }
+  .tabela.cartoes td { border: 0; padding: 0; text-align: center; font-size: 1.05rem; }
+  .tabela.cartoes td.cid { grid-column: 1 / -1; text-align: left; font-weight: 700; margin-bottom: 4px; }
+  .tabela.cartoes td[data-r]::before { content: attr(data-r); display: block; font-size: .7rem; white-space: nowrap; color: var(--suave); font-weight: 600; }
+  .tabela.cartoes tr.total { background: var(--fundo); border-radius: 10px; padding: 12px 8px; margin-top: 6px; }
+}
