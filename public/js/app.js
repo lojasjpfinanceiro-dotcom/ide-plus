@@ -687,7 +687,7 @@
       <section class="painel">${lista.length ? `<ul class="lista">${lista.map((d) => `
         <li><div class="info"><strong>${h(d.nome)}</strong><small>${h(d.plano || 'Sem plano')} · ${d.congregacoes} congregações · ${d.usuarios} usuários · ${h(d.email_admin || '')}</small></div>
           <span class="etiqueta ${d.status === 'ATIVO' ? 'verde' : 'laranja'}">${d.status.toLowerCase()}</span>
-          <div class="acoes"><button class="botao sec p" data-ed="${d.id}">Alterar</button><button class="botao sec p" data-ex="${d.id}">Excluir</button></div></li>`).join('')}</ul>`
+          <div class="acoes"><button class="botao sec p" data-senha="${d.id}">Senha</button><button class="botao sec p" data-ed="${d.id}">Alterar</button><button class="botao sec p" data-ex="${d.id}">Excluir</button></div></li>`).join('')}</ul>`
         : '<div class="vazio">Nenhum cliente ainda.</div>'}</section>`;
     const opcPlanos = planos.filter((p) => p.ativo).map((p) => [p.id, `${p.nome} — ${moeda(p.preco_mensal)}${p.max_congregacoes ? ' · até ' + p.max_congregacoes + ' congregações' : ''}`]);
     const achar = (id) => lista.find((d) => String(d.id) === String(id));
@@ -704,6 +704,13 @@
     };
     c.onclick = async (ev) => {
       const b = ev.target.closest('button'); if (!b) return;
+      if (b.dataset.senha) {
+        const d = achar(b.dataset.senha);
+        const r = await formulario('Nova senha do Pastor Presidente', [
+          { nome: 'senha', rotulo: `Nova senha para ${d.email_admin || d.nome}`, tipo: 'text', obrigatorio: true, inteira: true, auto: 'off', ajuda: 'Envie ao cliente; ele troca em Meu perfil.' }
+        ], {}, { salvar: 'Redefinir senha', aoSalvar: (v) => api(`/fornecedor/clientes/${d.id}/senha`, { metodo: 'POST', corpo: v }) });
+        if (r) aviso('Senha redefinida.');
+      }
       if (b.dataset.ed) {
         const d = achar(b.dataset.ed);
         const r = await formulario('Alterar cliente', [

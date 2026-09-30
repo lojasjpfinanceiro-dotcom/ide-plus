@@ -94,6 +94,18 @@ router.put('/clientes/:id', async (req, res) => {
   res.json(rows[0]);
 });
 
+// Redefine a senha do Pastor Presidente (Nível 1) de um cliente
+router.post('/clientes/:id/senha', async (req, res) => {
+  const senha = String(req.body.senha || '');
+  if (senha.length < 6) return res.status(400).json({ erro: 'A nova senha precisa ter ao menos 6 caracteres.' });
+  const { rowCount } = await db.query(
+    `UPDATE usuarios SET senha_hash = $1
+      WHERE id = (SELECT id FROM usuarios WHERE denominacao_id = $2 AND nivel = 1 ORDER BY id LIMIT 1)`,
+    [await bcrypt.hash(senha, 10), req.params.id]);
+  if (!rowCount) return res.status(404).json({ erro: 'Este cliente não tem Pastor Presidente cadastrado.' });
+  res.json({ ok: true });
+});
+
 router.delete('/clientes/:id', async (req, res) => {
   if (req.body?.confirmar !== 'EXCLUIR') {
     return res.status(400).json({ erro: 'Para excluir definitivamente, confirme digitando EXCLUIR.' });
