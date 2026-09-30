@@ -129,7 +129,7 @@
       case 'imagem':
         return `<div class="campo inteira"><span>${h(c.rotulo)}</span><div class="foto-campo">
           ${val ? `<img src="${h(val)}" alt="">` : '<span class="sem-foto">Sem imagem</span>'}
-          <input type="file" accept="image/*" data-imagem="${c.nome}">
+          <label class="botao sec p">${val ? 'Trocar imagem' : 'Escolher imagem'}<input type="file" accept="image/*" data-imagem="${c.nome}"></label>
           <input type="hidden" name="${c.nome}" value="${h(val)}">
           ${val ? `<button type="button" class="botao sec p" data-limpar="${c.nome}">Remover</button>` : ''}
         </div>${ajuda}</div>`;
@@ -154,14 +154,14 @@
           if (!inp.files[0]) return;
           const url = await reduzirImagem(inp.files[0]);
           f.elements[inp.dataset.imagem].value = url;
-          const alvo = inp.parentElement.querySelector('img, .sem-foto');
+          const alvo = inp.closest('.foto-campo').querySelector('img, .sem-foto');
           const img = document.createElement('img'); img.src = url; img.alt = '';
           alvo.replaceWith(img);
         };
       });
       f.querySelectorAll('[data-limpar]').forEach((b) => (b.onclick = () => {
         f.elements[b.dataset.limpar].value = '';
-        b.parentElement.querySelector('img')?.replaceWith(Object.assign(document.createElement('span'), { className: 'sem-foto', textContent: 'Sem imagem' }));
+        b.closest('.foto-campo').querySelector('img')?.replaceWith(Object.assign(document.createElement('span'), { className: 'sem-foto', textContent: 'Sem imagem' }));
         b.remove();
       }));
 

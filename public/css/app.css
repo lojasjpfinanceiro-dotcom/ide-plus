@@ -78,7 +78,10 @@ img { max-width: 100%; }
 .app { display: grid; grid-template-columns: 1fr; min-height: 100vh; }
 .app > div { min-width: 0; }
 
+/* Nada pode passar da largura da tela do celular */
+html { overflow-x: hidden; }
 body { overflow-x: clip; }
+input, select, textarea, img, video { max-width: 100%; }
 @media (min-width: 900px) {
   .app { grid-template-columns: 248px 1fr; }
   .app.recolhido { grid-template-columns: 72px 1fr; }
@@ -209,24 +212,27 @@ textarea { min-height: 88px; resize: vertical; }
 ::placeholder { color: var(--suave); opacity: .6; font-style: italic; }
 .check { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; }
 .check input { width: 22px; min-height: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--agua); flex: none; }
-.form { display: grid; gap: 14px; }
-@media (min-width: 600px) { .form .meia { grid-column: span 1; } .form.cols { grid-template-columns: 1fr 1fr; } .form.cols > .inteira { grid-column: 1 / -1; } }
+.form { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+.form > * { min-width: 0; }
+@media (min-width: 600px) { .form.cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .form.cols > .inteira { grid-column: 1 / -1; } }
 .ajuda { font-size: .82rem; color: var(--suave); font-weight: 400; }
-.foto-campo { display: flex; align-items: center; gap: 12px; }
+.foto-campo { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-width: 0; }
+.foto-campo input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .foto-campo img, .foto-campo .sem-foto { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; background: var(--fundo); display: grid; place-items: center; color: var(--suave); font-size: .75rem; }
 .erro-form { color: var(--perigo); font-weight: 600; margin: 0; }
 
 /* ---------- Modal ---------- */
 dialog.modal {
   border: 0; padding: 0; border-radius: 20px 20px 0 0;
-  width: 100%; max-width: 100%; max-height: 92vh;
+  width: 100%; max-width: 100vw; max-height: 92vh; overflow-x: hidden; box-sizing: border-box;
   margin: auto 0 0; background: var(--superficie); color: var(--texto);
   box-shadow: 0 -10px 40px rgba(0, 0, 0, .25);
 }
 @media (min-width: 700px) { dialog.modal { border-radius: 20px; max-width: 620px; margin: auto; } }
 dialog.modal::backdrop { background: rgba(10, 19, 34, .55); }
 .modal-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 8px; position: sticky; top: 0; background: var(--superficie); z-index: 1; }
-.modal-corpo { padding: 8px 20px 20px; overflow-y: auto; }
+.modal-corpo { padding: 8px 20px 20px; overflow-y: auto; overflow-x: hidden; }
+.modal-cab h2 { min-width: 0; overflow-wrap: anywhere; }
 .modal-rodape { display: flex; gap: 10px; justify-content: flex-end; padding: 12px 20px calc(16px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--linha); position: sticky; bottom: 0; background: var(--superficie); }
 
 .aviso { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--noite); color: #fff; padding: 12px 18px; border-radius: 12px; z-index: 100; box-shadow: var(--sombra); max-width: calc(100% - 32px); font-weight: 600; }
