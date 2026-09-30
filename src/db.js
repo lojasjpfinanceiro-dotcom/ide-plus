@@ -1,4 +1,6 @@
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+
+types.setTypeParser(1082, (v) => v); // DATE como 'AAAA-MM-DD', sem fuso
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -6,23 +8,9 @@ const pool = new Pool({
   max: Number(process.env.PG_POOL_MAX || 5),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,
-  keepAlive: true,
-  allowExitOnIdle: false
+  keepAlive: true
 });
 
-pool.on('error', (err) => {
-  console.error('[DB] erro em conexão ociosa:', err && (err.stack || err.message || err));
-});
-
-const queryOriginal = pool.query.bind(pool);
-pool.query = async (...args) => {
-  const inicio = Date.now();
-  try {
-    return await queryOriginal(...args);
-  } catch (err) {
-    console.error('[DB] query falhou após '+(Date.now()-inicio)+'ms:', err && (err.stack || err.message || err));
-    throw err;
-  }
-};
+pool.on('error', (err) => console.error('[DB] erro em conexão ociosa:', err.message));
 
 module.exports = pool;

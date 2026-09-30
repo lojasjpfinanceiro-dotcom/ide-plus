@@ -1,122 +1,109 @@
-const express = require('express');
+// Pessoas (convertidos): cada nível vê só as pessoas da cidade em que atua
+const router = require('express').Router();
 const db = require('../db');
-const auth = require('../middleware/auth');
-const {requirePermission}=require('../middleware/permissions');
-const {filter,congregation}=require('../middleware/scope');
-const router = express.Router();
+const { autenticar, exigirNivel, pode } = require('../auth');
 
-router.use(auth);
-
-router.get('/', requirePermission('pessoas.visualizar'), async (req, res) => {
-  try {
-    const s=filter(req.user,'c.cidade_ministerial_id','p.congregacao_id',2);
-    const q = await db.query(`
-      SELECT p.id, p.nome, p.cpf, p.foto, p.telefone, p.email, p.origem,
-             p.status, p.data_nascimento, p.cidade, p.bairro, p.endereco, p.numero, p.observacoes, p.congregacao_id, p.criado_em, c.nome AS congregacao
-      FROM pessoas p
-      LEFT JOIN congregacoes c
-        ON c.id = p.congregacao_id AND c.denominacao_id = p.denominacao_id
-      WHERE p.denominacao_id = $1 AND p.ativo = TRUE${s.sql}
-      ORDER BY p.criado_em DESC
-    `, [req.user.denominacao_id,...s.values]);
-    res.json(q.rows);
-  } catch (e) {
-    console.error('Erro ao listar pessoas:', e);
-    res.status(500).json({ erro: 'Erro ao listar pessoas.' });
+router.use(autenticar, exigirNivel(1, 2, 3, 4), (req, res, next) => {
+  if (!req.usuario.cidade_id) {
+    return res.status(409).json({ erro: req.usuario.nivel === 1
+      ? 'Cadastre a cidade da igreja sede em Estrutura para começar a cadastrar pessoas.'
+      : 'Seu usuário ainda não tem cidade definida. Fale com quem cadastrou você.' });
   }
+  next();
 });
 
-router.post('/', requirePermission('pessoas.inserir'), async (req, res) => {
-  const inicio = Date.now();
-  const reqId = String(req.get('X-Request-Id') || ('pessoa-'+Date.now()+'-'+Math.random().toString(36).slice(2,8)));
-  res.set('X-Request-Id', reqId);
-  const log = (etapa, extra='') => console.log('[PESSOA]['+reqId+'] '+etapa+' +'+(Date.now()-inicio)+'ms'+(extra?' '+extra:''));
-  log('POST recebido');
-  try {
-    const {
-      nome, cpf, foto, telefone, email, data_nascimento, cidade, bairro,
-      endereco, numero, origem, observacoes, congregacao_id
-    } = req.body;
+const CAMPOS = ['congregacao_id','nome','foto','cpf','telefone','nascimento','endereco','numero','bairro','observacao',
+  'como_chegou_id','data_conversao','autoriza_dados'];
 
-    if (!nome || !congregacao_id || !origem || !endereco || !numero) {
-      return res.status(400).json({
-        erro: 'Preencha os campos obrigatórios: nome, congregação, origem, endereço e número.'
-      });
-    }
-
-    const cpfLimpo = cpf ? String(cpf).replace(/\D/g, '') : null;
-    if (cpfLimpo && cpfLimpo.length !== 11) {
-      return res.status(400).json({ erro: 'Informe um CPF válido com 11 dígitos.' });
-    }
-
-    log('validacao concluida');
-    log('consulta congregacao iniciada');
-    const congregacao = await congregation(req.user,congregacao_id);
-    log('consulta congregacao concluida');
-    if (!congregacao) {
-      return res.status(400).json({ erro: 'Congregação inválida.' });
-    }
-
-    log('insert pessoa iniciado');
-    const q = await db.query(`
-      INSERT INTO pessoas (
-        denominacao_id, congregacao_id, nome, cpf, foto, telefone, email,
-        data_nascimento, cidade, bairro, endereco, numero, origem, observacoes
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-      RETURNING *
-    `, [
-      req.user.denominacao_id, congregacao_id, nome.trim(), cpfLimpo, foto || null,
-      telefone ? telefone.trim() : null, email || null, data_nascimento || null, cidade || null,
-      bairro || null, endereco.trim(), String(numero).trim(), origem, observacoes || null
-    ]);
-
-    log('insert pessoa concluido');
-    log('respondendo 201');
-    res.status(201).json({...q.rows[0], request_id:reqId, tempo_ms:Date.now()-inicio});
-  } catch (e) {
-    console.error('[PESSOA]['+reqId+'] ERRO +'+(Date.now()-inicio)+'ms', e);
-    if (e.code === '23505') {
-      return res.status(400).json({ erro: 'Este CPF já está cadastrado nesta denominação.' });
-    }
-    res.status(500).json({ erro: 'Erro ao cadastrar pessoa.' });
-  }
+router.get('/', async (req, res) => {
+  const u = req.usuario;
+  const busca = req.query.busca ? `%${String(req.query.busca).trim()}%` : null;
+  const status = ['CONVERTIDO','DISCIPULADO','BATIZADO'].includes(req.query.status) ? req.query.status : null;
+  const { rows } = await db.query(
+    `SELECT p.id, p.nome, p.foto, p.telefone, p.status, p.data_conversao, p.data_batismo, p.congregacao_id,
+            g.nome AS congregacao, ci.nome AS como_chegou
+       FROM pessoas p
+       LEFT JOIN congregacoes g ON g.id = p.congregacao_id
+       LEFT JOIN config_itens ci ON ci.id = p.como_chegou_id
+      WHERE p.denominacao_id = $1 AND p.cidade_id = $2
+        AND ($3::text IS NULL OR p.nome ILIKE $3 OR p.telefone ILIKE $3 OR p.cpf ILIKE $3)
+        AND ($4::text IS NULL OR p.status = $4)
+      ORDER BY p.criado_em DESC LIMIT 500`, [u.denominacao_id, u.cidade_id, busca, status]);
+  res.json(rows);
 });
 
-router.put('/:id', requirePermission('pessoas.editar'), async (req,res)=>{
-  try{
-    const {nome,cpf,foto,telefone,email,data_nascimento,cidade,bairro,endereco,numero,origem,observacoes,congregacao_id}=req.body;
-    if(!nome||!congregacao_id||!origem||!endereco||!numero)return res.status(400).json({erro:'Preencha os campos obrigatórios: nome, congregação, origem, endereço e número.'});
-    const cpfLimpo=cpf?String(cpf).replace(/\D/g,''):null;
-    if(cpfLimpo&&cpfLimpo.length!==11)return res.status(400).json({erro:'Informe um CPF válido com 11 dígitos.'});
-    if(!await congregation(req.user,congregacao_id))return res.status(400).json({erro:'Congregação inválida ou fora do seu acesso.'});
-    const s=filter(req.user,'c.cidade_ministerial_id','p.congregacao_id',16);
-    const q=await db.query(`UPDATE pessoas p SET congregacao_id=$1,nome=$2,cpf=$3,foto=$4,telefone=$5,email=$6,data_nascimento=$7,cidade=$8,bairro=$9,endereco=$10,numero=$11,origem=$12,observacoes=$13,atualizado_em=NOW() FROM congregacoes c WHERE c.id=p.congregacao_id AND p.id=$14 AND p.denominacao_id=$15 AND p.ativo=TRUE${s.sql} RETURNING p.*`,[congregacao_id,nome.trim(),cpfLimpo,foto||null,telefone?telefone.trim():null,email||null,data_nascimento||null,cidade||null,bairro||null,endereco.trim(),String(numero).trim(),origem,observacoes||null,req.params.id,req.user.denominacao_id,...s.values]);
-    if(!q.rowCount)return res.status(404).json({erro:'Pessoa não encontrada.'});res.json(q.rows[0]);
-  }catch(e){console.error('Erro ao alterar pessoa:',e);if(e.code==='23505')return res.status(400).json({erro:'Este CPF já está cadastrado nesta denominação.'});res.status(500).json({erro:'Erro ao alterar pessoa.'});}
-});
-router.delete('/:id',requirePermission('pessoas.excluir'),async(req,res)=>{try{const s=filter(req.user,'c.cidade_ministerial_id','p.congregacao_id',3);const q=await db.query('UPDATE pessoas p SET ativo=FALSE,atualizado_em=NOW() FROM congregacoes c WHERE c.id=p.congregacao_id AND p.id=$1 AND p.denominacao_id=$2 AND p.ativo=TRUE'+s.sql+' RETURNING p.id',[req.params.id,req.user.denominacao_id,...s.values]);if(!q.rowCount)return res.status(404).json({erro:'Pessoa não encontrada.'});res.json({ok:true});}catch(e){console.error('Erro ao excluir pessoa:',e);res.status(500).json({erro:'Erro ao excluir pessoa.'});}});
+async function buscar(req) {
+  const { rows } = await db.query('SELECT * FROM pessoas WHERE id = $1 AND denominacao_id = $2 AND cidade_id = $3',
+    [req.params.id, req.usuario.denominacao_id, req.usuario.cidade_id]);
+  return rows[0];
+}
 
-router.get('/resumo', requirePermission('pessoas.visualizar'), async (req, res) => {
-  try {
-    const s=filter(req.user,'c.cidade_ministerial_id','p.congregacao_id',2);
-    const q = await db.query(`
-      SELECT
-        COUNT(*) FILTER (WHERE p.ativo) pessoas_alcancadas,
-        COUNT(*) FILTER (WHERE p.ativo AND p.status='EM_DISCIPULADO') em_discipulado,
-        COUNT(*) FILTER (WHERE p.ativo AND p.status='PREPARANDO_BATISMO') preparando_batismo,
-        COUNT(*) FILTER (
-          WHERE p.ativo AND p.status='BATIZADO'
-          AND EXTRACT(YEAR FROM p.atualizado_em)=EXTRACT(YEAR FROM CURRENT_DATE)
-        ) batizados_ano
-      FROM pessoas p JOIN congregacoes c ON c.id=p.congregacao_id
-      WHERE p.denominacao_id=$1${s.sql}
-    `, [req.user.denominacao_id,...s.values]);
-    res.json(q.rows[0]);
-  } catch (e) {
-    console.error('Erro ao carregar resumo:', e);
-    res.status(500).json({ erro: 'Erro ao carregar resumo.' });
+router.get('/:id', async (req, res) => {
+  const p = await buscar(req);
+  if (!p) return res.status(404).json({ erro: 'Pessoa não encontrada.' });
+  res.json(p);
+});
+
+async function limpar(req, b) {
+  const v = {};
+  for (const k of CAMPOS) v[k] = b[k] === '' || b[k] === undefined ? null : b[k];
+  v.autoriza_dados = !!b.autoriza_dados;
+  if (!v.nome) throw Object.assign(new Error('Informe o nome.'), { status: 400 });
+  if (v.cpf) v.cpf = String(v.cpf).replace(/\D/g, '').slice(0, 11);
+  if (v.congregacao_id) {
+    const ok = (await db.query('SELECT 1 FROM congregacoes WHERE id = $1 AND cidade_id = $2', [v.congregacao_id, req.usuario.cidade_id])).rowCount;
+    if (!ok) throw Object.assign(new Error('Congregação de outra cidade.'), { status: 400 });
   }
+  return v;
+}
+
+router.post('/', async (req, res) => {
+  const u = req.usuario;
+  if (!pode(u, 'pessoas.cadastrar')) return res.status(403).json({ erro: 'Você não tem permissão para cadastrar pessoas.' });
+  const v = await limpar(req, req.body);
+  v.data_conversao = v.data_conversao || new Date().toISOString().slice(0, 10);
+  const { rows } = await db.query(
+    `INSERT INTO pessoas (denominacao_id, cidade_id, criado_por, ${CAMPOS.join(', ')})
+     VALUES ($1, $2, $3, ${CAMPOS.map((_, i) => '$' + (i + 4)).join(', ')}) RETURNING id`,
+    [u.denominacao_id, u.cidade_id, u.id, ...CAMPOS.map(k => v[k])]);
+  res.status(201).json(rows[0]);
+});
+
+router.put('/:id', async (req, res) => {
+  if (!pode(req.usuario, 'pessoas.editar')) return res.status(403).json({ erro: 'Você não tem permissão para alterar pessoas.' });
+  const p = await buscar(req);
+  if (!p) return res.status(404).json({ erro: 'Pessoa não encontrada.' });
+  const v = await limpar(req, req.body);
+  v.data_conversao = v.data_conversao || p.data_conversao;
+  await db.query(`UPDATE pessoas SET ${CAMPOS.map((k, i) => `${k} = $${i + 1}`).join(', ')} WHERE id = $${CAMPOS.length + 1}`,
+    [...CAMPOS.map(k => v[k]), p.id]);
+  res.json({ ok: true });
+});
+
+// Etapas do fluxo: convertido → discipulado → batizado
+router.post('/:id/status', async (req, res) => {
+  const u = req.usuario;
+  const p = await buscar(req);
+  if (!p) return res.status(404).json({ erro: 'Pessoa não encontrada.' });
+  const { status, data_batismo } = req.body;
+  if (!['CONVERTIDO','DISCIPULADO','BATIZADO'].includes(status)) return res.status(400).json({ erro: 'Etapa inválida.' });
+  if (status === 'BATIZADO') {
+    if (!pode(u, 'batismo.registrar')) return res.status(403).json({ erro: 'O batismo é registrado pelo Pastor Local.' });
+    await db.query(`UPDATE pessoas SET status = 'BATIZADO', data_batismo = COALESCE($1::date, CURRENT_DATE), batizado_por = $2 WHERE id = $3`,
+      [data_batismo || null, u.id, p.id]);
+  } else {
+    if (!pode(u, 'pessoas.editar')) return res.status(403).json({ erro: 'Você não tem permissão para alterar pessoas.' });
+    await db.query('UPDATE pessoas SET status = $1, data_batismo = NULL, batizado_por = NULL WHERE id = $2', [status, p.id]);
+  }
+  res.json({ ok: true });
+});
+
+router.delete('/:id', async (req, res) => {
+  if (!pode(req.usuario, 'pessoas.excluir')) return res.status(403).json({ erro: 'Você não tem permissão para excluir pessoas.' });
+  const p = await buscar(req);
+  if (!p) return res.status(404).json({ erro: 'Pessoa não encontrada.' });
+  await db.query('DELETE FROM pessoas WHERE id = $1', [p.id]);
+  res.json({ ok: true });
 });
 
 module.exports = router;
