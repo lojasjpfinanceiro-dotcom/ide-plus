@@ -284,3 +284,19 @@ dialog.modal::backdrop { background: rgba(10, 19, 34, .55); }
 .perm-linha { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
 .perm-linha span { flex: 1; }
 .perm-linha select { width: auto; min-height: 36px; padding: 4px 8px; }
+
+/* ---------- Primeiros passos ---------- */
+.guia { border-top: 4px solid var(--trigo); }
+.barra-guia { height: 8px; border-radius: 4px; background: var(--fundo); overflow: hidden; margin: 4px 0 8px; }
+.barra-guia i { display: block; height: 100%; background: var(--trigo); border-radius: 4px; }
+.passos { list-style: none; margin: 0; padding: 0; }
+.passos li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--linha); }
+.passos li:first-child { border-top: 0; }
+.passos .info { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.passos .info > small { color: var(--suave); }
+.marca-passo { width: 32px; height: 32px; border-radius: 50%; flex: none; display: grid; place-items: center; font-weight: 800; background: var(--fundo); color: var(--suave); }
+.passos li.proximo .marca-passo { background: var(--trigo); color: #fff; }
+.passos li.feito .marca-passo { background: var(--verde); color: #fff; }
+.passos li.feito .info strong { color: var(--suave); text-decoration: line-through; text-decoration-color: var(--linha); }
+.passos li.proximo { background: linear-gradient(90deg, rgba(217, 164, 65, .10), transparent 70%); margin: 0 -18px; padding-left: 18px; padding-right: 18px; }
+@media (max-width: 599px) { .passos li { flex-wrap: wrap; } .passos .info { flex-basis: calc(100% - 44px); } .passos li .botao { margin-left: 44px; } }

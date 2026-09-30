@@ -196,6 +196,7 @@
     config: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
     clientes: '<path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/>',
     planos: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 15h3"/>',
+    guia: '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>',
     receber: '<path d="M12 2v20M17 6.5C17 4.6 14.8 3.5 12 3.5S7 4.6 7 6.5 9 9.5 12 10s5 1.5 5 3.5-2.2 3.5-5 3.5-5-1.1-5-3"/>'
   };
   const ico = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICO[n]}</svg>`;
@@ -210,13 +211,14 @@
     if (n <= 2) m.push(['cargos', 'Cargos e permissões', 'cargos']);
     m.push(['pessoas', 'Pessoas', 'pessoas']);
     if (n <= 2) m.push(['configuracoes', 'Configurações', 'config']);
+    if (n <= 3) m.push(['guia', 'Guia de início', 'guia']);
     return m;
   }
 
   const VISTAS = {};
   function rota() {
     const r = (location.hash || '#inicio').slice(1);
-    const permitidas = menuDoNivel(eu.nivel).map((m) => m[0]).concat('perfil');
+    const permitidas = menuDoNivel(eu.nivel).map((m) => m[0]).concat('perfil', ...(eu.nivel >= 1 && eu.nivel <= 3 ? ['guia'] : []));
     const alvo = permitidas.includes(r) ? r : 'inicio';
     document.querySelectorAll('.menu a').forEach((a) => a.classList.toggle('ativo', a.dataset.rota === alvo));
     fecharMenu();
@@ -231,18 +233,17 @@
   // ================= Início =================
   VISTAS.inicio = async (c) => {
     if (eu.nivel === 0) return inicioFornecedor(c);
-    const r = await api('/painel/resumo');
+    const [r, g] = await Promise.all([api('/painel/resumo'), eu.nivel <= 3 ? api('/painel/passos') : Promise.resolve(null)]);
     const f = r.funil, e = r.estrutura;
     const max = Math.max(f.convertidos, 1);
     const titulo = eu.nivel === 1 ? 'Fechamento geral' : `Cidade de ${h(eu.cidade || '')}`;
-    const pendente = eu.nivel === 1 && !eu.cidade_id
-      ? `<div class="painel"><h2>Comece pela estrutura</h2><p>Cadastre a cidade da igreja sede e as congregações. Depois disso, as pessoas já podem ser cadastradas.</p><a class="botao" href="#estrutura">Abrir Estrutura</a></div>` : '';
+    const pendente = g && g.total && !g.concluido ? `<div style="margin-bottom:16px">${guiaHtml(g, false)}</div>` : '';
     const meses = r.mensal;
     const topo = Math.max(1, ...meses.map((m) => Math.max(m.convertidos, m.batizados)));
 
     c.innerHTML = `
       <div class="cabecalho"><div><h1>Olá, ${h(primeiroNome(eu.nome))}</h1><p>${titulo}${eu.nivel === 1 ? ' — sede e todas as cidades' : ''}</p></div>
-        ${eu.permissoes === null || (eu.permissoes || []).includes('pessoas.cadastrar') ? '<a class="botao" href="#pessoas" id="novo-conv">Cadastrar convertido</a>' : ''}</div>
+        ${eu.cidade_id && pode('pessoas.cadastrar') ? '<a class="botao" href="#pessoas" id="novo-conv">Cadastrar convertido</a>' : ''}</div>
       ${pendente}
       <div class="grade duas">
         <section class="painel" aria-labelledby="t-funil">
@@ -275,6 +276,32 @@
         <tr><td><strong>Total</strong></td><td class="n"><strong>${e.congregacoes}</strong></td><td class="n"><strong>${f.convertidos}</strong></td><td class="n"><strong>${f.discipulados}</strong></td><td class="n"><strong>${f.batizados}</strong></td></tr></tbody></table></div></section>` : ''}`;
     const novo = $('#novo-conv');
     if (novo) novo.onclick = (ev) => { ev.preventDefault(); location.hash = '#pessoas'; setTimeout(() => editarPessoa(null, () => rota()), 50); };
+  };
+
+  // ================= Primeiros passos =================
+  function guiaHtml(g, completo) {
+    const bloqueado = (p) => p.depende && !g.passos.find((x) => x.id === p.depende)?.feito;
+    return `<section class="painel guia" aria-labelledby="t-guia">
+      <div class="cabecalho" style="margin-bottom:6px"><div><h2 id="t-guia">Primeiros passos</h2>
+        <p>Siga nesta ordem: cada etapa prepara a seguinte.</p></div>
+        <span class="etiqueta ${g.concluido ? 'verde' : ''}">${g.feitos} de ${g.total}</span></div>
+      <div class="barra-guia"><i style="width:${pct(g.feitos, g.total)}%"></i></div>
+      <ol class="passos">${g.passos.map((p, i) => `
+        <li class="${p.feito ? 'feito' : ''}${p.id === g.proximo ? ' proximo' : ''}">
+          <span class="marca-passo">${p.feito ? '✓' : i + 1}</span>
+          <div class="info"><strong>${h(p.titulo)}${p.opcional ? ' <small class="ajuda">(opcional)</small>' : ''}</strong>
+            <small>${h(p.texto)}</small>
+            ${!p.feito && bloqueado(p) ? `<small class="ajuda">Depende do passo ${g.passos.findIndex((x) => x.id === p.depende) + 1}.</small>` : ''}</div>
+          ${!p.feito && (completo || p.id === g.proximo) ? `<a class="botao p${p.id === g.proximo ? '' : ' sec'}" href="#${p.rota}">Fazer agora</a>` : ''}
+        </li>`).join('')}</ol>
+      ${!completo ? '<a href="#guia" class="ajuda">Ver o guia completo</a>' : ''}
+    </section>`;
+  }
+
+  VISTAS.guia = async (c) => {
+    const g = await api('/painel/passos');
+    c.innerHTML = `<div class="cabecalho"><div><h1>Guia de início</h1><p>A ordem certa para deixar o IDE+ pronto para uso.</p></div></div>
+      ${g.total ? guiaHtml(g, true) : '<div class="painel vazio">Não há configurações para o seu nível. Use Pessoas para cadastrar convertidos.</div>'}`;
   };
 
   // ================= Estrutura (N1: tudo; N2: congregações da sua cidade) =================
