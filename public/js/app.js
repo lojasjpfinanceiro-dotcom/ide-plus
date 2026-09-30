@@ -113,28 +113,29 @@
 
   function campoHtml(c, v) {
     const val = v ?? c.padrao ?? '';
+    const rot = h(c.rotulo) + (c.obrigatorio ? ' <span class="obrig" aria-label="obrigatório">*</span>' : '');
     const cls = c.inteira ? ' inteira' : '';
     const req = c.obrigatorio ? ' required' : '';
     const ajuda = c.ajuda ? `<span class="ajuda">${h(c.ajuda)}</span>` : '';
     switch (c.tipo) {
       case 'select':
-        return `<label class="campo${cls}">${h(c.rotulo)}<select name="${c.nome}"${req}>
+        return `<label class="campo${cls}"><span>${rot}</span><select name="${c.nome}"${req}>
           ${c.vazio !== false ? `<option value="">${h(c.vazio || 'Selecione')}</option>` : ''}
           ${(c.opcoes || []).map(([k, t]) => `<option value="${h(k)}"${String(k) === String(val) ? ' selected' : ''}>${h(t)}</option>`).join('')}
         </select>${ajuda}</label>`;
       case 'checkbox':
         return `<label class="check${cls} inteira"><input type="checkbox" name="${c.nome}"${val ? ' checked' : ''}><span>${h(c.rotulo)}${ajuda ? '<br>' + ajuda : ''}</span></label>`;
       case 'textarea':
-        return `<label class="campo inteira">${h(c.rotulo)}<textarea name="${c.nome}"${exemploDe(c)}>${h(val)}</textarea>${ajuda}</label>`;
+        return `<label class="campo inteira"><span>${rot}</span><textarea name="${c.nome}"${exemploDe(c)}>${h(val)}</textarea>${ajuda}</label>`;
       case 'imagem':
-        return `<div class="campo inteira"><span>${h(c.rotulo)}</span><div class="foto-campo">
+        return `<div class="campo inteira"><span>${rot}</span><div class="foto-campo">
           ${val ? `<img src="${h(val)}" alt="">` : '<span class="sem-foto">Sem imagem</span>'}
           <label class="botao sec p">${val ? 'Trocar imagem' : 'Escolher imagem'}<input type="file" accept="image/*" data-imagem="${c.nome}"></label>
           <input type="hidden" name="${c.nome}" value="${h(val)}">
           ${val ? `<button type="button" class="botao sec p" data-limpar="${c.nome}">Remover</button>` : ''}
         </div>${ajuda}</div>`;
       default:
-        return `<label class="campo${cls}">${h(c.rotulo)}<input name="${c.nome}" type="${c.tipo || 'text'}" value="${h(val)}"${req}${exemploDe(c)}
+        return `<label class="campo${cls}"><span>${rot}</span><input name="${c.nome}" type="${c.tipo || 'text'}" value="${h(val)}"${req}${exemploDe(c)}
           ${c.tipo === 'number' ? ' step="any" inputmode="decimal"' : ''}${c.auto ? ` autocomplete="${c.auto}"` : ''}>${ajuda}</label>`;
     }
   }
@@ -174,7 +175,7 @@
           const el = f.elements[c.nome];
           if (!el) continue;
           dados[c.nome] = c.tipo === 'checkbox' ? el.checked : el.value.trim();
-          if (c.obrigatorio && !dados[c.nome]) { mostrarErro(`Preencha: ${c.rotulo}.`); el.focus(); return; }
+          if (c.obrigatorio && !dados[c.nome] && c.tipo !== 'checkbox') { mostrarErro(`Preencha o campo obrigatório: ${c.rotulo}.`); el.focus(); el.scrollIntoView({ block: 'center' }); return; }
         }
         const btn = modal.querySelector('button[type=submit]');
         btn.disabled = true;
@@ -656,15 +657,16 @@
     const editavel = id ? pode('pessoas.editar') : pode('pessoas.cadastrar');
     const campos = [
       { nome: 'nome', rotulo: 'Nome completo', exemplo: 'João Carlos Pereira', obrigatorio: true, inteira: true },
-      { nome: 'telefone', rotulo: 'Telefone / WhatsApp', tipo: 'tel' },
+      { nome: 'telefone', rotulo: 'Telefone / WhatsApp', tipo: 'tel', obrigatorio: true },
       { nome: 'cpf', rotulo: 'CPF' },
       { nome: 'nascimento', rotulo: 'Nascimento', tipo: 'date' },
-      { nome: 'data_conversao', rotulo: 'Data da conversão', tipo: 'date', padrao: new Date().toISOString().slice(0, 10) },
-      { nome: 'congregacao_id', rotulo: 'Congregação', tipo: 'select', opcoes: congs, vazio: 'Selecione' },
-      { nome: 'como_chegou_id', rotulo: 'Como chegou', tipo: 'select', opcoes: comoChegou.map((i) => [i.id, i.nome]), vazio: comoChegou.length ? 'Selecione' : 'Nenhuma opção configurada' },
-      { nome: 'endereco', rotulo: 'Endereço' },
-      { nome: 'numero', rotulo: 'Número' },
-      { nome: 'bairro', rotulo: 'Bairro', inteira: true },
+      { nome: 'data_conversao', rotulo: 'Data da conversão', tipo: 'date', padrao: new Date().toISOString().slice(0, 10), obrigatorio: true },
+      { nome: 'congregacao_id', rotulo: 'Congregação que vai participar', tipo: 'select', opcoes: congs, vazio: congs.length ? 'Selecione' : 'Nenhuma congregação cadastrada', obrigatorio: true },
+      { nome: 'como_chegou_id', rotulo: 'Como chegou', tipo: 'select', opcoes: comoChegou.map((i) => [i.id, i.nome]), vazio: comoChegou.length ? 'Selecione' : 'Nenhuma opção configurada', obrigatorio: true,
+        ajuda: comoChegou.length ? '' : 'Cadastre as opções em Configurações → Como chegou.' },
+      { nome: 'endereco', rotulo: 'Endereço', obrigatorio: true },
+      { nome: 'numero', rotulo: 'Número', obrigatorio: true, ajuda: 'Sem número? Escreva S/N.' },
+      { nome: 'bairro', rotulo: 'Bairro', obrigatorio: true, inteira: true },
       { nome: 'observacao', rotulo: 'Observação', tipo: 'textarea' },
       { nome: 'foto', rotulo: 'Foto', tipo: 'imagem' },
       { nome: 'autoriza_dados', rotulo: 'A pessoa autorizou o uso dos seus dados pela igreja', tipo: 'checkbox' }

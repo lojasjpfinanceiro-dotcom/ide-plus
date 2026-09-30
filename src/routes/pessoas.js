@@ -48,7 +48,10 @@ async function limpar(req, b) {
   const v = {};
   for (const k of CAMPOS) v[k] = b[k] === '' || b[k] === undefined ? null : b[k];
   v.autoriza_dados = !!b.autoriza_dados;
-  if (!v.nome) throw Object.assign(new Error('Informe o nome.'), { status: 400 });
+  const OBRIG = { nome: 'Nome completo', telefone: 'Telefone', data_conversao: 'Data da conversão', congregacao_id: 'Congregação',
+    como_chegou_id: 'Como chegou', endereco: 'Endereço', numero: 'Número', bairro: 'Bairro' };
+  const faltando = Object.keys(OBRIG).filter((k) => !v[k] || !String(v[k]).trim());
+  if (faltando.length) throw Object.assign(new Error('Preencha os campos obrigatórios: ' + faltando.map((k) => OBRIG[k]).join(', ') + '.'), { status: 400 });
   if (v.cpf) v.cpf = String(v.cpf).replace(/\D/g, '').slice(0, 11);
   if (v.congregacao_id) {
     const ok = (await db.query('SELECT 1 FROM congregacoes WHERE id = $1 AND cidade_id = $2', [v.congregacao_id, req.usuario.cidade_id])).rowCount;

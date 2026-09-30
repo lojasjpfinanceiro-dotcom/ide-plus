@@ -215,6 +215,7 @@ textarea { min-height: 88px; resize: vertical; }
 .form { display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
 .form > * { min-width: 0; }
 @media (min-width: 600px) { .form.cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .form.cols > .inteira { grid-column: 1 / -1; } }
+.obrig { color: var(--perigo); font-weight: 800; }
 .ajuda { font-size: .82rem; color: var(--suave); font-weight: 400; }
 .foto-campo { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-width: 0; }
 .foto-campo input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
