@@ -54,6 +54,28 @@
     return dados;
   }
 
+  // Envia um arquivo (slides) sem passar por JSON
+  async function enviarArquivo(arq) {
+    if (arq.size > 15 * 1048576) throw new Error('Arquivo maior que 15 MB. Reduza o PDF antes de enviar.');
+    const r = await fetch('/api/discipulado/arquivos?nome=' + encodeURIComponent(arq.name), {
+      method: 'POST',
+      headers: { 'Content-Type': arq.type || 'application/octet-stream', Authorization: 'Bearer ' + localToken() },
+      body: arq
+    });
+    let d = null; try { d = await r.json(); } catch { /* sem corpo */ }
+    if (!r.ok) throw new Error(d?.erro || 'Não foi possível enviar o arquivo.');
+    return d;
+  }
+
+  // Abre um arquivo em nova aba (a aba é aberta antes para o iPhone não bloquear)
+  async function abrirArquivo(id) {
+    const aba = window.open('', '_blank');
+    try {
+      const { url } = await api(`/discipulado/arquivos/${id}/link`);
+      if (aba) aba.location = url; else location.href = url;
+    } catch (e) { aba?.close(); aviso(e.message, true); }
+  }
+
   function localToken(v) {
     try {
       if (v === null) return localStorage.removeItem('ide_token');
@@ -194,6 +216,13 @@
           <input type="hidden" name="${c.nome}" value="${h(val)}">
           ${val ? `<button type="button" class="botao sec p" data-limpar="${c.nome}">Remover</button>` : ''}
         </div>${ajuda}</div>`;
+      case 'arquivo':
+        return `<div class="campo inteira"><span>${rot}</span><div class="foto-campo">
+          <span class="sem-foto" data-nome-arquivo="${c.nome}">${h(c.nomeAtual || (val ? 'Arquivo enviado' : 'Nenhum arquivo'))}</span>
+          <label class="botao sec p">${val ? 'Trocar' : 'Escolher arquivo'}<input type="file" accept="${h(c.aceita || '*/*')}" data-arquivo="${c.nome}"></label>
+          <input type="hidden" name="${c.nome}" value="${h(val)}">
+          ${val ? `<button type="button" class="botao sec p" data-limpar-arquivo="${c.nome}">Remover</button>` : ''}
+        </div>${ajuda}</div>`;
       default:
         return `<label class="campo${cls}"><span>${rot}</span><input name="${c.nome}" type="${c.tipo || 'text'}" value="${h(val)}"${req}${exemploDe(c)}
           ${c.tipo === 'number' ? ' step="any" inputmode="decimal"' : ''}${c.auto ? ` autocomplete="${c.auto}"` : ''}>${ajuda}</label>`;
@@ -223,6 +252,26 @@
       f.querySelectorAll('[data-limpar]').forEach((b) => (b.onclick = () => {
         f.elements[b.dataset.limpar].value = '';
         b.closest('.foto-campo').querySelector('img')?.replaceWith(Object.assign(document.createElement('span'), { className: 'sem-foto', textContent: 'Sem imagem' }));
+        b.remove();
+      }));
+
+      f.querySelectorAll('[data-arquivo]').forEach((inp) => {
+        inp.onchange = async () => {
+          const arq = inp.files[0]; if (!arq) return;
+          const rotulo = f.querySelector(`[data-nome-arquivo="${inp.dataset.arquivo}"]`);
+          const btn = modal.querySelector('button[type=submit]');
+          rotulo.textContent = 'Enviando…'; btn.disabled = true;
+          try {
+            const r = await enviarArquivo(arq);
+            f.elements[inp.dataset.arquivo].value = r.id;
+            rotulo.textContent = `${r.nome} (${(r.tamanho / 1048576).toFixed(1)} MB)`;
+          } catch (e) { rotulo.textContent = 'Nenhum arquivo'; mostrarErro(e.message); }
+          finally { btn.disabled = false; inp.value = ''; }
+        };
+      });
+      f.querySelectorAll('[data-limpar-arquivo]').forEach((b) => (b.onclick = () => {
+        f.elements[b.dataset.limparArquivo].value = '';
+        f.querySelector(`[data-nome-arquivo="${b.dataset.limparArquivo}"]`).textContent = 'Nenhum arquivo';
         b.remove();
       }));
 
@@ -282,6 +331,7 @@
     clientes: '<path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/>',
     planos: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 15h3"/>',
     guia: '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>',
+    discipulado: '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20v-3"/><path d="M12 7v6M9 10h6"/>',
     receber: '<path d="M12 2v20M17 6.5C17 4.6 14.8 3.5 12 3.5S7 4.6 7 6.5 9 9.5 12 10s5 1.5 5 3.5-2.2 3.5-5 3.5-5-1.1-5-3"/>'
   };
   const ico = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICO[n]}</svg>`;
@@ -295,6 +345,7 @@
     if (n <= 3) m.push(['usuarios', n === 3 ? 'Minha equipe' : 'Usuários', 'usuarios']);
     if (n <= 2) m.push(['cargos', 'Cargos e permissões', 'cargos']);
     m.push(['pessoas', 'Pessoas', 'pessoas']);
+    m.push(['discipulado', 'Discipulado', 'discipulado']);
     if (n <= 2) m.push(['configuracoes', 'Configurações', 'config']);
     if (n <= 3) m.push(['guia', 'Guia de início', 'guia']);
     return m;
@@ -831,6 +882,185 @@
       } catch (e) { aviso(e.message, true); }
     }));
     $('[data-excluir]', modal)?.addEventListener('click', () => excluir('/pessoas/' + p.id, p.nome, depois));
+  }
+
+  // ================= Discipulado: currículos, módulos e lições =================
+  // Perguntas de fixação em texto simples: um bloco por pergunta, primeira linha é a pergunta,
+  // as linhas seguintes são as opções e a certa começa com *
+  const EXEMPLO_PERGUNTAS = 'Quem nos salva?\n* Jesus Cristo\n- As boas obras\n- A religião\n\nO que é o batismo nas águas?\n* Testemunho público da fé\n- Condição para ir ao céu';
+  function perguntasDeTexto(t) {
+    return String(t || '').split(/\n\s*\n/).map((bloco) => {
+      const linhas = bloco.split('\n').map((l) => l.trim()).filter(Boolean);
+      if (linhas.length < 3) return null;
+      let correta = 0;
+      const opcoes = linhas.slice(1).map((l, i) => { if (l.startsWith('*')) correta = i; return l.replace(/^[*\-•]\s*/, ''); });
+      return { pergunta: linhas[0], opcoes, correta };
+    }).filter(Boolean);
+  }
+  const perguntasEmTexto = (lista) => (lista || []).map((p) =>
+    [p.pergunta, ...p.opcoes.map((o, i) => (i === p.correta ? '* ' : '- ') + o)].join('\n')).join('\n\n');
+
+  let curriculoAberto = null;
+  window.addEventListener('hashchange', () => { curriculoAberto = null; });
+  VISTAS.discipulado = async (c) => (curriculoAberto ? verCurriculo(c, curriculoAberto) : listaCurriculos(c));
+
+  async function listaCurriculos(c) {
+    const { pode_criar, curriculos } = await api('/discipulado/curriculos');
+    const gerencia = eu.nivel <= 2 || pode('discipulado.curriculo');
+    const detalhe = (k) => [
+      `${k.modulos} módulo(s)`, `${k.licoes} lição(ões)`,
+      k.padrao ? (eu.nivel > 1 ? 'padrão da denominação' : '') : 'da sua cidade',
+      !k.ativo || k.desativado_na_cidade ? 'desativado' : ''
+    ].filter(Boolean).join(' · ');
+    const botoes = (k) => {
+      const b = [`<button class="botao sec p" data-abrir="${k.id}">Abrir</button>`];
+      if (k.editavel) b.push(`<button class="botao sec p" data-ed="${k.id}">Alterar</button>`, `<button class="botao sec p" data-ex="${k.id}">Excluir</button>`);
+      else if (k.padrao && eu.nivel > 1 && gerencia) {
+        b.push(`<button class="botao sec p" data-copiar="${k.id}">Copiar para adaptar</button>`,
+          `<button class="botao sec p" data-at="${k.id}">${k.desativado_na_cidade ? 'Reativar' : 'Desativar'}</button>`);
+      }
+      return `<div class="acoes" style="flex-wrap:wrap;justify-content:flex-end">${b.join('')}</div>`;
+    };
+    c.innerHTML = `
+      <div class="cabecalho"><div><h1>Discipulado</h1>
+        <p>Currículos, módulos e lições. ${eu.nivel === 1 ? 'O que você montar aqui é o padrão de toda a denominação.' : gerencia ? 'Use o padrão da denominação, desative o que não servir ou copie para adaptar à sua cidade.' : 'Consulte as lições que você vai ensinar.'}</p></div>
+        ${pode_criar ? '<button class="botao" id="novo">Novo currículo</button>' : ''}</div>
+      <section class="painel">${curriculos.length ? `<ul class="lista">${curriculos.map((k) => `
+        <li><div class="info"><strong>${h(k.nome)}</strong><small>${detalhe(k)}</small></div>${botoes(k)}</li>`).join('')}</ul>`
+        : `<div class="vazio">${pode_criar ? 'Nenhum currículo ainda. Comece por “Novo currículo”, por exemplo “Discipulado Básico”.' : 'Nenhum currículo disponível ainda.'}</div>`}</section>`;
+
+    const achar = (id) => curriculos.find((k) => String(k.id) === String(id));
+    $('#novo') && ($('#novo').onclick = () => editarCurriculo());
+    c.onclick = async (ev) => {
+      const b = ev.target.closest('button'); if (!b) return;
+      if (b.dataset.abrir) { curriculoAberto = b.dataset.abrir; rota(); }
+      if (b.dataset.ed) editarCurriculo(achar(b.dataset.ed));
+      if (b.dataset.ex) excluir('/discipulado/curriculos/' + b.dataset.ex, achar(b.dataset.ex).nome, rota);
+      if (b.dataset.at) {
+        const k = achar(b.dataset.at);
+        try { await api(`/discipulado/curriculos/${k.id}/cidade`, { metodo: 'POST', corpo: { ativo: !!k.desativado_na_cidade } }); aviso(k.desativado_na_cidade ? 'Currículo reativado.' : 'Currículo desativado na sua cidade.'); rota(); }
+        catch (e) { aviso(e.message, true); }
+      }
+      if (b.dataset.copiar) {
+        const k = achar(b.dataset.copiar);
+        if (!(await confirmar('Copiar para adaptar', `Criar uma cópia de "${k.nome}" com todos os módulos e lições para a sua cidade? Você poderá alterar a cópia à vontade.`, { botao: 'Copiar', perigo: false }))) return;
+        try { const n = await api(`/discipulado/curriculos/${k.id}/copiar`, { metodo: 'POST' }); aviso('Cópia criada.'); curriculoAberto = n.id; rota(); }
+        catch (e) { aviso(e.message, true); }
+      }
+    };
+  }
+
+  async function editarCurriculo(k = { frequencia_minima: 75, nota_minima: 70, tentativas_prova: 2, ativo: true }, depois = rota) {
+    const campos = [
+      { nome: 'nome', rotulo: 'Nome do currículo', exemplo: 'Discipulado Básico', obrigatorio: true, inteira: true },
+      { nome: 'descricao', rotulo: 'Descrição', tipo: 'textarea', exemplo: 'Primeiros passos do novo convertido até o batismo' },
+      { nome: 'frequencia_minima', rotulo: 'Frequência mínima (%)', tipo: 'number', exemplo: '75', ajuda: 'Presença mínima para ser aprovado.' },
+      { nome: 'nota_minima', rotulo: 'Nota mínima na prova (%)', tipo: 'number', exemplo: '70' },
+      { nome: 'tentativas_prova', rotulo: 'Tentativas na prova final', tipo: 'number', exemplo: '2' },
+      ...(k.id ? [{ nome: 'ativo', rotulo: 'Currículo ativo', tipo: 'checkbox' }] : [])
+    ];
+    const r = await formulario(k.id ? 'Alterar currículo' : 'Novo currículo', campos, k, {
+      aoSalvar: (d) => api(k.id ? '/discipulado/curriculos/' + k.id : '/discipulado/curriculos', { metodo: k.id ? 'PUT' : 'POST', corpo: d })
+    });
+    if (r) { aviso('Currículo salvo.'); depois(); }
+  }
+
+  async function verCurriculo(c, id) {
+    let k;
+    try { k = await api('/discipulado/curriculos/' + id); }
+    catch { curriculoAberto = null; return listaCurriculos(c); }
+    const total = k.modulos.reduce((n, m) => n + m.licoes.length, 0);
+    const selos = (l) => [
+      l.slides_arquivo_id || l.slides_url ? 'slides' : '', l.video_url ? 'vídeo' : '',
+      l.perguntas?.length ? `${l.perguntas.length} pergunta(s)` : ''
+    ].filter(Boolean).map((t) => `<span class="etiqueta">${t}</span>`).join(' ');
+    let n = 0;
+    c.innerHTML = `
+      <div class="cabecalho"><div><button class="botao sec p" id="voltar">← Currículos</button>
+        <h1 style="margin-top:10px">${h(k.nome)}</h1>
+        <p>${k.modulos.length} módulo(s) · ${total} lição(ões) · cerca de ${total} encontro(s) · presença mínima ${k.frequencia_minima}% · prova ${k.nota_minima}% (${k.tentativas_prova} tentativa(s))${k.editavel ? '' : ' · somente leitura'}</p></div>
+        ${k.editavel ? '<div class="acoes" style="flex-wrap:wrap"><button class="botao sec" id="alterar">Alterar</button><button class="botao" id="novo-mod">Novo módulo</button></div>' : ''}</div>
+      ${k.descricao ? `<section class="painel"><p style="margin:0">${h(k.descricao)}</p></section>` : ''}
+      ${k.modulos.length ? k.modulos.map((m) => `
+        <section class="painel">
+          <div class="cabecalho" style="margin:0 0 6px"><div><h2 style="margin:0">Módulo ${m.ordem} — ${h(m.nome)}</h2>${m.descricao ? `<p>${h(m.descricao)}</p>` : ''}</div>
+            ${k.editavel ? `<div class="acoes" style="flex-wrap:wrap"><button class="botao sec p" data-mod-ed="${m.id}">Alterar</button><button class="botao sec p" data-mod-ex="${m.id}">Excluir</button><button class="botao p" data-lic-nova="${m.id}">Nova lição</button></div>` : ''}</div>
+          ${m.licoes.length ? `<ul class="lista">${m.licoes.map((l) => `
+            <li><div class="info"><strong>${++n}. ${h(l.titulo)}</strong><small>${h(l.objetivo || l.versiculos || '')}</small><div style="margin-top:4px">${selos(l)}</div></div>
+              <div class="acoes" style="flex-wrap:wrap;justify-content:flex-end"><button class="botao sec p" data-lic-ver="${l.id}">Ver</button>
+              ${k.editavel ? `<button class="botao sec p" data-lic-ed="${l.id}">Alterar</button><button class="botao sec p" data-lic-ex="${l.id}">Excluir</button>` : ''}</div></li>`).join('')}</ul>`
+            : '<div class="vazio">Nenhuma lição neste módulo.</div>'}
+        </section>`).join('')
+        : `<section class="painel"><div class="vazio">${k.editavel ? 'Crie o primeiro módulo, por exemplo “Fundamentos da Fé”.' : 'Este currículo ainda não tem módulos.'}</div></section>`}`;
+
+    const modulo = (mid) => k.modulos.find((m) => String(m.id) === String(mid));
+    const licao = (lid) => k.modulos.flatMap((m) => m.licoes).find((l) => String(l.id) === String(lid));
+    $('#voltar').onclick = () => { curriculoAberto = null; rota(); };
+    $('#alterar') && ($('#alterar').onclick = () => editarCurriculo(k));
+    $('#novo-mod') && ($('#novo-mod').onclick = () => editarModulo());
+
+    async function editarModulo(m = {}) {
+      const r = await formulario(m.id ? 'Alterar módulo' : 'Novo módulo', [
+        { nome: 'nome', rotulo: 'Nome do módulo', exemplo: 'Fundamentos da Fé', obrigatorio: true },
+        { nome: 'ordem', rotulo: 'Ordem', tipo: 'number', exemplo: String(k.modulos.length + 1) },
+        { nome: 'descricao', rotulo: 'Descrição', tipo: 'textarea', exemplo: 'Salvação, Bíblia e oração' }
+      ], m, {
+        aoSalvar: (d) => api(m.id ? '/discipulado/modulos/' + m.id : `/discipulado/curriculos/${k.id}/modulos`, { metodo: m.id ? 'PUT' : 'POST', corpo: d })
+      });
+      if (r) { aviso('Módulo salvo.'); rota(); }
+    }
+
+    async function editarLicao(mid, l = {}) {
+      const valores = { ...l, perguntas_txt: perguntasEmTexto(l.perguntas), slides_arquivo_id: l.slides_arquivo_id || '' };
+      const r = await formulario(l.id ? 'Alterar lição' : 'Nova lição', [
+        { nome: 'titulo', rotulo: 'Tema da lição', exemplo: 'A salvação em Cristo', obrigatorio: true },
+        { nome: 'ordem', rotulo: 'Ordem no módulo', tipo: 'number', exemplo: String((modulo(mid)?.licoes.length || 0) + 1) },
+        { nome: 'objetivo', rotulo: 'Objetivo', tipo: 'textarea', exemplo: 'Que o aluno entenda que a salvação é pela graça' },
+        { nome: 'versiculos', rotulo: 'Versículos-chave', exemplo: 'Efésios 2.8-9; João 3.16', inteira: true },
+        { nome: 'resumo', rotulo: 'Resumo para o professor', tipo: 'textarea', exemplo: 'Comece perguntando o que a turma entende por salvação…' },
+        { nome: 'slides_arquivo_id', rotulo: 'Slides (PDF)', tipo: 'arquivo', aceita: 'application/pdf,image/*', nomeAtual: l.slides_nome,
+          ajuda: 'No PowerPoint ou Google Slides: Arquivo → Baixar → PDF. Até 15 MB.' },
+        { nome: 'slides_url', rotulo: 'Ou link dos slides', exemplo: 'https://docs.google.com/presentation/…', inteira: true },
+        { nome: 'video_url', rotulo: 'Vídeo (link do YouTube)', exemplo: 'https://youtu.be/…', inteira: true },
+        { nome: 'perguntas_txt', rotulo: 'Perguntas de fixação', tipo: 'textarea', exemplo: EXEMPLO_PERGUNTAS,
+          ajuda: 'Uma pergunta por bloco, separadas por uma linha em branco. Primeira linha: a pergunta. Depois as opções; a certa começa com *.' }
+      ], valores, {
+        aoSalvar: (d) => {
+          const perguntas = perguntasDeTexto(d.perguntas_txt);
+          if (d.perguntas_txt && !perguntas.length) throw new Error('As perguntas precisam de pelo menos 2 opções cada. Veja o exemplo no campo.');
+          const corpo = { ...d, perguntas, slides_arquivo_id: d.slides_arquivo_id || null };
+          delete corpo.perguntas_txt;
+          return api(l.id ? '/discipulado/licoes/' + l.id : `/discipulado/modulos/${mid}/licoes`, { metodo: l.id ? 'PUT' : 'POST', corpo });
+        }
+      });
+      if (r) { aviso('Lição salva.'); rota(); }
+    }
+
+    function verLicao(l) {
+      const bloco = (t, v) => (v ? `<h3 style="margin:14px 0 4px">${t}</h3><p style="margin:0;white-space:pre-line">${h(v)}</p>` : '');
+      abrirModal(l.titulo, `
+        ${bloco('Objetivo', l.objetivo)}${bloco('Versículos-chave', l.versiculos)}${bloco('Resumo para o professor', l.resumo)}
+        <div class="acoes" style="flex-wrap:wrap;margin-top:16px">
+          ${l.slides_arquivo_id ? `<button class="botao" data-abrir-arq="${l.slides_arquivo_id}">Abrir slides</button>` : ''}
+          ${l.slides_url ? `<a class="botao sec" href="${h(l.slides_url)}" target="_blank" rel="noopener">Slides (link)</a>` : ''}
+          ${l.video_url ? `<a class="botao sec" href="${h(l.video_url)}" target="_blank" rel="noopener">Ver vídeo</a>` : ''}
+        </div>
+        ${l.perguntas?.length ? `<h3 style="margin:18px 0 4px">Perguntas de fixação</h3><ol style="padding-left:20px;margin:0">${l.perguntas.map((p) => `
+          <li style="margin-bottom:8px">${h(p.pergunta)}<ul style="margin:4px 0 0;padding-left:18px">${p.opcoes.map((o, i) => `<li>${i === p.correta ? '<strong>' + h(o) + ' ✓</strong>' : h(o)}</li>`).join('')}</ul></li>`).join('')}</ol>` : ''}`,
+        '<button class="botao sec" data-fechar>Fechar</button>');
+      modal.querySelector('[data-abrir-arq]')?.addEventListener('click', (e) => abrirArquivo(e.target.dataset.abrirArq));
+    }
+
+    c.onclick = (ev) => {
+      const b = ev.target.closest('button'); if (!b) return;
+      const d = b.dataset;
+      if (d.modEd) editarModulo(modulo(d.modEd));
+      if (d.modEx) excluir('/discipulado/modulos/' + d.modEx, modulo(d.modEx).nome + ' (e todas as suas lições)', rota);
+      if (d.licNova) editarLicao(d.licNova);
+      if (d.licEd) { const l = licao(d.licEd); editarLicao(l.modulo_id, l); }
+      if (d.licEx) excluir('/discipulado/licoes/' + d.licEx, licao(d.licEx).titulo, rota);
+      if (d.licVer) verLicao(licao(d.licVer));
+    };
   }
 
   // ================= Configurações =================

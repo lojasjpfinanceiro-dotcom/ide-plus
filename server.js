@@ -28,6 +28,7 @@ app.use('/api/cargos', require('./src/routes/cargos'));
 app.use('/api/pessoas', require('./src/routes/pessoas'));
 app.use('/api/config', require('./src/routes/config'));
 app.use('/api/painel', require('./src/routes/painel'));
+app.use('/api/discipulado', require('./src/routes/discipulado'));
 app.use('/api/geo', require('./src/routes/geo'));
 app.get('/api/versao', (req, res) => { res.set('Cache-Control', 'no-store'); res.json({ versao: VERSAO }); });
 app.get('/api/health', (req, res) => res.json({ ok: true, app: 'IDE+', versao: 2 }));

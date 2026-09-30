@@ -296,3 +296,55 @@ ALTER TABLE pessoas ADD CONSTRAINT pessoas_status_check CHECK (status IN ('CONVE
 ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS etapa_antes_afastar VARCHAR(20);  -- etapa em que estava quando se afastou
 ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS data_afastamento DATE;
 ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS motivo_afastamento TEXT;
+
+-- ============ Discipulado: currículo → módulos → lições ============
+-- Currículo com cidade_id NULL é o padrão do Nível 1; as cidades desativam o padrão
+-- ou criam os seus (inclusive copiando o padrão para adaptar).
+CREATE TABLE IF NOT EXISTS curriculos (
+  id BIGSERIAL PRIMARY KEY,
+  denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+  cidade_id BIGINT REFERENCES cidades(id) ON DELETE CASCADE,
+  nome VARCHAR(160) NOT NULL,
+  descricao TEXT,
+  frequencia_minima SMALLINT NOT NULL DEFAULT 75,   -- % de presença para aprovação
+  nota_minima SMALLINT NOT NULL DEFAULT 70,         -- % de acertos na prova final
+  tentativas_prova SMALLINT NOT NULL DEFAULT 2,
+  ativo BOOLEAN NOT NULL DEFAULT TRUE,
+  copiado_de BIGINT REFERENCES curriculos(id) ON DELETE SET NULL,
+  criado_por BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS curriculo_desativados (
+  curriculo_id BIGINT NOT NULL REFERENCES curriculos(id) ON DELETE CASCADE,
+  cidade_id BIGINT NOT NULL REFERENCES cidades(id) ON DELETE CASCADE,
+  PRIMARY KEY (curriculo_id, cidade_id)
+);
+
+CREATE TABLE IF NOT EXISTS modulos (
+  id BIGSERIAL PRIMARY KEY,
+  curriculo_id BIGINT NOT NULL REFERENCES curriculos(id) ON DELETE CASCADE,
+  ordem INTEGER NOT NULL DEFAULT 1,
+  nome VARCHAR(160) NOT NULL,
+  descricao TEXT
+);
+
+-- Arquivos enviados (slides em PDF ou imagem), guardados no próprio banco
+CREATE TABLE IF NOT EXISTS arquivos (
+  id BIGSERIAL PRIMARY KEY,
+  denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+  nome VARCHAR(200) NOT NULL,
+  tipo VARCHAR(100) NOT NULL,
+  tamanho INTEGER NOT NULL,
+  dados BYTEA NOT NULL,
+  criado_por BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE licoes ADD COLUMN IF NOT EXISTS modulo_id BIGINT REFERENCES modulos(id) ON DELETE CASCADE;
+ALTER TABLE licoes ADD COLUMN IF NOT EXISTS objetivo TEXT;
+ALTER TABLE licoes ADD COLUMN IF NOT EXISTS versiculos TEXT;
+ALTER TABLE licoes ADD COLUMN IF NOT EXISTS video_url TEXT;
+ALTER TABLE licoes ADD COLUMN IF NOT EXISTS slides_arquivo_id BIGINT REFERENCES arquivos(id) ON DELETE SET NULL;
+ALTER TABLE licoes ADD COLUMN IF NOT EXISTS perguntas JSONB NOT NULL DEFAULT '[]';
+CREATE INDEX IF NOT EXISTS licoes_modulo_idx ON licoes (modulo_id, ordem);
