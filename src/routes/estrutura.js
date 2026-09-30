@@ -70,6 +70,14 @@ async function resolverGeo(b) {
   return { ...b, geo_cidade_id: g.id, nome: g.nome, estado: g.pais_cod === 'BR' ? g.uf : g.estado, pais: g.pais };
 }
 
+// Na cidade sede, o Pastor Presidente é o pastor local quando ninguém mais foi escolhido
+async function responsavelDaCidade(req, responsavelId, isSede) {
+  const resp = await validarResponsavel(req, responsavelId);
+  if (resp || !isSede) return resp;
+  if (req.usuario.nivel === 1) return req.usuario.id;
+  return (await db.query('SELECT id FROM usuarios WHERE denominacao_id = $1 AND nivel = 1 ORDER BY id LIMIT 1', [d(req)])).rows[0]?.id || null;
+}
+
 async function validarResponsavel(req, usuarioId) {
   if (!usuarioId) return null;
   const { rowCount } = await db.query('SELECT 1 FROM usuarios WHERE id = $1 AND denominacao_id = $2', [usuarioId, d(req)]);
@@ -80,7 +88,7 @@ async function validarResponsavel(req, usuarioId) {
 router.post('/cidades', exigirNivel(1), async (req, res) => {
   const { pais, estado, nome, is_sede, responsavel_id, responsavel_todas, geo_cidade_id } = await resolverGeo(req.body);
   if (!estado || !nome) return res.status(400).json({ erro: 'Escolha o estado e a cidade.' });
-  const resp = await validarResponsavel(req, responsavel_id);
+  const resp = await responsavelDaCidade(req, responsavel_id, is_sede);
   const c = await db.connect();
   try {
     await c.query('BEGIN');
@@ -101,7 +109,7 @@ router.post('/cidades', exigirNivel(1), async (req, res) => {
 router.put('/cidades/:id', exigirNivel(1), async (req, res) => {
   const { pais, estado, nome, is_sede, responsavel_id, responsavel_todas, geo_cidade_id } = await resolverGeo(req.body);
   if (!estado || !nome) return res.status(400).json({ erro: 'Escolha o estado e a cidade.' });
-  const resp = await validarResponsavel(req, responsavel_id);
+  const resp = await responsavelDaCidade(req, responsavel_id, is_sede);
   const c = await db.connect();
   try {
     await c.query('BEGIN');

@@ -379,7 +379,9 @@
       eu.nivel <= 2 ? api('/usuarios') : Promise.resolve([])
     ]);
     const pessoasOpc = usuarios.filter((u) => u.ativo).map((u) => [u.id, `${u.nome} — ${NIVEIS[u.nivel]}`]);
-    const pastoresLocais = usuarios.filter((u) => u.nivel === 2 && u.ativo).map((u) => [u.id, u.nome]);
+    // Pastor Presidente também pode ser o pastor local (é o caso da cidade sede)
+    const pastoresLocais = usuarios.filter((u) => (u.nivel === 1 || u.nivel === 2) && u.ativo)
+      .map((u) => [u.id, u.nivel === 1 ? `${u.nome} (Pastor Presidente)` : u.nome]);
     const n1 = eu.nivel === 1;
     const totalCong = cidades.reduce((s, x) => s + x.congregacoes.length, 0);
 
@@ -434,7 +436,7 @@
         { nome: 'geo_cidade_id', rotulo: 'Cidade', tipo: 'select', opcoes: [], vazio: 'Escolha o estado primeiro', obrigatorio: true, inteira: true,
           ajuda: 'Digite no campo de busca para encontrar a cidade mais rápido.' },
         { nome: 'responsavel_id', rotulo: 'Pastor local (responsável)', tipo: 'select', opcoes: pastoresLocais, vazio: 'Sem responsável por enquanto',
-          ajuda: pastoresLocais.length ? 'Pastor, evangelista ou presbítero com ação pastoral, já cadastrado em Usuários.' : 'Cadastre o pastor em Usuários (Nível 2) e volte aqui para vinculá-lo.' },
+          ajuda: 'Na cidade sede, se ninguém for escolhido, o Pastor Presidente fica como pastor local. Outros pastores precisam estar cadastrados em Usuários (Nível 2).' },
         { nome: 'responsavel_todas', rotulo: 'Responsável por todas as congregações da cidade', tipo: 'checkbox',
           ajuda: 'Se não marcar, cada congregação fica em laranja até ganhar o seu próprio responsável.' },
         { nome: 'is_sede', rotulo: 'Esta é a cidade da igreja sede', tipo: 'checkbox' }
@@ -500,7 +502,7 @@
         <button class="botao" id="novo">Novo usuário</button></div>
       <section class="painel">${lista.length ? `<ul class="lista">${lista.map((u) => `
         <li>${u.foto ? `<img class="avatar p" src="${h(u.foto)}" alt="">` : `<span class="avatar p">${iniciais(u.nome)}</span>`}
-          <div class="info"><strong>${h(u.nome)}</strong><small>${NIVEIS[u.nivel]}${u.cargo ? ' · ' + h(u.cargo) : ''}${u.cidade ? ' · ' + h(u.cidade) : ''}${u.ativo ? '' : ' · inativo'}</small></div>
+          <div class="info"><strong>${h(u.nome)}</strong><small>${NIVEIS[u.nivel]}${u.cargo && u.cargo !== NIVEIS[u.nivel] ? ' · ' + h(u.cargo) : ''}${u.cidade ? ' · ' + h(u.cidade) : ''}${u.ativo ? '' : ' · inativo'}</small></div>
           <div class="acoes">
             ${u.nivel > 1 && String(u.id) !== String(eu.id) ? `<button class="botao sec p" data-perm="${u.id}">Acessos</button>` : ''}
             <button class="botao sec p" data-ed="${u.id}">Alterar</button>

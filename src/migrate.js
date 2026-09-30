@@ -97,6 +97,12 @@ module.exports = async function migrate() {
       console.warn('[migrate] FORNECEDOR_EMAIL/FORNECEDOR_SENHA não definidos — Nível 0 não será criado.');
     }
 
+    // Cidade sede sem pastor local → o Pastor Presidente assume
+    await c.query(`
+      UPDATE cidades c SET responsavel_id = (
+        SELECT u.id FROM usuarios u WHERE u.denominacao_id = c.denominacao_id AND u.nivel = 1 ORDER BY u.id LIMIT 1)
+       WHERE c.is_sede AND c.responsavel_id IS NULL`);
+
     await c.query('COMMIT');
   } catch (e) {
     await c.query('ROLLBACK');
