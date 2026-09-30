@@ -18,11 +18,19 @@
   let eu = null;
 
   async function api(caminho, { metodo = 'GET', corpo } = {}) {
-    const r = await fetch('/api' + caminho, {
+    const pedir = () => fetch('/api' + caminho, {
       method: metodo,
       headers: { 'Content-Type': 'application/json', ...(localToken() ? { Authorization: 'Bearer ' + localToken() } : {}) },
       body: corpo ? JSON.stringify(corpo) : undefined
     });
+    let r;
+    try { r = await pedir(); }
+    catch {
+      // Falha de rede (ex.: "Load failed" no iPhone): tenta mais uma vez antes de avisar
+      await new Promise((ok) => setTimeout(ok, 1200));
+      try { r = await pedir(); }
+      catch { throw new Error('Sem conexão com o servidor. Verifique a internet e tente de novo.'); }
+    }
     let dados = null;
     try { dados = await r.json(); } catch { /* sem corpo */ }
     if (r.status === 401 && caminho !== '/auth/login') { sair(); throw new Error(dados?.erro || 'Sessão expirada.'); }
