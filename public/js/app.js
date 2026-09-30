@@ -378,7 +378,7 @@
       api('/estrutura/cidades'), api('/estrutura/denominacao'),
       eu.nivel <= 2 ? api('/usuarios') : Promise.resolve([])
     ]);
-    const pessoasOpc = usuarios.filter((u) => u.ativo).map((u) => [u.id, `${u.nome} — ${NIVEIS[u.nivel]}`]);
+    const pessoasOpc = usuarios.filter((u) => u.ativo).map((u) => [u.id, `${u.nome} — ${NIVEIS[u.nivel]}${u.cargo && u.cargo !== NIVEIS[u.nivel] ? ' (' + u.cargo + ')' : ''}`]);
     // Pastor Presidente também pode ser o pastor local (é o caso da cidade sede)
     const pastoresLocais = usuarios.filter((u) => (u.nivel === 1 || u.nivel === 2) && u.ativo)
       .map((u) => [u.id, u.nivel === 1 ? `${u.nome} (Pastor Presidente)` : u.nome]);
@@ -450,6 +450,15 @@
       if (r) { aviso('Cidade salva.'); await carregarEu(); rota(); }
     }
 
+    // Primeira congregação da cidade sede: já sugere "sede" com o Pastor Presidente como responsável
+    function novaSede(g, cidadeId) {
+      if (g.id) return g;
+      const ci = acharCid(cidadeId);
+      if (!ci?.is_sede || ci.congregacoes.length) return { cidade_id: cidadeId };
+      const presidente = usuarios.find((u) => u.nivel === 1 && String(u.id) === String(eu.id)) || usuarios.find((u) => u.nivel === 1);
+      return { cidade_id: cidadeId, is_sede: true, nome: 'Sede', responsavel_id: presidente?.id };
+    }
+
     async function editarCong(g = {}, cidadeId) {
       if (!n1) {
         const r = await formulario(`Dirigente — ${g.nome}`, [
@@ -466,7 +475,7 @@
         { nome: 'responsavel_id', rotulo: 'Responsável da congregação', tipo: 'select', opcoes: pessoasOpc, vazio: 'Usar o pastor da cidade / aguardar' },
         { nome: 'dirigente_id', rotulo: 'Dirigente', tipo: 'select', opcoes: pessoasOpc, vazio: 'Sem dirigente' },
         { nome: 'is_sede', rotulo: 'Congregação sede', tipo: 'checkbox' }
-      ], { cidade_id: cidadeId, ...g }, {
+      ], novaSede(g, cidadeId), {
         aoSalvar: (d) => api(g.id ? '/estrutura/congregacoes/' + g.id : '/estrutura/congregacoes', { metodo: g.id ? 'PUT' : 'POST', corpo: d })
       });
       if (r) { aviso('Congregação salva.'); rota(); }
@@ -930,6 +939,23 @@
   };
   $('#veu').onclick = fecharMenu;
   window.addEventListener('hashchange', () => eu && rota());
+
+  // Atualização automática: se houver versão nova publicada, recarrega a página
+  let versaoAtual = null;
+  async function checarVersao() {
+    try {
+      const r = await fetch('/api/versao', { cache: 'no-store' });
+      const { versao } = await r.json();
+      if (versaoAtual && versao !== versaoAtual && !modal.open) {
+        aviso('Nova versão do IDE+. Atualizando…');
+        setTimeout(() => location.reload(), 900);
+      }
+      versaoAtual = versaoAtual || versao;
+    } catch { /* sem rede: tenta depois */ }
+  }
+  checarVersao();
+  setInterval(checarVersao, 120000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checarVersao(); });
 
   iniciar();
 })();

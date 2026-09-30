@@ -18,6 +18,9 @@ app.use('/api/pessoas', require('./src/routes/pessoas'));
 app.use('/api/config', require('./src/routes/config'));
 app.use('/api/painel', require('./src/routes/painel'));
 app.use('/api/geo', require('./src/routes/geo'));
+// Versão publicada: o app compara e se atualiza sozinho quando há deploy novo
+const VERSAO = process.env.RENDER_GIT_COMMIT || String(Date.now());
+app.get('/api/versao', (req, res) => { res.set('Cache-Control', 'no-store'); res.json({ versao: VERSAO }); });
 app.get('/api/health', (req, res) => res.json({ ok: true, app: 'IDE+', versao: 2 }));
 app.use('/api', (req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 
