@@ -54,18 +54,8 @@ module.exports = async function migrate() {
     await c.query('BEGIN');
     await c.query('SELECT pg_advisory_xact_lock(4242001)');
 
-    // Primeira subida da v2: guarda as tabelas antigas no schema "legado" (não apaga dados)
-    const jaV2 = (await c.query("SELECT to_regclass('public.ide_versao') AS t")).rows[0].t;
-    if (!jaV2) {
-      const antigas = (await c.query("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")).rows;
-      if (antigas.length) {
-        await c.query('CREATE SCHEMA IF NOT EXISTS legado');
-        for (const { tablename } of antigas) {
-          await c.query(`ALTER TABLE public."${tablename}" SET SCHEMA legado`);
-        }
-        console.log(`[migrate] ${antigas.length} tabelas antigas movidas para o schema "legado".`);
-      }
-    }
+    // Dados da versão antiga descartados a pedido do responsável (o schema "legado" deixa de existir)
+    await c.query('DROP SCHEMA IF EXISTS legado CASCADE');
 
     await c.query(fs.readFileSync(path.join(__dirname, '..', 'db', 'schema.sql'), 'utf8'));
 

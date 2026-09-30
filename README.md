@@ -16,5 +16,4 @@ npm install
 npm start
 ```
 O banco é criado/atualizado sozinho a cada inicialização (`db/schema.sql`).
-Na primeira subida da v2, as tabelas antigas são movidas para o schema `legado` (nada é apagado).
 A versão anterior do código está na branch `legado-v1`.
