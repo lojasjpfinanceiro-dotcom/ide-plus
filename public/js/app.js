@@ -34,7 +34,7 @@
   async function api(caminho, { metodo = 'GET', corpo } = {}) {
     const pedir = () => fetch('/api' + caminho, {
       method: metodo,
-      headers: { 'Content-Type': 'application/json', ...(localToken() ? { Authorization: 'Bearer ' + localToken() } : {}) },
+      headers: { 'Content-Type': 'application/json', 'X-IDE-Cliente': VERSAO_PAGINA || 'sem-versao', ...(localToken() ? { Authorization: 'Bearer ' + localToken() } : {}) },
       body: corpo ? JSON.stringify(corpo) : undefined
     });
     let r;
@@ -995,10 +995,10 @@
     $('#menu').innerHTML = menuDoNivel(eu.nivel).map(([r, t, i]) => `<li><a href="#${r}" data-rota="${r}">${ico(i)}<span class="rotulo">${t}</span></a></li>`).join('');
   }
 
+  // Sair sempre recarrega a página: quem entrar em seguida já pega a versão mais nova
   function sair() {
     localToken(null); eu = null;
-    $('#tela-app').hidden = true; $('#tela-login').hidden = false;
-    if (location.hash) history.replaceState(null, '', location.pathname);
+    location.replace(location.pathname);
   }
 
   async function iniciar() {

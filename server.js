@@ -11,7 +11,14 @@ const VERSAO = process.env.RENDER_GIT_COMMIT || String(Date.now());
 const port = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '3mb' }));
-app.use('/api', (req, res, next) => { res.set('X-IDE-Versao', VERSAO); next(); }); // fotos e logotipo reduzidos no navegador
+const avisados = new Set();
+app.use('/api', (req, res, next) => {
+  res.set('X-IDE-Versao', VERSAO);
+  // Registra (uma vez por versão de cliente) quem ainda está com a tela antiga aberta
+  const cli = req.get('X-IDE-Cliente') || 'antiga (sem controle de versão)';
+  if (cli !== VERSAO && !avisados.has(cli)) { avisados.add(cli); console.log(`[versao] cliente em versão desatualizada: ${cli.slice(0, 12)} → atual ${VERSAO.slice(0, 12)}`); }
+  next();
+}); // fotos e logotipo reduzidos no navegador
 
 app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/fornecedor', require('./src/routes/fornecedor'));
