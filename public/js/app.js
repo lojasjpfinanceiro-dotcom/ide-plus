@@ -345,7 +345,8 @@
     if (n <= 3) m.push(['usuarios', n === 3 ? 'Minha equipe' : 'Usuários', 'usuarios']);
     if (n <= 2) m.push(['cargos', 'Cargos e permissões', 'cargos']);
     m.push(['pessoas', 'Pessoas', 'pessoas']);
-    m.push(['discipulado', 'Discipulado', 'discipulado']);
+    if (n <= 3) m.push(['discipulado', 'Discipulado', 'discipulado']);
+    if (n === 4) m.push(['minhas-aulas', 'Minhas Aulas', 'minhas-aulas']);
     if (n <= 2) m.push(['configuracoes', 'Configurações', 'config']);
     if (n <= 3) m.push(['guia', 'Guia de início', 'guia']);
     return m;
@@ -903,6 +904,8 @@
   let curriculoAberto = null;
   window.addEventListener('hashchange', () => { curriculoAberto = null; });
   VISTAS.discipulado = async (c) => (curriculoAberto ? verCurriculo(c, curriculoAberto) : listaCurriculos(c));
+  VISTAS['minhas-aulas'] = async (c) => {
+    const html = `<section><h1>Minhas Aulas</h1><p class="sub">As turmas que a coordenação passou para você. Dê a aula com slides no telão ou ao vivo, faça a chamada e conclua com prova e diploma.</p><div style="display: flex; gap: 6px; overflow-x: auto; margin-bottom: 14px;"><button class="chip ativo"><b>1</b> Dar aula e chamada</button><button class="chip"><b>2</b> Andamento</button><button class="chip"><b>3</b> Prova e diploma</button></div><div class="cartao"><div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><h2 style="margin: 0;">Turma Novos Convertidos</h2><span class="chip" style="--k: #2563eb;">Básico</span></div><p class="sub" style="margin: 0 0 8px;">Cong. São Miguel · toda terça às 19:30 · 4 alunos</p><div style="border: 2px solid #2563eb; border-radius: 10px; padding: 12px; margin: 10px 0;"><span style="color: #60a5fa; font-weight: 600;"><b>HOJE</b> · 29/09/2026 às 19:30</span><h3 style="margin: 4px 0 8px;">Aula 3 – O Evangelho</h3><span class="chip" style="--k: #60a5fa;">Presencial com slides</span><div style="display: flex; gap: 8px; margin: 8px 0 0;"><button class="botao" style="flex: 1; background: #2563eb; border: none; border-radius: 8px; padding: 12px; color: white; font-weight: 600; cursor: pointer;">▶ Apresentar slides (4)</button><button class="botao" style="background: #dc2626; border: none; border-radius: 8px; padding: 12px; color: white; font-weight: 600; cursor: pointer;">● Iniciar live</button></div></div></div></section>`; c.innerHTML = html; };
 
   async function listaCurriculos(c) {
     const { pode_criar, curriculos } = await api('/discipulado/curriculos');
