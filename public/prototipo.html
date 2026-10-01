@@ -282,7 +282,7 @@ let DEN={nome:'Assembleia de Deus',sigla:'',logo:null};
 const ME={1:{n:'Pr. Antônio Souza',foto:null},2:{n:'Pr. Ricardo Lima',foto:null},3:{n:'Ev. Daniel Costa',foto:null},4:{n:'Paulo Reis',foto:null}};
 const ini=n=>n.split(/\s+/).filter(w=>!w.endsWith('.')).map(w=>w[0]).join('').slice(0,2).toUpperCase();
 const dini=()=>(DEN.sigla||DEN.nome.split(/\s+/).filter(w=>w.length>2).map(w=>w[0]).join('')).slice(0,4).toUpperCase();
-let lv=1,pg='Início',incl=false;
+let lv=1,pg='Início',incl=false,PTAB='Aulas',ATU=0;
 
 function vis(e){
   if(e.lv===lv)return true;
@@ -550,8 +550,8 @@ function campanhas(){
   return h+cfgLink('Os tipos de trabalho e de evento',['camp','evt']);
 }
 function cfgLink(t,ks){return `<div class="card"><h2>Padrão da denominação</h2><p class="p" style="margin:0 0 8px">${t} que você define viram o padrão de todas as cidades. Hoje: ${ks.map(k=>lista(k).length+' '+CF[k].sh).join(' e ')}.</p><button class="sm" data-p="Configurações">Abrir Configurações</button></div>`}
-let TU=[{n:'Turma Novos Convertidos',g:'Cong. São Miguel',pr:'Paulo Reis'},{n:'Turma Doutrina Básica',g:'Sede de Palmares',pr:'Renata Cruz'}];
-let AU=[{t:'Aula 3 – O Evangelho',tu:0,d:'2026-09-29'},{t:'Aula 4 – Vida Cristã',tu:0,d:'2026-10-06'}];
+let TU=[{n:'Turma Novos Convertidos',g:'Cong. São Miguel',pr:'Paulo Reis',nv:'Básico',dia:'terça',hr:'19:30',al:['Marcos Silva','Ana Costa','Lucas Pereira','Carla Rocha']},{n:'Turma Doutrina Básica',g:'Sede de Palmares',pr:'Renata Cruz',nv:'Intermediário',dia:'quinta',hr:'20:00',al:['João Silva','Maria Santos']}];
+let AU=[{t:'Aula 3 – O Evangelho',tu:0,d:'2026-09-29',f:'pres',sl:4,pres:['Marcos Silva','Ana Costa']},{t:'Aula 4 – Vida Cristã',tu:0,d:'2026-10-06',f:'pres',sl:3}];
 let EVT=[{n:'Evangelismo na Praça',ca:'Evangelismo na Praça',d:'2026-10-03',l:'Praça central',ty:'Evangelismo pessoal'}];
 const PFC=['Professor','Líder de Célula','Secretário de Discipulado'];
 const fd=d=>d.split('-').reverse().join('/');
@@ -700,6 +700,7 @@ document.addEventListener('click',e=>{
   if(t.dataset.go)enter(+t.dataset.go);
   else if(t.dataset.lv){lv=+t.dataset.lv;pg='Início';incl=false;render()}
   else if(t.dataset.p){pg=t.dataset.p;render()}
+  else if(t.dataset.ptab){PTAB=t.dataset.ptab;render()}
   else if(t.id==='esalvar'){
     const ti=$('#etit').value.trim(),d=+$('#edia').value;
     if(!ti||d<1||d>30){toast('Informe um título e um dia entre 1 e 30.');return}
@@ -1531,11 +1532,42 @@ function aulasMod(){
   return h+({'Planos de aula':()=>tPlanos(3),'Turmas':tTurmas,'Andamento':()=>tAnd(all),'Conclusão':()=>tConc(all)}[ATAB])();
 }
 function profMod(){
-  TU.forEach(tnz);const mine=TU.map((t,i)=>i).filter(i=>TU[i].pr===ME[4].n);if(!mine.includes(ATU))ATU=mine.length?mine[0]:0;if(!PTABS.some(x=>x[0]===PTAB))PTAB='Aulas';
+  const mine=TU.map((t,i)=>i).filter(i=>TU[i].pr===ME[4].n);if(!mine.includes(ATU))ATU=mine.length?mine[0]:0;
   let h='<h1>Minhas Aulas</h1><p class="sub">As turmas que a coordenação passou para você. Dê a aula com slides no telão ou ao vivo, faça a chamada e conclua com prova e diploma.</p>';
   if(!mine.length)return h+'<div class="card"><p class="sub" style="margin:0">Você ainda não tem turma. O Coordenador cria a turma e escolhe você como professor.</p></div>';
-  h+='<div class="flw" style="margin-bottom:14px" role="group" aria-label="Etapas">'+PTABS.map((x,i)=>`<button data-ptab="${x[0]}" aria-pressed="${x[0]===PTAB}"><b>${i+1}</b>${x[1]}</button>`).join('')+'</div>';
-  return h+({'Planos de aula':()=>tPlanos(4),'Aulas':()=>pAulas(mine),'Andamento':()=>tAnd(mine),'Conclusão':()=>tConc(mine)}[PTAB])();
+  
+  const PTABS=[['Meus planos','Currículos'],['Dar aula e chamada','Aulas'],['Andamento','Progresso'],['Prova e diploma','Conclusão']];
+  if(!PTAB||!PTABS.map(x=>x[1]).includes(PTAB))PTAB='Aulas';
+  
+  h+='<div class="flw" style="margin-bottom:14px" role="group" aria-label="Etapas">'+PTABS.map((x,i)=>`<button data-ptab="${x[1]}" aria-pressed="${x[1]===PTAB}" style="border:1px solid var(--line);border-radius:8px"><b>${i+1}</b><br>${esc(x[0])}</button>`).join('')+'</div>';
+  
+  const renderTurmas=()=>{
+    return mine.map(ti=>{
+      const t=TU[ti],aulas=AU.filter(a=>a.tu===ti),prox=aulas.find(a=>a.d>='2026-09-29');
+      const aux=aulas.filter(a=>a.d<='2026-09-29'),feitas=aux.length;
+      const alunos_acesso=t.al.filter(n=>PS.find(p=>p.n===n)).length;
+      let h=`<div class="card" style="border-left:4px solid #2563eb"><h2>${esc(t.n)} <span class="chip" style="--k:#2563eb">${esc(t.nv||'Básico')}</span></h2>`;
+      h+=`<p class="p" style="margin:0 0 8px">${esc(t.g)} · toda ${esc(t.dia)} às ${t.hr} · ${t.al.length} alunos</p>`;
+      if(prox){
+        const aula=prox;
+        const aula_idx=AU.indexOf(aula);
+        h+=`<div style="border:2px solid #2563eb;border-radius:10px;padding:12px;margin:10px 0;background:#1e3a8a22"><span style="color:#60a5fa;font-weight:600">${aula.d==='2026-09-29'?'HOJE':'Próxima aula'} · ${fd(aula.d)} às ${t.hr}</span><h3 style="margin:4px 0 8px;font-size:16px">${esc(aula.t)}</h3>`;
+        h+=`<span class="chip" style="--k:#60a5fa">Presencial com slides</span>`;
+        h+=`<div class="rw" style="flex-wrap:wrap;margin:8px 0 0;gap:8px"><button class="btn" style="background:#2563eb;flex:1;min-width:200px" data-prof="${aula_idx}">▶ Apresentar slides (${aula.sl})</button><button class="btn" style="background:#dc2626;flex:1;min-width:140px">● Iniciar live</button></div>`;
+        h+=`</div>`;
+      }
+      h+=`<details style="margin:10px 0 0"><summary class="p">Chamada de todas as aulas (${feitas} feitas)</summary>${feitas?'<p class="p" style="margin:4px 0">3 de '+t.al.length+' alunos com acesso ao app</p><p class="p">Cadastrar e dar acesso aos alunos</p>':''}</details>`;
+      h+=`<details style="margin:6px 0 0"><summary class="p">Plano desta turma: ${esc(PLA[t.pl||0]?.n||'Sem plano')}</summary></details>`;
+      h+=`</div>`;
+      return h;
+    }).join('');
+  };
+  
+  if(PTAB==='Aulas')return h+renderTurmas();
+  if(PTAB==='Currículos')return h+'<div class="card"><h2>Meus planos de aula</h2><p class="p" style="margin:0">Os planos que o Coordenador disponibilizou para suas turmas.</p></div>';
+  if(PTAB==='Progresso')return h+'<div class="card"><h2>Progresso das aulas</h2><p class="p" style="margin:0">Visualize o progresso de cada aluno em suas turmas.</p></div>';
+  if(PTAB==='Conclusão')return h+'<div class="card"><h2>Prova e diploma</h2><p class="p" style="margin:0">Alunos aprovados geram diploma automático.</p></div>';
+  return h+renderTurmas();
 }
 function pAulas(ix){
   return ix.map(ti=>{const t=TU[ti],p=PLA[t.pl],A=AU.map((a,i)=>({a,i})).filter(o=>o.a.tu===ti).sort((x,y)=>byD(x.a,y.a)),al=tAl(ti),nx=A.find(o=>o.a.d>=TODAY),dw=t.ini?DSW[new Date(t.ini+'T12:00:00').getDay()]:'';
