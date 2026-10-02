@@ -1,0 +1,699 @@
+import React, { useState, useEffect } from 'react';
+
+// ======================== CONTEXTO DE AUTENTICAÇÃO ========================
+const AuthContext = React.createContext(null);
+
+function useAuth() {
+  const ctx = React.useContext(AuthContext);
+  if (!ctx) throw new Error('Sem contexto de autenticação');
+  return ctx;
+}
+
+// ======================== API HELPERS ========================
+async function api(path, options = {}) {
+  const token = localStorage.getItem('ide_token');
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`/api${path}`, {
+    ...options,
+    headers
+  });
+  
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ erro: `HTTP ${res.status}` }));
+    throw new Error(err.erro || 'Erro na requisição');
+  }
+  
+  return res.json();
+}
+
+// ======================== COMPONENTES ========================
+
+// Avatar + Header
+function Header({ usuario, onLogout }) {
+  return (
+    <div style={styles.header}>
+      <div style={styles.headerContent}>
+        <div>
+          <h1 style={styles.logo}>IDE+</h1>
+          <p style={styles.headerSubtitle}>Discipulado Profissional</p>
+        </div>
+        <div style={styles.userInfo}>
+          <div style={styles.avatar}>{usuario?.nome?.[0]?.toUpperCase()}</div>
+          <div>
+            <p style={styles.userName}>{usuario?.nome}</p>
+            <p style={styles.userRole}>Nível {usuario?.nivel}</p>
+          </div>
+          <button onClick={onLogout} style={styles.logoutBtn}>Sair</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Card resumido
+function ResumoCard({ titulo, valor, subtitulo, cor = '#5E7CE2' }) {
+  return (
+    <div style={{ ...styles.resumoCard, borderLeftColor: cor }}>
+      <p style={styles.resumoTitulo}>{titulo}</p>
+      <p style={styles.resumoValor}>{valor}</p>
+      {subtitulo && <p style={styles.resumoSubtitulo}>{subtitulo}</p>}
+    </div>
+  );
+}
+
+// Modal
+function Modal({ titulo, aberto, onFechar, children }) {
+  if (!aberto) return null;
+  
+  return (
+    <div style={styles.modalOverlay} onClick={onFechar}>
+      <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
+        <div style={styles.modalHeader}>
+          <h2>{titulo}</h2>
+          <button onClick={onFechar} style={styles.closeBtn}>✕</button>
+        </div>
+        <div style={styles.modalBody}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+// ======================== PÁGINAS ========================
+
+// 1. Dashboard Principal
+function Dashboard({ usuario, onSair }) {
+  const [turmas, setTurmas] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState(null);
+
+  useEffect(() => {
+    carregarTurmas();
+  }, []);
+
+  async function carregarTurmas() {
+    try {
+      setCarregando(true);
+      const data = await api('/nivel4/turmas');
+      setTurmas(data.turmas || []);
+    } catch (e) {
+      setErro(e.message);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  if (carregando) return <div style={styles.loading}>Carregando turmas...</div>;
+
+  return (
+    <div>
+      <Header usuario={usuario} onLogout={onSair} />
+      
+      <div style={styles.container}>
+        <h2 style={styles.pageTitle}>Minhas Turmas</h2>
+        
+        {erro && <div style={styles.erro}>{erro}</div>}
+        
+        {turmas.length === 0 ? (
+          <div style={styles.vazio}>
+            <p>Nenhuma turma ainda</p>
+            <button style={styles.btnPrimario}>+ Criar Turma</button>
+          </div>
+        ) : (
+          <div style={styles.gridTurmas}>
+            {turmas.map(t => (
+              <div key={t.id} style={styles.cardTurma}>
+                <div style={styles.cardTurmaHeader}>
+                  <h3>{t.nome}</h3>
+                  <span style={{ ...styles.status, backgroundColor: t.status === 'ATIVA' ? '#4CAF50' : '#999' }}>
+                    {t.status}
+                  </span>
+                </div>
+                <p style={styles.cardTurmaInfo}>{t.curriculo_nome}</p>
+                <p style={styles.cardTurmaInfo}>📍 {t.professor_nome}</p>
+                <p style={styles.cardTurmaInfo}>👥 {t.total_alunos} alunos</p>
+                <button style={styles.btnSecundario} onClick={() => window.location.hash = `turma/${t.id}`}>
+                  Abrir
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// 2. Detalhe da Turma
+function DetalhesTurma({ turmaId, usuario, onVoltar }) {
+  const [turma, setTurma] = useState(null);
+  const [alunos, setAlunos] = useState([]);
+  const [aulas, setAulas] = useState([]);
+  const [resumo, setResumo] = useState(null);
+  const [abaSelecionada, setAbaSelecionada] = useState('resumo');
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    carregarDados();
+  }, [turmaId]);
+
+  async function carregarDados() {
+    try {
+      setCarregando(true);
+      const [r, a, au, res] = await Promise.all([
+        api(`/nivel4/turmas/${turmaId}`).catch(() => null),
+        api(`/nivel4/turmas/${turmaId}/alunos`),
+        api(`/nivel4/turmas/${turmaId}/aulas`),
+        api(`/nivel4/turmas/${turmaId}/resumo`)
+      ]);
+      
+      setTurma(r || { nome: 'Turma desconhecida' });
+      setAlunos(a?.alunos || []);
+      setAulas(au?.aulas || []);
+      setResumo(res?.resumo);
+    } catch (e) {
+      console.error('Erro ao carregar turma:', e);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  if (carregando) return <div style={styles.loading}>Carregando turma...</div>;
+
+  return (
+    <div>
+      <Header usuario={usuario} onLogout={() => {}} />
+      
+      <div style={styles.container}>
+        <button onClick={onVoltar} style={styles.btnVoltar}>← Voltar</button>
+        
+        <h2 style={styles.pageTitle}>{turma?.nome}</h2>
+        
+        {/* Abas */}
+        <div style={styles.tabs}>
+          {['resumo', 'alunos', 'aulas', 'relatorios'].map(aba => (
+            <button
+              key={aba}
+              onClick={() => setAbaSelecionada(aba)}
+              style={{
+                ...styles.tab,
+                borderBottomColor: abaSelecionada === aba ? '#5E7CE2' : 'transparent',
+                color: abaSelecionada === aba ? '#5E7CE2' : '#666'
+              }}
+            >
+              {aba.charAt(0).toUpperCase() + aba.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Conteúdo Abas */}
+        {abaSelecionada === 'resumo' && (
+          <div style={styles.gridResumo}>
+            <ResumoCard 
+              titulo="Total de Alunos" 
+              valor={resumo?.total_alunos || 0}
+              cor="#5E7CE2"
+            />
+            <ResumoCard 
+              titulo="Concluídos" 
+              valor={resumo?.alunos_concluidos || 0}
+              cor="#4CAF50"
+            />
+            <ResumoCard 
+              titulo="Desistentes" 
+              valor={resumo?.alunos_desistentes || 0}
+              cor="#FF9800"
+            />
+            <ResumoCard 
+              titulo="Aulas Ministradas" 
+              valor={resumo?.aulas_ministradas || 0}
+              subtitulo={`de ${resumo?.total_aulas_planejadas || 0}`}
+              cor="#2196F3"
+            />
+            <ResumoCard 
+              titulo="Média de Notas" 
+              valor={`${resumo?.media_notas || 0}%`}
+              cor="#9C27B0"
+            />
+            <ResumoCard 
+              titulo="Com Prova Concluída" 
+              valor={resumo?.alunos_com_prova || 0}
+              cor="#00BCD4"
+            />
+          </div>
+        )}
+
+        {abaSelecionada === 'alunos' && (
+          <div>
+            <h3 style={styles.subtitle}>Alunos Inscritos</h3>
+            <table style={styles.tabela}>
+              <thead>
+                <tr style={styles.tabelaHeader}>
+                  <th>Nome</th>
+                  <th>Status</th>
+                  <th>Presença</th>
+                  <th>Nota</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {alunos.map((a, i) => (
+                  <tr key={i} style={i % 2 === 0 ? styles.tabelaRowPar : {}}>
+                    <td>{a.nome}</td>
+                    <td><span style={styles.badge}>{a.status}</span></td>
+                    <td>{a.presencas_confirmadas}/{a.total_aulas_ministradas}</td>
+                    <td>{a.nota_prova ? `${a.nota_prova}%` : '—'}</td>
+                    <td>
+                      <button style={styles.btnPequeno}>Detalhes</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {abaSelecionada === 'aulas' && (
+          <div>
+            <h3 style={styles.subtitle}>Aulas Agendadas</h3>
+            <div style={styles.listaAulas}>
+              {aulas.map((a, i) => (
+                <div key={i} style={styles.cardAula}>
+                  <div style={styles.cardAulaHeader}>
+                    <h4>{a.licao_titulo}</h4>
+                    <span style={styles.dataAula}>{new Date(a.data_aula).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                  <p style={styles.cardAulaInfo}>Módulo {a.modulo_ordem}: {a.modulo_nome}</p>
+                  <p style={styles.cardAulaInfo}>Presentes: {a.presentes}/{a.presencas}</p>
+                  <button style={styles.btnSecundario}>Registrar Presença</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {abaSelecionada === 'relatorios' && (
+          <div>
+            <h3 style={styles.subtitle}>Relatórios</h3>
+            <div style={styles.gridRelatorios}>
+              <button style={styles.btnRelatorio}>📊 Presença</button>
+              <button style={styles.btnRelatorio}>📈 Desempenho</button>
+              <button style={styles.btnRelatorio}>🎓 Diplomas</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ======================== APP PRINCIPAL ========================
+export default function Nivel4App() {
+  const [usuario, setUsuario] = useState(null);
+  const [pagina, setPagina] = useState('dashboard');
+  const [turmaId, setTurmaId] = useState(null);
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.startsWith('#turma/')) {
+      const id = hash.split('/')[1];
+      setTurmaId(id);
+      setPagina('turma');
+    }
+  }, []);
+
+  useEffect(() => {
+    verificarAuth();
+  }, []);
+
+  async function verificarAuth() {
+    try {
+      const token = localStorage.getItem('ide_token');
+      if (!token) {
+        window.location.href = '/';
+        return;
+      }
+      
+      const res = await fetch('/api/versao');
+      if (res.ok) {
+        setUsuario({ nome: 'Professor', nivel: 4 });
+      } else {
+        window.location.href = '/';
+      }
+    } catch (e) {
+      window.location.href = '/';
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  if (carregando) return <div style={styles.loading}>Iniciando...</div>;
+  if (!usuario) return null;
+
+  return (
+    <div style={styles.app}>
+      {pagina === 'dashboard' && (
+        <Dashboard usuario={usuario} onSair={() => {
+          localStorage.removeItem('ide_token');
+          window.location.href = '/';
+        }} />
+      )}
+      {pagina === 'turma' && (
+        <DetalhesTurma 
+          turmaId={turmaId} 
+          usuario={usuario}
+          onVoltar={() => {
+            setPagina('dashboard');
+            window.location.hash = '';
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ======================== ESTILOS ========================
+const styles = {
+  app: {
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+    backgroundColor: '#F8F9FC',
+    minHeight: '100vh',
+    color: '#1a1a1a'
+  },
+  header: {
+    backgroundColor: '#FFF',
+    borderBottom: '1px solid #E0E0E0',
+    padding: '20px 0',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+  },
+  headerContent: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '0 20px'
+  },
+  logo: {
+    fontSize: '24px',
+    fontWeight: '700',
+    margin: '0 0 4px 0',
+    color: '#5E7CE2'
+  },
+  headerSubtitle: {
+    fontSize: '12px',
+    color: '#999',
+    margin: 0
+  },
+  userInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  avatar: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    backgroundColor: '#5E7CE2',
+    color: '#FFF',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '18px',
+    fontWeight: '600'
+  },
+  userName: {
+    fontSize: '14px',
+    fontWeight: '600',
+    margin: '0 0 2px 0'
+  },
+  userRole: {
+    fontSize: '12px',
+    color: '#999',
+    margin: 0
+  },
+  logoutBtn: {
+    padding: '8px 16px',
+    backgroundColor: '#F0F0F0',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '12px',
+    fontWeight: '500',
+    transition: 'background 0.2s'
+  },
+  container: {
+    maxWidth: '1200px',
+    margin: '0 auto',
+    padding: '30px 20px'
+  },
+  pageTitle: {
+    fontSize: '28px',
+    fontWeight: '700',
+    margin: '0 0 30px 0',
+    color: '#1a1a1a'
+  },
+  subtitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    margin: '0 0 20px 0',
+    color: '#333'
+  },
+  gridTurmas: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gap: '20px'
+  },
+  cardTurma: {
+    backgroundColor: '#FFF',
+    borderRadius: '8px',
+    padding: '20px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    transition: 'transform 0.2s, box-shadow 0.2s',
+    cursor: 'pointer'
+  },
+  cardTurmaHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'start',
+    marginBottom: '12px'
+  },
+  status: {
+    padding: '4px 8px',
+    borderRadius: '4px',
+    fontSize: '11px',
+    fontWeight: '600',
+    color: '#FFF'
+  },
+  cardTurmaInfo: {
+    fontSize: '13px',
+    color: '#666',
+    margin: '6px 0'
+  },
+  gridResumo: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '16px',
+    marginBottom: '30px'
+  },
+  resumoCard: {
+    backgroundColor: '#FFF',
+    borderRadius: '8px',
+    padding: '16px',
+    borderLeft: '4px solid #5E7CE2',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+  },
+  resumoTitulo: {
+    fontSize: '13px',
+    color: '#999',
+    margin: '0 0 8px 0',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  },
+  resumoValor: {
+    fontSize: '28px',
+    fontWeight: '700',
+    margin: '0 0 6px 0',
+    color: '#1a1a1a'
+  },
+  resumoSubtitulo: {
+    fontSize: '12px',
+    color: '#999',
+    margin: 0
+  },
+  tabs: {
+    display: 'flex',
+    gap: '24px',
+    borderBottom: '1px solid #E0E0E0',
+    marginBottom: '30px'
+  },
+  tab: {
+    padding: '12px 0',
+    fontSize: '14px',
+    fontWeight: '500',
+    border: 'none',
+    borderBottom: '2px solid transparent',
+    backgroundColor: 'transparent',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    color: '#666'
+  },
+  tabela: {
+    width: '100%',
+    borderCollapse: 'collapse',
+    backgroundColor: '#FFF',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+  },
+  tabelaHeader: {
+    backgroundColor: '#F5F5F5',
+    borderBottom: '1px solid #E0E0E0'
+  },
+  tabelaRowPar: {
+    backgroundColor: '#F9F9F9'
+  },
+  badge: {
+    display: 'inline-block',
+    padding: '4px 8px',
+    backgroundColor: '#E8EAF6',
+    color: '#3F51B5',
+    borderRadius: '4px',
+    fontSize: '12px',
+    fontWeight: '500'
+  },
+  listaAulas: {
+    display: 'grid',
+    gap: '16px'
+  },
+  cardAula: {
+    backgroundColor: '#FFF',
+    borderRadius: '8px',
+    padding: '16px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+  },
+  cardAulaHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'start',
+    marginBottom: '8px'
+  },
+  dataAula: {
+    fontSize: '12px',
+    color: '#999',
+    whiteSpace: 'nowrap'
+  },
+  cardAulaInfo: {
+    fontSize: '13px',
+    color: '#666',
+    margin: '4px 0'
+  },
+  gridRelatorios: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+    gap: '16px'
+  },
+  btnPrimario: {
+    padding: '12px 24px',
+    backgroundColor: '#5E7CE2',
+    color: '#FFF',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    transition: 'background 0.2s'
+  },
+  btnSecundario: {
+    padding: '10px 20px',
+    backgroundColor: '#F0F0F0',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '500',
+    transition: 'background 0.2s'
+  },
+  btnRelatorio: {
+    padding: '16px 24px',
+    backgroundColor: '#FFF',
+    border: '1px solid #E0E0E0',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    transition: 'all 0.2s'
+  },
+  btnPequeno: {
+    padding: '6px 12px',
+    fontSize: '12px',
+    backgroundColor: '#F0F0F0',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer'
+  },
+  btnVoltar: {
+    padding: '8px 16px',
+    backgroundColor: '#F0F0F0',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '500',
+    marginBottom: '20px'
+  },
+  vazio: {
+    textAlign: 'center',
+    padding: '60px 20px',
+    color: '#999'
+  },
+  erro: {
+    backgroundColor: '#FFEBEE',
+    color: '#C62828',
+    padding: '16px',
+    borderRadius: '6px',
+    marginBottom: '20px'
+  },
+  loading: {
+    textAlign: 'center',
+    padding: '60px 20px',
+    color: '#999'
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: '8px',
+    maxWidth: '500px',
+    width: '90%'
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px',
+    borderBottom: '1px solid #E0E0E0'
+  },
+  closeBtn: {
+    background: 'none',
+    border: 'none',
+    fontSize: '20px',
+    cursor: 'pointer',
+    color: '#999'
+  },
+  modalBody: {
+    padding: '20px'
+  }
+};
