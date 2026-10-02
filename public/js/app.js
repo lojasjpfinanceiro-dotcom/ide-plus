@@ -906,143 +906,197 @@
   VISTAS.discipulado = async (c) => (curriculoAberto ? verCurriculo(c, curriculoAberto) : listaCurriculos(c));
 
 
+
   VISTAS['minhas-aulas'] = async (c) => {
-    const turmas = await api('/discipulado/turmas').catch(() => [
-      { id: 1, nome: 'Turma Novos Convertidos', nivel: 'Básico', congregacao: 'Cong. São Miguel', dia: 'terça', hora: '19:30', alunos: 4, aulas_feitas: 3 }
+    const planos = await api('/discipulado/planos').catch(() => [
+      {
+        id: 1,
+        nome: 'Novos Convertidos',
+        nivel: 'Básico',
+        descricao: 'Do novo convertido até o batismo.',
+        modulos: [
+          {
+            nome: 'Módulo 1 – Fundamentos da fé',
+            aulas: [
+              { tema: 'A salvação', forma: 'pres', minutos: 45 },
+              { tema: 'O arrependimento', forma: 'pres', minutos: 45 },
+              { tema: 'O Evangelho', forma: 'pres', minutos: 45 }
+            ]
+          },
+          {
+            nome: 'Módulo 2 – Vida nova',
+            aulas: [
+              { tema: 'Vida cristã', forma: 'video', minutos: 40 },
+              { tema: 'Oração e leitura da Bíblia', forma: 'live', minutos: 60 },
+              { tema: 'O batismo nas águas', forma: 'pres', minutos: 45 }
+            ]
+          }
+        ],
+        configuracoes: {
+          notaMinima: 7,
+          presencaMinima: 75,
+          questoes: 3
+        }
+      }
     ]);
+
+    const formatoIcon = { pres: '▶', video: '🎬', live: '●' };
+    const formatoLabel = { pres: 'Slide presencial', video: 'Vídeo gravado', live: 'Live online' };
     
-    // Formas de dar aula
-    const FORMAS = {
-      slide: ['▶ Slide presencial', '#2563eb'],
-      revista: ['📖 Revista presencial', '#8b5cf6'],
-      live: ['● Live online', '#dc2626']
-    };
+    const totalAulas = (plano) => plano.modulos.reduce((sum, m) => sum + m.aulas.length, 0);
+    const totalMinutos = (plano) => plano.modulos.reduce((sum, m) => 
+      sum + m.aulas.reduce((msum, a) => msum + a.minutos, 0), 0);
     
-    const renderAba1 = () => `
-      <h2 style="font-size: 16px; margin-bottom: 12px;">Dar aula e fazer chamada</h2>
-      ${turmas.map(t => `
-        <div class="cartao" style="margin-bottom: 14px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <h3 style="margin: 0; font-size: 16px;">${t.nome}</h3>
-            <span class="chip" style="--k: #2563eb; font-size: 11px; padding: 2px 8px;">${t.nivel}</span>
+    const renderPlanos = () => `
+      <h2 style="font-size: 16px; margin-bottom: 12px;">Meus planos de aula</h2>
+      ${planos.map((pl, idx) => `
+        <div class="cartao">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+            <div style="flex: 1;">
+              <h3 style="margin: 0 0 4px; font-size: 15px;">${pl.nome}</h3>
+              <span class="chip" style="--k: #2563eb; font-size: 11px; padding: 2px 8px; margin-right: 6px;">${pl.nivel}</span>
+              <span class="p" style="display: inline; font-size: 11px;">${pl.modulos.length} módulos · ${totalAulas(pl)} aulas · ${Math.floor(totalMinutos(pl) / 60)}h${totalMinutos(pl) % 60 ? String(totalMinutos(pl) % 60).padStart(2, '0') : ''}</span>
+            </div>
+            <button class="botao" style="background: #7c3aed; border: none; border-radius: 6px; padding: 8px 12px; color: white; font-weight: 600; cursor: pointer; font-size: 12px;">✓ Usar nesta turma</button>
           </div>
-          <p class="p">${t.congregacao} · ${t.dia}s às ${t.hora} · ${t.alunos} alunos</p>
           
-          <div style="border: 2px solid #2563eb; border-radius: 10px; padding: 12px; margin: 10px 0; background: rgba(37, 99, 235, 0.05);">
-            <span style="color: #60a5fa; font-weight: 600; font-size: 12px;"><b>PRÓXIMA AULA</b> · 06/10/2026 às 19:30</span>
-            <h4 style="margin: 4px 0 8px; font-size: 14px;">Aula 4 – Vida Cristã</h4>
+          <p class="p" style="margin: 8px 0;">${pl.descricao}</p>
+          
+          <details style="margin: 10px 0 0; border-top: 1px solid var(--line); padding-top: 10px;">
+            <summary style="cursor: pointer; font-weight: 500; color: var(--ink); padding: 6px 0; display: flex; justify-content: space-between; align-items: center;">
+              <span>📚 ${pl.modulos.length} Módulos</span>
+              <span style="font-size: 12px; color: var(--mut);">clique para expandir</span>
+            </summary>
             
-            <div style="margin: 10px 0; padding: 10px 0; border-top: 1px solid rgba(37, 99, 235, 0.2); border-bottom: 1px solid rgba(37, 99, 235, 0.2);">
-              <p style="margin: 0 0 8px; font-size: 12px; color: var(--mut); font-weight: 500;">Como você vai dar esta aula?</p>
-              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
-                ${Object.entries(FORMAS).map(([k, [label, cor]]) => `
-                  <button style="background: ${cor}; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 12px;" data-forma="${k}">${label}</button>
-                `).join('')}
+            <div style="margin-top: 10px; border-left: 2px solid #2563eb; padding-left: 12px;">
+              ${pl.modulos.map((mod, midx) => `
+                <details style="margin-bottom: 10px;">
+                  <summary style="cursor: pointer; font-weight: 500; color: var(--ink); padding: 8px 0;">
+                    ${mod.nome} <span class="chip" style="--k: #60a5fa; font-size: 10px; margin-left: 6px;">${mod.aulas.length} aulas</span>
+                  </summary>
+                  
+                  <div style="margin-top: 8px; padding-left: 8px; border-left: 1px solid #94a3b8;">
+                    ${mod.aulas.map((aula, aidx) => `
+                      <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line);">
+                        <span>
+                          <span style="font-weight: 600; display: block; margin-bottom: 2px;">Aula ${aidx + 1} – ${aula.tema}</span>
+                          <span class="p">${formatoIcon[aula.forma]} ${formatoLabel[aula.forma]} · ${aula.minutos}min</span>
+                        </span>
+                        <button class="botao" style="background: #2563eb; border: none; border-radius: 4px; padding: 6px 10px; color: white; font-size: 11px; cursor: pointer;">Editar</button>
+                      </div>
+                    `).join('')}
+                  </div>
+                </details>
+              `).join('')}
+            </div>
+          </details>
+          
+          <details style="margin: 10px 0 0; border-top: 1px solid var(--line); padding-top: 10px;">
+            <summary style="cursor: pointer; font-weight: 500; color: var(--ink); padding: 6px 0; display: flex; justify-content: space-between; align-items: center;">
+              <span>⚙️ Configurações da prova</span>
+              <span style="font-size: 12px; color: var(--mut);">clique para expandir</span>
+            </summary>
+            
+            <div style="margin-top: 10px; background: var(--in); border-radius: 8px; padding: 10px;">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                  <span class="p">Nota mínima para passar</span>
+                  <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                    <span style="font-weight: 600; font-size: 18px; color: #2563eb;">${pl.configuracoes.notaMinima}</span>
+                    <span class="p">de 10</span>
+                  </div>
+                </div>
+                <div>
+                  <span class="p">Presença mínima</span>
+                  <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
+                    <span style="font-weight: 600; font-size: 18px; color: #2563eb;">${pl.configuracoes.presencaMinima}%</span>
+                  </div>
+                </div>
               </div>
+              <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);">
+                <span class="p">Questões na prova</span>
+                <span style="font-weight: 600; display: block; margin-top: 4px; color: var(--ink);">${pl.configuracoes.questoes} questões (múltipla escolha)</span>
+              </div>
+              <button class="botao" style="width: 100%; background: #7c3aed; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; margin-top: 10px;">✏️ Editar configurações</button>
             </div>
-            
-            <div style="display: flex; gap: 8px; margin-top: 8px;">
-              <button class="botao" style="flex: 1; background: #059669; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 13px;">✓ Confirmar aula</button>
-              <button class="botao" style="flex: 1; background: #7c3aed; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 13px;">👁 Ver prova</button>
-            </div>
-          </div>
-          
-          <details style="margin: 10px 0 0;">
-            <summary style="cursor: pointer; padding: 6px 0; color: var(--mut); font-size: 12px; font-weight: 500;">✓ Chamada das ${t.aulas_feitas} aulas já feitas</summary>
-            <p class="p">3 de 4 alunos com acesso ao app</p>
           </details>
         </div>
       `).join('')}
     `;
-    
-    const renderAba2 = () => `
-      <h2 style="font-size: 16px; margin-bottom: 12px;">Andamento das turmas</h2>
-      ${turmas.map(t => `
-        <div class="cartao">
-          <h3 style="margin: 0 0 8px; font-size: 14px;">${t.nome}</h3>
-          <ul class="ls">
-            <li style="padding: 8px 0; border: none;">Aulas executadas <em style="font-weight: 600; color: var(--ink);">${t.aulas_feitas} de 12</em></li>
-            <li style="padding: 8px 0;">Alunos com acesso <em style="font-weight: 600; color: var(--ink);">3 de 4</em></li>
-            <li style="padding: 8px 0;">Presença média <em style="font-weight: 600; color: var(--ink);">85%</em></li>
-            <li style="padding: 8px 0;">Prontos para prova <em style="font-weight: 600; color: #10b981;">2</em></li>
-          </ul>
+
+    const renderAula = () => `
+      <h2 style="font-size: 16px; margin-bottom: 12px;">Dar aula e fazer chamada</h2>
+      <div class="cartao">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <h3 style="margin: 0; font-size: 16px;">Turma Novos Convertidos</h3>
+          <span class="chip" style="--k: #2563eb; font-size: 11px; padding: 2px 8px;">Básico</span>
         </div>
-      `).join('')}
-    `;
-    
-    const renderAba3 = () => `
-      <h2 style="font-size: 16px; margin-bottom: 12px;">Prova e diploma</h2>
-      ${turmas.map(t => `
-        <div class="cartao">
-          <h3 style="margin: 0 0 12px; font-size: 14px;">${t.nome}</h3>
-          <ul class="ls">
-            <li style="padding: 10px 0; border: none;">
-              <span style="flex: 1;">
-                <b style="display: block; margin-bottom: 2px;">Paulo Reis</b>
-                <span class="p">Pronto para prova</span>
-              </span>
-              <button class="botao" style="background: #2563eb; border: none; border-radius: 4px; padding: 6px 10px; color: white; font-size: 11px; cursor: pointer;">Aplicar</button>
-            </li>
-            <li style="padding: 10px 0;">
-              <span style="flex: 1;">
-                <b style="display: block; margin-bottom: 2px;">Maria Santos</b>
-                <span class="p">Pronto para prova</span>
-              </span>
-              <button class="botao" style="background: #2563eb; border: none; border-radius: 4px; padding: 6px 10px; color: white; font-size: 11px; cursor: pointer;">Aplicar</button>
-            </li>
-            <li style="padding: 10px 0;">
-              <span style="flex: 1;">
-                <b style="display: block; margin-bottom: 2px;">João Silva</b>
-                <span class="p">✓ Aprovado · Diploma 15/10</span>
-              </span>
-            </li>
-          </ul>
+        <p class="p">Cong. São Miguel · terças às 19:30 · 4 alunos</p>
+        
+        <div style="border: 2px solid #2563eb; border-radius: 10px; padding: 12px; margin: 10px 0; background: rgba(37, 99, 235, 0.05);">
+          <span style="color: #60a5fa; font-weight: 600; font-size: 12px;"><b>PRÓXIMA AULA</b> · 06/10 às 19:30</span>
+          <h4 style="margin: 4px 0 8px; font-size: 14px;">Aula 4 – Vida Cristã</h4>
+          
+          <div style="margin: 10px 0; padding: 10px 0; border-top: 1px solid rgba(37, 99, 235, 0.2); border-bottom: 1px solid rgba(37, 99, 235, 0.2);">
+            <p style="margin: 0 0 8px; font-size: 12px; color: var(--mut); font-weight: 500;">Como você vai dar esta aula?</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
+              <button style="background: #2563eb; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 12px;">▶ Slide</button>
+              <button style="background: #8b5cf6; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 12px;">📖 Revista</button>
+              <button style="background: #dc2626; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 12px;">● Live</button>
+            </div>
+          </div>
+          
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button class="botao" style="flex: 1; background: #059669; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 13px;">✓ Confirmar</button>
+            <button class="botao" style="flex: 1; background: #7c3aed; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 13px;">👁 Ver prova</button>
+          </div>
         </div>
-      `).join('')}
+      </div>
     `;
-    
+
+    const renderAndamento = () => `
+      <h2 style="font-size: 16px; margin-bottom: 12px;">Andamento</h2>
+      <div class="cartao">
+        <h3 style="margin: 0 0 8px; font-size: 14px;">Turma Novos Convertidos</h3>
+        <ul class="ls">
+          <li style="padding: 8px 0; border: none;">Aulas executadas <em style="font-weight: 600; color: var(--ink);">3 de 12</em></li>
+          <li style="padding: 8px 0;">Alunos com acesso <em style="font-weight: 600; color: var(--ink);">3 de 4</em></li>
+          <li style="padding: 8px 0;">Presença média <em style="font-weight: 600; color: var(--ink);">85%</em></li>
+          <li style="padding: 8px 0;">Prontos para prova <em style="font-weight: 600; color: #10b981;">2</em></li>
+        </ul>
+      </div>
+    `;
+
     const html = `
       <section>
         <h1>Minhas Aulas</h1>
-        <p class="sub">Escolha como dar sua aula: com slides, com revista do sistema ou ao vivo</p>
+        <p class="sub">Selecione o plano de aula, estruture os módulos, configure a prova e dê aulas</p>
         
         <div style="display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto;">
-          <button class="chip ativo" data-aba="dar-aula" style="cursor: pointer; flex-shrink: 0;"><b>1</b> Dar aula</button>
-          <button class="chip" data-aba="andamento" style="cursor: pointer; flex-shrink: 0;"><b>2</b> Andamento</button>
-          <button class="chip" data-aba="prova" style="cursor: pointer; flex-shrink: 0;"><b>3</b> Prova/Diploma</button>
+          <button class="chip ativo" data-aba="planos" style="cursor: pointer; flex-shrink: 0;"><b>1</b> Meus planos</button>
+          <button class="chip" data-aba="dar-aula" style="cursor: pointer; flex-shrink: 0;"><b>2</b> Dar aula</button>
+          <button class="chip" data-aba="andamento" style="cursor: pointer; flex-shrink: 0;"><b>3</b> Andamento</button>
         </div>
         
         <div id="conteudo-aba">
-          ${renderAba1()}
+          ${renderPlanos()}
         </div>
       </section>
     `;
     
     c.innerHTML = html;
     
-    // Handlers das abas
     c.querySelectorAll('[data-aba]').forEach(btn => {
       btn.onclick = () => {
         c.querySelectorAll('[data-aba]').forEach(b => b.classList.remove('ativo'));
         btn.classList.add('ativo');
         c.querySelector('#conteudo-aba').innerHTML = {
-          'dar-aula': renderAba1(),
-          'andamento': renderAba2(),
-          'prova': renderAba3()
+          'planos': renderPlanos(),
+          'dar-aula': renderAula(),
+          'andamento': renderAndamento()
         }[btn.dataset.aba];
       };
     });
-    
-    // Handlers dos botões de forma de aula
-    setTimeout(() => {
-      c.querySelectorAll('[data-forma]').forEach(btn => {
-        btn.onclick = function() {
-          const forma = this.dataset.forma;
-          const nomes = { slide: '▶ Slide presencial', revista: '📖 Revista presencial', live: '● Live online' };
-          alert(`Aula será apresentada como: ${nomes[forma]}\n\nOs alunos receberão notificação quando você iniciar.`);
-        };
-      });
-    }, 0);
   };
   async function listaCurriculos(c) {
     const { pode_criar, curriculos } = await api('/discipulado/curriculos');
