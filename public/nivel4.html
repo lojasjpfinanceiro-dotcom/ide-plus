@@ -86,52 +86,11 @@
       );
     }
 
-    // ============ CARD EXPANDÍVEL ============
-    function CardPlano({ titulo, descricao, modulos, aulas, duracao, config, onUsar }) {
-      const [expandido, setExpandido] = useState(false);
-      
-      return (
-        <div style={styles.cardPlano}>
-          <div style={styles.cardPlanoHeader} onClick={() => setExpandido(!expandido)}>
-            <div>
-              <h3 style={styles.cardPlanoTitulo}>{titulo}</h3>
-              <p style={styles.cardPlanoDesc}>{descricao}</p>
-              <div style={styles.cardPlanoMeta}>
-                <span>{modulos} módulos</span>
-                <span>•</span>
-                <span>{aulas} aulas</span>
-                <span>•</span>
-                <span>{duracao}</span>
-              </div>
-            </div>
-            <div style={styles.expandIcon}>{expandido ? '▼' : '▶'}</div>
-          </div>
-
-          {expandido && (
-            <div style={styles.cardPlanoContent}>
-              <div style={styles.section}>
-                <h4 style={styles.sectionTitle}>📚 {modulos} Módulos</h4>
-                <p style={styles.sectionAction}>clique para expandir</p>
-              </div>
-
-              <div style={styles.section}>
-                <h4 style={styles.sectionTitle}>⚙️ Configurações da prova</h4>
-                <p style={styles.sectionAction}>clique para expandir</p>
-              </div>
-
-              <button style={styles.btnUsar} onClick={onUsar}>
-                ✓ Usar nesta turma
-              </button>
-            </div>
-          )}
-        </div>
-      );
-    }
-
     // ============ ABA 1: MEUS PLANOS ============
     function AbaMeusPlanos() {
       const [planos, setPlanos] = useState([]);
       const [carregando, setCarregando] = useState(true);
+      const [expandido, setExpandido] = useState(null);
 
       useEffect(() => {
         async function carregar() {
@@ -151,23 +110,128 @@
 
       return (
         <div style={styles.abContent}>
-          <h2 style={styles.abTitle}>Meus planos de aula</h2>
-          
-          <div style={styles.planosList}>
+          {/* Cabeçalho didático */}
+          <div style={styles.headerPlanos}>
+            <h2 style={styles.titlePlanos}>Escolha seu plano de aula</h2>
+            <p style={styles.subtitlePlanos}>
+              Cada plano é pré-estruturado com módulos, aulas e avaliação. 
+              Veja todos os detalhes e configure conforme sua necessidade.
+            </p>
+          </div>
+
+          {/* Cards de planos */}
+          <div style={styles.planosGrid}>
             {planos.length === 0 ? (
               <p style={styles.vazio}>Nenhum plano disponível</p>
             ) : (
-              planos.map(p => (
-                <CardPlano
-                  key={p.id}
-                  titulo={p.nome}
-                  descricao={p.descricao || 'Sem descrição'}
-                  modulos={p.modulos || 0}
-                  aulas={p.licoes || 0}
-                  duracao={p.duracao || '4h40'}
-                  config={{ notaMinima: p.nota_minima, frequenciaMinima: p.frequencia_minima }}
-                  onUsar={() => alert('Plano selecionado: ' + p.nome)}
-                />
+              planos.map((p, idx) => (
+                <div key={p.id} style={styles.cardPlanoExpandido}>
+                  {/* Header do card - clicável */}
+                  <div 
+                    style={styles.cardHeader}
+                    onClick={() => setExpandido(expandido === p.id ? null : p.id)}
+                  >
+                    <div style={styles.cardHeaderInfo}>
+                      <div style={styles.cardNumero}>
+                        <span style={styles.numero}>{idx + 1}</span>
+                      </div>
+                      <div>
+                        <h3 style={styles.cardTituloGrande}>{p.nome}</h3>
+                        <p style={styles.cardDescricaoPrevia}>{p.descricao?.substring(0, 60)}...</p>
+                        <div style={styles.cardMetasPrevia}>
+                          <span style={styles.metatag}>📚 Módulos</span>
+                          <span style={styles.metatag}>✓ Avaliação</span>
+                          <span style={styles.metatag}>⏱ 4h40</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={styles.expandIconGrande}>
+                      {expandido === p.id ? '▼' : '▶'}
+                    </div>
+                  </div>
+
+                  {/* Conteúdo expandido */}
+                  {expandido === p.id && (
+                    <div style={styles.cardConteudo}>
+                      {/* Descrição completa */}
+                      <div style={styles.secao}>
+                        <h4 style={styles.secaoTitulo}>📖 Sobre este plano</h4>
+                        <p style={styles.secaoTexto}>{p.descricao || 'Sem descrição'}</p>
+                      </div>
+
+                      {/* Estrutura */}
+                      <div style={styles.secao}>
+                        <h4 style={styles.secaoTitulo}>📚 Estrutura do plano</h4>
+                        <div style={styles.estrutura}>
+                          <div style={styles.estruturaItem}>
+                            <span style={styles.estruturaLabel}>Módulos</span>
+                            <span style={styles.estruturaValor}>2</span>
+                          </div>
+                          <div style={styles.estruturaItem}>
+                            <span style={styles.estruturaLabel}>Aulas</span>
+                            <span style={styles.estruturaValor}>6</span>
+                          </div>
+                          <div style={styles.estruturaItem}>
+                            <span style={styles.estruturaLabel}>Duração total</span>
+                            <span style={styles.estruturaValor}>4h40</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Configurações da prova */}
+                      <div style={styles.secao}>
+                        <h4 style={styles.secaoTitulo}>⚙️ Configurações da avaliação</h4>
+                        <div style={styles.config}>
+                          <div style={styles.configItem}>
+                            <label style={styles.configLabel}>Nota mínima para aprovação</label>
+                            <div style={styles.configValor}>{p.nota_minima}% de acertos</div>
+                          </div>
+                          <div style={styles.configItem}>
+                            <label style={styles.configLabel}>Presença mínima</label>
+                            <div style={styles.configValor}>{p.frequencia_minima}% de frequência</div>
+                          </div>
+                          <div style={styles.configItem}>
+                            <label style={styles.configLabel}>Tentativas na prova</label>
+                            <div style={styles.configValor}>{p.tentativas_prova} tentativas</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Como implementar */}
+                      <div style={styles.secao}>
+                        <h4 style={styles.secaoTitulo}>🚀 Como implementar</h4>
+                        <ol style={styles.passos}>
+                          <li style={styles.passo}>
+                            <strong>Selecione o plano</strong> — Clique no botão "Usar nesta turma" abaixo
+                          </li>
+                          <li style={styles.passo}>
+                            <strong>Crie sua turma</strong> — Defina nome, datas e horários
+                          </li>
+                          <li style={styles.passo}>
+                            <strong>Inscreva os alunos</strong> — Adicione os participantes
+                          </li>
+                          <li style={styles.passo}>
+                            <strong>Inicie as aulas</strong> — Marque presença e execute as lições
+                          </li>
+                          <li style={styles.passo}>
+                            <strong>Realize a avaliação</strong> — Aplique a prova final
+                          </li>
+                          <li style={styles.passo}>
+                            <strong>Emita o diploma</strong> — Gere o certificado automático
+                          </li>
+                        </ol>
+                      </div>
+
+                      {/* Botão de ação */}
+                      <button 
+                        style={styles.btnUsarGrande}
+                        onClick={() => alert('Plano "' + p.nome + '" selecionado! Criar turma agora?')}
+                      >
+                        ✓ Usar nesta turma
+                      </button>
+                    </div>
+                  )}
+                </div>
               ))
             )}
           </div>
@@ -376,6 +440,185 @@
         fontWeight: '700',
         margin: '0 0 16px 0'
       },
+      // ===== ABA 1: MEUS PLANOS (novo layout) =====
+      headerPlanos: {
+        marginBottom: '24px',
+        paddingBottom: '16px',
+        borderBottom: '1px solid #2A3142'
+      },
+      titlePlanos: {
+        fontSize: '20px',
+        fontWeight: '700',
+        margin: '0 0 8px 0',
+        color: '#FFF'
+      },
+      subtitlePlanos: {
+        fontSize: '13px',
+        color: '#8A8F99',
+        margin: '0',
+        lineHeight: '1.5'
+      },
+      planosGrid: {
+        display: 'grid',
+        gap: '16px'
+      },
+      cardPlanoExpandido: {
+        background: '#1A1F2E',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        border: '1px solid #2A3142'
+      },
+      cardHeader: {
+        padding: '16px',
+        cursor: 'pointer',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '12px',
+        transition: 'background 0.2s'
+      },
+      cardHeaderInfo: {
+        flex: 1,
+        display: 'flex',
+        gap: '12px'
+      },
+      cardNumero: {
+        width: '40px',
+        height: '40px',
+        borderRadius: '50%',
+        background: '#7C3AED',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0
+      },
+      numero: {
+        fontSize: '18px',
+        fontWeight: '700',
+        color: '#FFF'
+      },
+      cardTituloGrande: {
+        fontSize: '16px',
+        fontWeight: '700',
+        margin: '0 0 4px 0',
+        color: '#FFF'
+      },
+      cardDescricaoPrevia: {
+        fontSize: '12px',
+        color: '#8A8F99',
+        margin: '0 0 8px 0'
+      },
+      cardMetasPrevia: {
+        display: 'flex',
+        gap: '8px',
+        flexWrap: 'wrap'
+      },
+      metatag: {
+        fontSize: '11px',
+        background: '#2A3142',
+        color: '#8A8F99',
+        padding: '4px 8px',
+        borderRadius: '4px'
+      },
+      expandIconGrande: {
+        fontSize: '16px',
+        color: '#7A7F88',
+        flexShrink: 0
+      },
+      cardConteudo: {
+        padding: '16px',
+        borderTop: '1px solid #2A3142',
+        background: '#141822',
+        display: 'grid',
+        gap: '16px'
+      },
+      secao: {
+        paddingBottom: '12px',
+        borderBottom: '1px solid #2A3142'
+      },
+      secaoTitulo: {
+        fontSize: '14px',
+        fontWeight: '600',
+        margin: '0 0 8px 0',
+        color: '#FFF'
+      },
+      secaoTexto: {
+        fontSize: '12px',
+        color: '#8A8F99',
+        margin: '0',
+        lineHeight: '1.5'
+      },
+      estrutura: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr 1fr',
+        gap: '12px'
+      },
+      estruturaItem: {
+        background: '#1A1F2E',
+        padding: '12px',
+        borderRadius: '6px',
+        border: '1px solid #2A3142',
+        textAlign: 'center'
+      },
+      estruturaLabel: {
+        fontSize: '11px',
+        color: '#8A8F99',
+        display: 'block',
+        marginBottom: '6px'
+      },
+      estruturaValor: {
+        fontSize: '18px',
+        fontWeight: '700',
+        color: '#7C3AED',
+        display: 'block'
+      },
+      config: {
+        display: 'grid',
+        gap: '12px'
+      },
+      configItem: {
+        background: '#1A1F2E',
+        padding: '12px',
+        borderRadius: '6px',
+        border: '1px solid #2A3142'
+      },
+      configLabel: {
+        fontSize: '12px',
+        color: '#8A8F99',
+        display: 'block',
+        marginBottom: '4px'
+      },
+      configValor: {
+        fontSize: '14px',
+        fontWeight: '600',
+        color: '#7C3AED'
+      },
+      passos: {
+        paddingLeft: '20px',
+        margin: '0',
+        display: 'grid',
+        gap: '8px'
+      },
+      passo: {
+        fontSize: '12px',
+        color: '#8A8F99',
+        lineHeight: '1.5',
+        marginBottom: '4px'
+      },
+      btnUsarGrande: {
+        width: '100%',
+        padding: '14px',
+        background: '#7C3AED',
+        color: '#FFF',
+        border: 'none',
+        borderRadius: '6px',
+        fontSize: '15px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'opacity 0.2s'
+      },
+
+      // Antigos (mantidos para compatibilidade)
       planosList: {
         display: 'grid',
         gap: '12px'
