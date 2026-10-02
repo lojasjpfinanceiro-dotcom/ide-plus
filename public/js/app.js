@@ -905,31 +905,145 @@
   window.addEventListener('hashchange', () => { curriculoAberto = null; });
   VISTAS.discipulado = async (c) => (curriculoAberto ? verCurriculo(c, curriculoAberto) : listaCurriculos(c));
 
+
   VISTAS['minhas-aulas'] = async (c) => {
     const turmas = await api('/discipulado/turmas').catch(() => [
       { id: 1, nome: 'Turma Novos Convertidos', nivel: 'Básico', congregacao: 'Cong. São Miguel', dia: 'terça', hora: '19:30', alunos: 4, aulas_feitas: 3 }
     ]);
     
-    let abaAtiva = 'dar-aula';
+    // Formas de dar aula
+    const FORMAS = {
+      slide: ['▶ Slide presencial', '#2563eb'],
+      revista: ['📖 Revista presencial', '#8b5cf6'],
+      live: ['● Live online', '#dc2626']
+    };
     
-    const renderAba1 = () => `<h2 style="font-size: 16px; margin-bottom: 12px;">Dar aula e fazer chamada</h2>${turmas.map(t => `<div class="cartao" style="margin-bottom: 14px;"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"><h3 style="margin: 0; font-size: 16px;">${t.nome}</h3><span class="chip" style="--k: #2563eb; font-size: 11px; padding: 2px 8px;">${t.nivel}</span></div><p class="p">${t.congregacao} · ${t.dia}s às ${t.hora} · ${t.alunos} alunos</p><div style="border: 2px solid #2563eb; border-radius: 10px; padding: 12px; margin: 10px 0; background: rgba(37, 99, 235, 0.05);"><span style="color: #60a5fa; font-weight: 600; font-size: 12px;"><b>PRÓXIMA AULA</b></span><h4 style="margin: 4px 0 8px; font-size: 14px;">Aula 4 – Vida Cristã</h4><span class="chip" style="--k: #60a5fa; font-size: 11px;">Presencial com slides</span><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 0;"><button class="botao" style="background: #2563eb; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 13px;">▶ Slides (4)</button><button class="botao" style="background: #dc2626; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 13px;">● Live</button></div></div><details style="margin: 10px 0 0;"><summary style="cursor: pointer; padding: 6px 0; color: var(--mut); font-size: 12px; font-weight: 500;">✓ Chamada das ${t.aulas_feitas} aulas já feitas</summary><p class="p">3 de 4 alunos com acesso ao app</p></details></div>`).join('')}`;
+    const renderAba1 = () => `
+      <h2 style="font-size: 16px; margin-bottom: 12px;">Dar aula e fazer chamada</h2>
+      ${turmas.map(t => `
+        <div class="cartao" style="margin-bottom: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <h3 style="margin: 0; font-size: 16px;">${t.nome}</h3>
+            <span class="chip" style="--k: #2563eb; font-size: 11px; padding: 2px 8px;">${t.nivel}</span>
+          </div>
+          <p class="p">${t.congregacao} · ${t.dia}s às ${t.hora} · ${t.alunos} alunos</p>
+          
+          <div style="border: 2px solid #2563eb; border-radius: 10px; padding: 12px; margin: 10px 0; background: rgba(37, 99, 235, 0.05);">
+            <span style="color: #60a5fa; font-weight: 600; font-size: 12px;"><b>PRÓXIMA AULA</b> · 06/10/2026 às 19:30</span>
+            <h4 style="margin: 4px 0 8px; font-size: 14px;">Aula 4 – Vida Cristã</h4>
+            
+            <div style="margin: 10px 0; padding: 10px 0; border-top: 1px solid rgba(37, 99, 235, 0.2); border-bottom: 1px solid rgba(37, 99, 235, 0.2);">
+              <p style="margin: 0 0 8px; font-size: 12px; color: var(--mut); font-weight: 500;">Como você vai dar esta aula?</p>
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
+                ${Object.entries(FORMAS).map(([k, [label, cor]]) => `
+                  <button style="background: ${cor}; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 12px;" data-forma="${k}">${label}</button>
+                `).join('')}
+              </div>
+            </div>
+            
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button class="botao" style="flex: 1; background: #059669; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 13px;">✓ Confirmar aula</button>
+              <button class="botao" style="flex: 1; background: #7c3aed; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 13px;">👁 Ver prova</button>
+            </div>
+          </div>
+          
+          <details style="margin: 10px 0 0;">
+            <summary style="cursor: pointer; padding: 6px 0; color: var(--mut); font-size: 12px; font-weight: 500;">✓ Chamada das ${t.aulas_feitas} aulas já feitas</summary>
+            <p class="p">3 de 4 alunos com acesso ao app</p>
+          </details>
+        </div>
+      `).join('')}
+    `;
     
-    const renderAba2 = () => `<h2 style="font-size: 16px; margin-bottom: 12px;">Andamento das turmas</h2>${turmas.map(t => `<div class="cartao"><h3 style="margin: 0 0 8px; font-size: 14px;">${t.nome}</h3><ul class="ls"><li style="padding: 8px 0; border: none;">Aulas executadas <em style="font-weight: 600; color: var(--ink);">${t.aulas_feitas} de 12</em></li><li style="padding: 8px 0;">Alunos com acesso <em style="font-weight: 600; color: var(--ink);">3 de 4</em></li><li style="padding: 8px 0;">Presença média <em style="font-weight: 600; color: var(--ink);">85%</em></li><li style="padding: 8px 0;">Prontos para prova <em style="font-weight: 600; color: #10b981;">2</em></li></ul></div>`).join('')}`;
+    const renderAba2 = () => `
+      <h2 style="font-size: 16px; margin-bottom: 12px;">Andamento das turmas</h2>
+      ${turmas.map(t => `
+        <div class="cartao">
+          <h3 style="margin: 0 0 8px; font-size: 14px;">${t.nome}</h3>
+          <ul class="ls">
+            <li style="padding: 8px 0; border: none;">Aulas executadas <em style="font-weight: 600; color: var(--ink);">${t.aulas_feitas} de 12</em></li>
+            <li style="padding: 8px 0;">Alunos com acesso <em style="font-weight: 600; color: var(--ink);">3 de 4</em></li>
+            <li style="padding: 8px 0;">Presença média <em style="font-weight: 600; color: var(--ink);">85%</em></li>
+            <li style="padding: 8px 0;">Prontos para prova <em style="font-weight: 600; color: #10b981;">2</em></li>
+          </ul>
+        </div>
+      `).join('')}
+    `;
     
-    const renderAba3 = () => `<h2 style="font-size: 16px; margin-bottom: 12px;">Prova e diploma</h2>${turmas.map(t => `<div class="cartao"><h3 style="margin: 0 0 12px; font-size: 14px;">${t.nome}</h3><ul class="ls"><li style="padding: 10px 0; border: none;"><span style="flex: 1;"><b style="display: block; margin-bottom: 2px;">Paulo Reis</b><span class="p">Pronto para prova</span></span><button class="botao" style="background: #2563eb; border: none; border-radius: 4px; padding: 6px 10px; color: white; font-size: 11px; cursor: pointer;">Aplicar</button></li><li style="padding: 10px 0;"><span style="flex: 1;"><b style="display: block; margin-bottom: 2px;">Maria Santos</b><span class="p">Pronto para prova</span></span><button class="botao" style="background: #2563eb; border: none; border-radius: 4px; padding: 6px 10px; color: white; font-size: 11px; cursor: pointer;">Aplicar</button></li><li style="padding: 10px 0;"><span style="flex: 1;"><b style="display: block; margin-bottom: 2px;">João Silva</b><span class="p">✓ Aprovado · Diploma 15/10</span></span></li></ul></div>`).join('')}`;
+    const renderAba3 = () => `
+      <h2 style="font-size: 16px; margin-bottom: 12px;">Prova e diploma</h2>
+      ${turmas.map(t => `
+        <div class="cartao">
+          <h3 style="margin: 0 0 12px; font-size: 14px;">${t.nome}</h3>
+          <ul class="ls">
+            <li style="padding: 10px 0; border: none;">
+              <span style="flex: 1;">
+                <b style="display: block; margin-bottom: 2px;">Paulo Reis</b>
+                <span class="p">Pronto para prova</span>
+              </span>
+              <button class="botao" style="background: #2563eb; border: none; border-radius: 4px; padding: 6px 10px; color: white; font-size: 11px; cursor: pointer;">Aplicar</button>
+            </li>
+            <li style="padding: 10px 0;">
+              <span style="flex: 1;">
+                <b style="display: block; margin-bottom: 2px;">Maria Santos</b>
+                <span class="p">Pronto para prova</span>
+              </span>
+              <button class="botao" style="background: #2563eb; border: none; border-radius: 4px; padding: 6px 10px; color: white; font-size: 11px; cursor: pointer;">Aplicar</button>
+            </li>
+            <li style="padding: 10px 0;">
+              <span style="flex: 1;">
+                <b style="display: block; margin-bottom: 2px;">João Silva</b>
+                <span class="p">✓ Aprovado · Diploma 15/10</span>
+              </span>
+            </li>
+          </ul>
+        </div>
+      `).join('')}
+    `;
     
-    const html = `<section><h1>Minhas Aulas</h1><p class="sub">Dê aulas, controle presença, aplique provas e gere diplomas</p><div style="display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto;"><button class="chip ativo" data-aba="dar-aula" style="cursor: pointer; flex-shrink: 0;"><b>1</b> Dar aula</button><button class="chip" data-aba="andamento" style="cursor: pointer; flex-shrink: 0;"><b>2</b> Andamento</button><button class="chip" data-aba="prova" style="cursor: pointer; flex-shrink: 0;"><b>3</b> Prova/Diploma</button></div><div id="conteudo-aba">${renderAba1()}</div></section>`;
+    const html = `
+      <section>
+        <h1>Minhas Aulas</h1>
+        <p class="sub">Escolha como dar sua aula: com slides, com revista do sistema ou ao vivo</p>
+        
+        <div style="display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto;">
+          <button class="chip ativo" data-aba="dar-aula" style="cursor: pointer; flex-shrink: 0;"><b>1</b> Dar aula</button>
+          <button class="chip" data-aba="andamento" style="cursor: pointer; flex-shrink: 0;"><b>2</b> Andamento</button>
+          <button class="chip" data-aba="prova" style="cursor: pointer; flex-shrink: 0;"><b>3</b> Prova/Diploma</button>
+        </div>
+        
+        <div id="conteudo-aba">
+          ${renderAba1()}
+        </div>
+      </section>
+    `;
     
     c.innerHTML = html;
+    
+    // Handlers das abas
     c.querySelectorAll('[data-aba]').forEach(btn => {
       btn.onclick = () => {
         c.querySelectorAll('[data-aba]').forEach(b => b.classList.remove('ativo'));
         btn.classList.add('ativo');
-        c.querySelector('#conteudo-aba').innerHTML = { 'dar-aula': renderAba1(), 'andamento': renderAba2(), 'prova': renderAba3() }[btn.dataset.aba];
+        c.querySelector('#conteudo-aba').innerHTML = {
+          'dar-aula': renderAba1(),
+          'andamento': renderAba2(),
+          'prova': renderAba3()
+        }[btn.dataset.aba];
       };
     });
+    
+    // Handlers dos botões de forma de aula
+    setTimeout(() => {
+      c.querySelectorAll('[data-forma]').forEach(btn => {
+        btn.onclick = function() {
+          const forma = this.dataset.forma;
+          const nomes = { slide: '▶ Slide presencial', revista: '📖 Revista presencial', live: '● Live online' };
+          alert(`Aula será apresentada como: ${nomes[forma]}\n\nOs alunos receberão notificação quando você iniciar.`);
+        };
+      });
+    }, 0);
   };
-
   async function listaCurriculos(c) {
     const { pode_criar, curriculos } = await api('/discipulado/curriculos');
     const gerencia = eu.nivel <= 2 || pode('discipulado.curriculo');
