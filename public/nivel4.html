@@ -91,6 +91,9 @@
       const [planos, setPlanos] = useState([]);
       const [carregando, setCarregando] = useState(true);
       const [expandido, setExpandido] = useState(null);
+      const [editandoConfig, setEditandoConfig] = useState(null);
+      const [configEditada, setConfigEditada] = useState({});
+      const [salvando, setSalvando] = useState(false);
 
       useEffect(() => {
         async function carregar() {
@@ -105,6 +108,39 @@
         }
         carregar();
       }, []);
+
+      const abrirEdicao = (plano) => {
+        setEditandoConfig(plano.id);
+        setConfigEditada({
+          nota_minima: plano.nota_minima || 70,
+          frequencia_minima: plano.frequencia_minima || 75,
+          tentativas_prova: plano.tentativas_prova || 2
+        });
+      };
+
+      const salvarConfig = async (planoId) => {
+        setSalvando(true);
+        try {
+          const resp = await fetch(`/api/discipulado/curriculos/${planoId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(configEditada)
+          });
+          if (!resp.ok) throw new Error('Erro ao salvar');
+          
+          // Atualizar estado local
+          setPlanos(planos.map(p => 
+            p.id === planoId ? { ...p, ...configEditada } : p
+          ));
+          setEditandoConfig(null);
+          alert('Configurações salvas com sucesso!');
+        } catch (e) {
+          console.error('Erro:', e);
+          alert('Erro ao salvar configurações');
+        } finally {
+          setSalvando(false);
+        }
+      };
 
       if (carregando) return <div style={styles.loading}>Carregando planos...</div>;
 
@@ -178,23 +214,100 @@
                         </div>
                       </div>
 
-                      {/* Configurações da prova */}
+                      {/* Configurações da prova - EDITÁVEL */}
                       <div style={styles.secao}>
-                        <h4 style={styles.secaoTitulo}>⚙️ Configurações da avaliação</h4>
-                        <div style={styles.config}>
-                          <div style={styles.configItem}>
-                            <label style={styles.configLabel}>Nota mínima para aprovação</label>
-                            <div style={styles.configValor}>{p.nota_minima}% de acertos</div>
-                          </div>
-                          <div style={styles.configItem}>
-                            <label style={styles.configLabel}>Presença mínima</label>
-                            <div style={styles.configValor}>{p.frequencia_minima}% de frequência</div>
-                          </div>
-                          <div style={styles.configItem}>
-                            <label style={styles.configLabel}>Tentativas na prova</label>
-                            <div style={styles.configValor}>{p.tentativas_prova} tentativas</div>
-                          </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                          <h4 style={styles.secaoTitulo}>⚙️ Configurações da avaliação</h4>
+                          {editandoConfig !== p.id && (
+                            <button 
+                              style={styles.btnEditarConfig}
+                              onClick={() => abrirEdicao(p)}
+                            >
+                              ✏️ Editar
+                            </button>
+                          )}
                         </div>
+
+                        {editandoConfig === p.id ? (
+                          // Modo edição
+                          <div style={styles.configEditavel}>
+                            <div style={styles.campoEditavel}>
+                              <label style={styles.labelEditavel}>Nota mínima para aprovação (%)</label>
+                              <div style={styles.inputGroup}>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={configEditada.nota_minima}
+                                  onChange={(e) => setConfigEditada({...configEditada, nota_minima: parseInt(e.target.value)})}
+                                  style={styles.inputEditavel}
+                                />
+                                <span style={styles.unidade}>%</span>
+                              </div>
+                            </div>
+
+                            <div style={styles.campoEditavel}>
+                              <label style={styles.labelEditavel}>Presença mínima (%)</label>
+                              <div style={styles.inputGroup}>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={configEditada.frequencia_minima}
+                                  onChange={(e) => setConfigEditada({...configEditada, frequencia_minima: parseInt(e.target.value)})}
+                                  style={styles.inputEditavel}
+                                />
+                                <span style={styles.unidade}>%</span>
+                              </div>
+                            </div>
+
+                            <div style={styles.campoEditavel}>
+                              <label style={styles.labelEditavel}>Tentativas na prova</label>
+                              <div style={styles.inputGroup}>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="10"
+                                  value={configEditada.tentativas_prova}
+                                  onChange={(e) => setConfigEditada({...configEditada, tentativas_prova: parseInt(e.target.value)})}
+                                  style={styles.inputEditavel}
+                                />
+                              </div>
+                            </div>
+
+                            <div style={styles.botoesEdicao}>
+                              <button 
+                                style={styles.btnSalvarConfig}
+                                onClick={() => salvarConfig(p.id)}
+                                disabled={salvando}
+                              >
+                                {salvando ? '⏳ Salvando...' : '✓ Salvar configurações'}
+                              </button>
+                              <button 
+                                style={styles.btnCancelarConfig}
+                                onClick={() => setEditandoConfig(null)}
+                              >
+                                ✕ Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          // Modo visualização
+                          <div style={styles.config}>
+                            <div style={styles.configItem}>
+                              <label style={styles.configLabel}>Nota mínima para aprovação</label>
+                              <div style={styles.configValor}>{p.nota_minima}%</div>
+                            </div>
+                            <div style={styles.configItem}>
+                              <label style={styles.configLabel}>Presença mínima</label>
+                              <div style={styles.configValor}>{p.frequencia_minima}%</div>
+                            </div>
+                            <div style={styles.configItem}>
+                              <label style={styles.configLabel}>Tentativas na prova</label>
+                              <div style={styles.configValor}>{p.tentativas_prova} tentativas</div>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Como implementar */}
@@ -616,6 +729,78 @@
         fontWeight: '600',
         cursor: 'pointer',
         transition: 'opacity 0.2s'
+      },
+      btnEditarConfig: {
+        padding: '6px 12px',
+        background: '#7C3AED',
+        color: '#FFF',
+        border: 'none',
+        borderRadius: '4px',
+        fontSize: '12px',
+        fontWeight: '600',
+        cursor: 'pointer'
+      },
+      configEditavel: {
+        display: 'grid',
+        gap: '12px',
+        background: '#141822',
+        padding: '12px',
+        borderRadius: '6px'
+      },
+      campoEditavel: {
+        display: 'grid',
+        gap: '6px'
+      },
+      labelEditavel: {
+        fontSize: '12px',
+        fontWeight: '600',
+        color: '#8A8F99'
+      },
+      inputGroup: {
+        display: 'flex',
+        gap: '8px',
+        alignItems: 'center'
+      },
+      inputEditavel: {
+        flex: 1,
+        padding: '10px',
+        background: '#1A1F2E',
+        color: '#FFF',
+        border: '1px solid #2A3142',
+        borderRadius: '4px',
+        fontSize: '14px',
+        fontFamily: 'Inter, sans-serif'
+      },
+      unidade: {
+        fontSize: '12px',
+        color: '#8A8F99',
+        fontWeight: '600'
+      },
+      botoesEdicao: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '8px',
+        marginTop: '8px'
+      },
+      btnSalvarConfig: {
+        padding: '10px',
+        background: '#7C3AED',
+        color: '#FFF',
+        border: 'none',
+        borderRadius: '4px',
+        fontSize: '12px',
+        fontWeight: '600',
+        cursor: 'pointer'
+      },
+      btnCancelarConfig: {
+        padding: '10px',
+        background: '#2A3142',
+        color: '#8A8F99',
+        border: '1px solid #3A424F',
+        borderRadius: '4px',
+        fontSize: '12px',
+        fontWeight: '600',
+        cursor: 'pointer'
       },
 
       // Antigos (mantidos para compatibilidade)
