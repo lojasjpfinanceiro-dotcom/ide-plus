@@ -2,22 +2,23 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>IDE+ Nível 4 — Professor</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <title>IDE+ Professor</title>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; }
-    body { margin: 0; padding: 0; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color: #F8F9FC; }
-    #root { width: 100%; min-height: 100vh; }
-    table { width: 100%; }
-    th, td { padding: 12px 16px; text-align: left; font-size: 13px; }
-    th { font-weight: 600; color: #666; }
-    td { border-bottom: 1px solid #E0E0E0; }
-    button:hover { opacity: 0.8; }
-    h1, h2, h3, h4, h5, h6 { font-family: 'Inter', sans-serif; }
+    body { 
+      margin: 0; 
+      padding: 0; 
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: #0F1419;
+      color: #E8EBF0;
+    }
+    #root { width: 100%; }
+    button:active { opacity: 0.8; }
   </style>
 </head>
 <body>
@@ -26,317 +27,527 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    async function api(path, options = {}) {
+    // ============ API ============
+    async function api(path) {
       const token = localStorage.getItem('ide_token');
-      const headers = { 'Content-Type': 'application/json', ...options.headers };
+      const headers = { 'Content-Type': 'application/json' };
       if (token) headers.Authorization = `Bearer ${token}`;
-      const res = await fetch(`/api${path}`, { ...options, headers });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ erro: `HTTP ${res.status}` }));
-        throw new Error(err.erro || 'Erro na requisição');
-      }
+      const res = await fetch(`/api${path}`, { headers });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     }
 
-    function Header({ usuario, onLogout }) {
+    // ============ HEADER ============
+    function Header({ usuario }) {
       return (
         <div style={styles.header}>
-          <div style={styles.headerContent}>
-            <div>
-              <h1 style={styles.logo}>IDE+</h1>
-              <p style={styles.headerSubtitle}>Discipulado Profissional</p>
+          <div style={styles.headerTop}>
+            <div style={styles.headerLogo}>
+              <div style={styles.logo}>📖</div>
             </div>
-            <div style={styles.userInfo}>
-              <div style={styles.avatar}>{usuario?.nome?.[0]?.toUpperCase()}</div>
-              <div>
-                <p style={styles.userName}>{usuario?.nome}</p>
-                <p style={styles.userRole}>Nível {usuario?.nivel}</p>
-              </div>
-              <button onClick={onLogout} style={styles.logoutBtn}>Sair</button>
+            <div style={styles.headerUser}>
+              <img 
+                src={`https://ui-avatars.com/api/?name=${encodeURIComponent(usuario?.nome || 'P')}&bg=7C3AED&color=fff&bold=true`}
+                style={styles.avatar}
+              />
             </div>
+          </div>
+          <div style={styles.headerInfo}>
+            <h1 style={styles.headerName}>{usuario?.nome}</h1>
+            <p style={styles.headerRole}>{usuario?.cargo} • {usuario?.congregacao}</p>
           </div>
         </div>
       );
     }
 
-    function ResumoCard({ titulo, valor, subtitulo, cor = '#5E7CE2' }) {
+    // ============ ABAS ============
+    function Tabs({ ativa, onChange }) {
+      const tabs = [
+        { id: 1, label: 'Meus planos' },
+        { id: 2, label: 'Dar aula' },
+        { id: 3, label: 'Andamento' }
+      ];
       return (
-        <div style={{ ...styles.resumoCard, borderLeftColor: cor }}>
-          <p style={styles.resumoTitulo}>{titulo}</p>
-          <p style={styles.resumoValor}>{valor}</p>
-          {subtitulo && <p style={styles.resumoSubtitulo}>{subtitulo}</p>}
+        <div style={styles.tabs}>
+          {tabs.map(t => (
+            <button
+              key={t.id}
+              onClick={() => onChange(t.id)}
+              style={{
+                ...styles.tab,
+                backgroundColor: ativa === t.id ? '#7C3AED' : '#1E2635',
+                color: ativa === t.id ? '#FFF' : '#8A8F99'
+              }}
+            >
+              {t.id} {t.label}
+            </button>
+          ))}
         </div>
       );
     }
 
-    function Dashboard({ usuario, onSair, onAbrirTurma }) {
-      const [turmas, setTurmas] = useState([]);
+    // ============ CARD EXPANDÍVEL ============
+    function CardPlano({ titulo, descricao, modulos, aulas, duracao, config, onUsar }) {
+      const [expandido, setExpandido] = useState(false);
+      
+      return (
+        <div style={styles.cardPlano}>
+          <div style={styles.cardPlanoHeader} onClick={() => setExpandido(!expandido)}>
+            <div>
+              <h3 style={styles.cardPlanoTitulo}>{titulo}</h3>
+              <p style={styles.cardPlanoDesc}>{descricao}</p>
+              <div style={styles.cardPlanoMeta}>
+                <span>{modulos} módulos</span>
+                <span>•</span>
+                <span>{aulas} aulas</span>
+                <span>•</span>
+                <span>{duracao}</span>
+              </div>
+            </div>
+            <div style={styles.expandIcon}>{expandido ? '▼' : '▶'}</div>
+          </div>
+
+          {expandido && (
+            <div style={styles.cardPlanoContent}>
+              <div style={styles.section}>
+                <h4 style={styles.sectionTitle}>📚 {modulos} Módulos</h4>
+                <p style={styles.sectionAction}>clique para expandir</p>
+              </div>
+
+              <div style={styles.section}>
+                <h4 style={styles.sectionTitle}>⚙️ Configurações da prova</h4>
+                <p style={styles.sectionAction}>clique para expandir</p>
+              </div>
+
+              <button style={styles.btnUsar} onClick={onUsar}>
+                ✓ Usar nesta turma
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ============ ABA 1: MEUS PLANOS ============
+    function AbaMeusPlanos() {
+      const [planos, setPlanos] = useState([]);
       const [carregando, setCarregando] = useState(true);
-      const [erro, setErro] = useState(null);
 
       useEffect(() => {
-        carregarTurmas();
+        async function carregar() {
+          try {
+            const data = await api('/discipulado/curriculos');
+            setPlanos(data.curriculos || []);
+          } catch (e) {
+            console.error('Erro:', e);
+          } finally {
+            setCarregando(false);
+          }
+        }
+        carregar();
       }, []);
 
-      async function carregarTurmas() {
-        try {
-          setCarregando(true);
-          const data = await api('/nivel4/turmas');
-          setTurmas(data.turmas || []);
-        } catch (e) {
-          setErro(e.message);
-        } finally {
-          setCarregando(false);
+      if (carregando) return <div style={styles.loading}>Carregando planos...</div>;
+
+      return (
+        <div style={styles.abContent}>
+          <h2 style={styles.abTitle}>Meus planos de aula</h2>
+          
+          <div style={styles.planosList}>
+            {planos.length === 0 ? (
+              <p style={styles.vazio}>Nenhum plano disponível</p>
+            ) : (
+              planos.map(p => (
+                <CardPlano
+                  key={p.id}
+                  titulo={p.nome}
+                  descricao={p.descricao || 'Sem descrição'}
+                  modulos={p.modulos || 0}
+                  aulas={p.licoes || 0}
+                  duracao={p.duracao || '4h40'}
+                  config={{ notaMinima: p.nota_minima, frequenciaMinima: p.frequencia_minima }}
+                  onUsar={() => alert('Plano selecionado: ' + p.nome)}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ============ ABA 2: DAR AULA ============
+    function AbadarAula() {
+      const [turmas, setTurmas] = useState([]);
+      const [carregando, setCarregando] = useState(true);
+
+      useEffect(() => {
+        async function carregar() {
+          try {
+            const data = await api('/nivel4/turmas');
+            setTurmas(data.turmas || []);
+          } catch (e) {
+            console.error('Erro:', e);
+          } finally {
+            setCarregando(false);
+          }
         }
-      }
+        carregar();
+      }, []);
 
       if (carregando) return <div style={styles.loading}>Carregando turmas...</div>;
 
       return (
-        <div>
-          <Header usuario={usuario} onLogout={onSair} />
-          <div style={styles.container}>
-            <h2 style={styles.pageTitle}>Minhas Turmas</h2>
-            {erro && <div style={styles.erro}>{erro}</div>}
+        <div style={styles.abContent}>
+          <h2 style={styles.abTitle}>Dar aula</h2>
+          
+          <div style={styles.aulasList}>
             {turmas.length === 0 ? (
-              <div style={styles.vazio}>
-                <p>Nenhuma turma ainda</p>
-                <button style={styles.btnPrimario}>+ Criar Turma</button>
-              </div>
+              <p style={styles.vazio}>Nenhuma turma disponível</p>
             ) : (
-              <div style={styles.gridTurmas}>
-                {turmas.map(t => (
-                  <div key={t.id} style={styles.cardTurma}>
-                    <div style={styles.cardTurmaHeader}>
-                      <h3>{t.nome}</h3>
-                      <span style={{ ...styles.status, backgroundColor: t.status === 'ATIVA' ? '#4CAF50' : '#999' }}>
-                        {t.status}
-                      </span>
-                    </div>
-                    <p style={styles.cardTurmaInfo}>{t.curriculo_nome}</p>
-                    <p style={styles.cardTurmaInfo}>📍 {t.professor_nome}</p>
-                    <p style={styles.cardTurmaInfo}>👥 {t.total_alunos} alunos</p>
-                    <button style={styles.btnSecundario} onClick={() => onAbrirTurma(t.id)}>
-                      Abrir →
-                    </button>
+              turmas.map(t => (
+                <div key={t.id} style={styles.cardAula}>
+                  <h3 style={styles.cardAulaTitulo}>{t.nome}</h3>
+                  <p style={styles.cardAulaInfo}>👥 {t.total_alunos} alunos</p>
+                  <div style={styles.botoesAula}>
+                    <button style={styles.btnForma}>▶ Slide presencial</button>
+                    <button style={styles.btnForma}>📖 Revista presencial</button>
+                    <button style={styles.btnForma}>● Live online</button>
                   </div>
-                ))}
-              </div>
+                  <div style={styles.botoesAcao}>
+                    <button style={styles.btnSecundario}>Confirmar aula</button>
+                    <button style={styles.btnSecundario}>Ver prova</button>
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>
       );
     }
 
-    function DetalhesTurma({ turmaId, usuario, onVoltar }) {
-      const [turma, setTurma] = useState(null);
-      const [alunos, setAlunos] = useState([]);
-      const [aulas, setAulas] = useState([]);
-      const [resumo, setResumo] = useState(null);
-      const [abaSelecionada, setAbaSelecionada] = useState('resumo');
+    // ============ ABA 3: ANDAMENTO ============
+    function AbaAndamento() {
+      const [turmas, setTurmas] = useState([]);
       const [carregando, setCarregando] = useState(true);
 
       useEffect(() => {
-        carregarDados();
-      }, [turmaId]);
-
-      async function carregarDados() {
-        try {
-          setCarregando(true);
-          const [r, a, au, res] = await Promise.all([
-            api(`/nivel4/turmas/${turmaId}`).catch(() => null),
-            api(`/nivel4/turmas/${turmaId}/alunos`),
-            api(`/nivel4/turmas/${turmaId}/aulas`),
-            api(`/nivel4/turmas/${turmaId}/resumo`)
-          ]);
-          setTurma(r || { nome: 'Turma desconhecida' });
-          setAlunos(a?.alunos || []);
-          setAulas(au?.aulas || []);
-          setResumo(res?.resumo);
-        } catch (e) {
-          console.error('Erro:', e);
-        } finally {
-          setCarregando(false);
+        async function carregar() {
+          try {
+            const data = await api('/nivel4/turmas');
+            setTurmas(data.turmas || []);
+          } catch (e) {
+            console.error('Erro:', e);
+          } finally {
+            setCarregando(false);
+          }
         }
-      }
-
-      if (carregando) return <div style={styles.loading}>Carregando turma...</div>;
-
-      return (
-        <div>
-          <Header usuario={usuario} onLogout={() => {}} />
-          <div style={styles.container}>
-            <button onClick={onVoltar} style={styles.btnVoltar}>← Voltar</button>
-            <h2 style={styles.pageTitle}>{turma?.nome}</h2>
-            <div style={styles.tabs}>
-              {['resumo', 'alunos', 'aulas'].map(aba => (
-                <button
-                  key={aba}
-                  onClick={() => setAbaSelecionada(aba)}
-                  style={{
-                    ...styles.tab,
-                    borderBottomColor: abaSelecionada === aba ? '#5E7CE2' : 'transparent',
-                    color: abaSelecionada === aba ? '#5E7CE2' : '#666'
-                  }}
-                >
-                  {aba.charAt(0).toUpperCase() + aba.slice(1)}
-                </button>
-              ))}
-            </div>
-
-            {abaSelecionada === 'resumo' && (
-              <div style={styles.gridResumo}>
-                <ResumoCard titulo="Total de Alunos" valor={resumo?.total_alunos || 0} cor="#5E7CE2" />
-                <ResumoCard titulo="Concluídos" valor={resumo?.alunos_concluidos || 0} cor="#4CAF50" />
-                <ResumoCard titulo="Desistentes" valor={resumo?.alunos_desistentes || 0} cor="#FF9800" />
-                <ResumoCard titulo="Aulas Ministradas" valor={resumo?.aulas_ministradas || 0} subtitulo={`de ${resumo?.total_aulas_planejadas || 0}`} cor="#2196F3" />
-                <ResumoCard titulo="Média de Notas" valor={`${Math.round(resumo?.media_notas || 0)}%`} cor="#9C27B0" />
-                <ResumoCard titulo="Com Prova Concluída" valor={resumo?.alunos_com_prova || 0} cor="#00BCD4" />
-              </div>
-            )}
-
-            {abaSelecionada === 'alunos' && (
-              <div>
-                <h3 style={styles.subtitle}>Alunos Inscritos</h3>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={styles.tabela}>
-                    <thead>
-                      <tr style={styles.tabelaHeader}>
-                        <th>Nome</th>
-                        <th>Status</th>
-                        <th>Presença</th>
-                        <th>Nota</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {alunos.map((a, i) => (
-                        <tr key={i} style={i % 2 === 0 ? styles.tabelaRowPar : {}}>
-                          <td>{a.nome}</td>
-                          <td><span style={styles.badge}>{a.status}</span></td>
-                          <td>{a.presencas_confirmadas}/{a.total_aulas_ministradas}</td>
-                          <td>{a.nota_prova ? `${a.nota_prova}%` : '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {abaSelecionada === 'aulas' && (
-              <div>
-                <h3 style={styles.subtitle}>Aulas Agendadas</h3>
-                <div style={styles.listaAulas}>
-                  {aulas.length === 0 ? (
-                    <p style={{ color: '#999' }}>Nenhuma aula agendada</p>
-                  ) : (
-                    aulas.map((a, i) => (
-                      <div key={i} style={styles.cardAula}>
-                        <div style={styles.cardAulaHeader}>
-                          <h4 style={{ margin: '0 0 4px 0' }}>{a.licao_titulo}</h4>
-                          <span style={styles.dataAula}>{new Date(a.data_aula).toLocaleDateString('pt-BR')}</span>
-                        </div>
-                        <p style={styles.cardAulaInfo}>Módulo {a.modulo_ordem}: {a.modulo_nome}</p>
-                        <p style={styles.cardAulaInfo}>Presentes: {a.presentes}/{a.presencas}</p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    function Nivel4App() {
-      const [usuario, setUsuario] = useState(null);
-      const [pagina, setPagina] = useState('dashboard');
-      const [turmaId, setTurmaId] = useState(null);
-      const [carregando, setCarregando] = useState(true);
-
-      useEffect(() => {
-        verificarAuth();
+        carregar();
       }, []);
 
-      async function verificarAuth() {
-        try {
-          setUsuario({ nome: 'Professor Silva', nivel: 4 });
-        } catch (e) {
-          window.location.href = '/';
-        } finally {
-          setCarregando(false);
-        }
-      }
+      if (carregando) return <div style={styles.loading}>Carregando andamento...</div>;
 
-      if (carregando) return <div style={styles.loading}>Iniciando...</div>;
-      if (!usuario) return null;
+      return (
+        <div style={styles.abContent}>
+          <h2 style={styles.abTitle}>Andamento</h2>
+          
+          <div style={styles.andamentoList}>
+            {turmas.length === 0 ? (
+              <p style={styles.vazio}>Nenhuma turma em andamento</p>
+            ) : (
+              turmas.map(t => (
+                <div key={t.id} style={styles.cardAndamento}>
+                  <h3 style={styles.cardAndamentoTitulo}>{t.nome}</h3>
+                  <div style={styles.stats}>
+                    <div style={styles.stat}>
+                      <span style={styles.statLabel}>Aulas</span>
+                      <span style={styles.statValue}>8/12</span>
+                    </div>
+                    <div style={styles.stat}>
+                      <span style={styles.statLabel}>Alunos</span>
+                      <span style={styles.statValue}>{t.total_alunos}</span>
+                    </div>
+                    <div style={styles.stat}>
+                      <span style={styles.statLabel}>Presença</span>
+                      <span style={styles.statValue}>87%</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ============ APP PRINCIPAL ============
+    function App() {
+      const [abaAtiva, setAbaAtiva] = useState(1);
+      const [usuario, setUsuario] = useState({
+        nome: 'Pr Ailton',
+        cargo: 'Líder / Equipe',
+        congregacao: 'Joaquim Nabuco'
+      });
 
       return (
         <div style={styles.app}>
-          {pagina === 'dashboard' && (
-            <Dashboard 
-              usuario={usuario} 
-              onSair={() => { localStorage.removeItem('ide_token'); window.location.href = '/'; }}
-              onAbrirTurma={(id) => { setTurmaId(id); setPagina('turma'); }}
-            />
-          )}
-          {pagina === 'turma' && (
-            <DetalhesTurma 
-              turmaId={turmaId} 
-              usuario={usuario}
-              onVoltar={() => { setPagina('dashboard'); }}
-            />
-          )}
+          <Header usuario={usuario} />
+          <Tabs ativa={abaAtiva} onChange={setAbaAtiva} />
+          
+          {abaAtiva === 1 && <AbaMeusPlanos />}
+          {abaAtiva === 2 && <AbadarAula />}
+          {abaAtiva === 3 && <AbaAndamento />}
         </div>
       );
     }
 
+    // ============ ESTILOS ============
     const styles = {
-      app: { fontFamily: "'Inter', sans-serif", backgroundColor: '#F8F9FC', minHeight: '100vh', color: '#1a1a1a' },
-      header: { backgroundColor: '#FFF', borderBottom: '1px solid #E0E0E0', padding: '20px 0', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' },
-      headerContent: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1200px', margin: '0 auto', padding: '0 20px' },
-      logo: { fontSize: '24px', fontWeight: '700', margin: '0 0 4px 0', color: '#5E7CE2' },
-      headerSubtitle: { fontSize: '12px', color: '#999', margin: 0 },
-      userInfo: { display: 'flex', alignItems: 'center', gap: '12px' },
-      avatar: { width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#5E7CE2', color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '600' },
-      userName: { fontSize: '14px', fontWeight: '600', margin: '0 0 2px 0' },
-      userRole: { fontSize: '12px', color: '#999', margin: 0 },
-      logoutBtn: { padding: '8px 16px', backgroundColor: '#F0F0F0', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '500' },
-      container: { maxWidth: '1200px', margin: '0 auto', padding: '30px 20px' },
-      pageTitle: { fontSize: '28px', fontWeight: '700', margin: '0 0 30px 0' },
-      subtitle: { fontSize: '16px', fontWeight: '600', margin: '0 0 20px 0' },
-      gridTurmas: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' },
-      cardTurma: { backgroundColor: '#FFF', borderRadius: '8px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' },
-      cardTurmaHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' },
-      status: { padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', color: '#FFF' },
-      cardTurmaInfo: { fontSize: '13px', color: '#666', margin: '6px 0' },
-      gridResumo: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '30px' },
-      resumoCard: { backgroundColor: '#FFF', borderRadius: '8px', padding: '16px', borderLeftWidth: '4px', borderLeftStyle: 'solid', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' },
-      resumoTitulo: { fontSize: '13px', color: '#999', margin: '0 0 8px 0', textTransform: 'uppercase', letterSpacing: '0.5px' },
-      resumoValor: { fontSize: '28px', fontWeight: '700', margin: '0 0 6px 0' },
-      resumoSubtitulo: { fontSize: '12px', color: '#999', margin: 0 },
-      tabs: { display: 'flex', gap: '24px', borderBottom: '1px solid #E0E0E0', marginBottom: '30px', overflowX: 'auto' },
-      tab: { padding: '12px 0', fontSize: '14px', fontWeight: '500', border: 'none', borderBottom: '2px solid transparent', backgroundColor: 'transparent', cursor: 'pointer', transition: 'all 0.2s', whiteSpace: 'nowrap' },
-      tabela: { borderCollapse: 'collapse', backgroundColor: '#FFF', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' },
-      tabelaHeader: { backgroundColor: '#F5F5F5', borderBottom: '1px solid #E0E0E0' },
-      tabelaRowPar: { backgroundColor: '#F9F9F9' },
-      badge: { display: 'inline-block', padding: '4px 8px', backgroundColor: '#E8EAF6', color: '#3F51B5', borderRadius: '4px', fontSize: '12px', fontWeight: '500' },
-      listaAulas: { display: 'grid', gap: '16px' },
-      cardAula: { backgroundColor: '#FFF', borderRadius: '8px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' },
-      cardAulaHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' },
-      dataAula: { fontSize: '12px', color: '#999', whiteSpace: 'nowrap' },
-      cardAulaInfo: { fontSize: '13px', color: '#666', margin: '4px 0' },
-      btnPrimario: { padding: '12px 24px', backgroundColor: '#5E7CE2', color: '#FFF', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
-      btnSecundario: { padding: '10px 20px', backgroundColor: '#F0F0F0', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '500', width: '100%', marginTop: '12px' },
-      btnVoltar: { padding: '8px 16px', backgroundColor: '#F0F0F0', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '500', marginBottom: '20px' },
-      vazio: { textAlign: 'center', padding: '60px 20px', color: '#999' },
-      erro: { backgroundColor: '#FFEBEE', color: '#C62828', padding: '16px', borderRadius: '6px', marginBottom: '20px' },
-      loading: { textAlign: 'center', padding: '60px 20px', color: '#999' }
+      app: {
+        width: '100%',
+        minHeight: '100vh',
+        background: '#0F1419',
+        color: '#E8EBF0',
+        paddingBottom: '40px'
+      },
+      header: {
+        background: '#1A1F2E',
+        padding: '16px',
+        borderBottom: '1px solid #2A3142'
+      },
+      headerTop: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '16px'
+      },
+      headerLogo: {
+        fontSize: '24px'
+      },
+      logo: {
+        width: '48px',
+        height: '48px',
+        borderRadius: '8px',
+        background: '#2A3142',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '24px'
+      },
+      avatar: {
+        width: '40px',
+        height: '40px',
+        borderRadius: '50%'
+      },
+      headerInfo: {
+        paddingLeft: '0'
+      },
+      headerName: {
+        fontSize: '18px',
+        fontWeight: '700',
+        margin: '0 0 4px 0'
+      },
+      headerRole: {
+        fontSize: '12px',
+        color: '#8A8F99',
+        margin: 0
+      },
+      tabs: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr 1fr',
+        gap: '8px',
+        padding: '12px',
+        background: '#0F1419',
+        borderBottom: '1px solid #2A3142'
+      },
+      tab: {
+        padding: '10px 12px',
+        border: 'none',
+        borderRadius: '8px',
+        fontSize: '13px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'all 0.2s'
+      },
+      abContent: {
+        padding: '16px'
+      },
+      abTitle: {
+        fontSize: '16px',
+        fontWeight: '700',
+        margin: '0 0 16px 0'
+      },
+      planosList: {
+        display: 'grid',
+        gap: '12px'
+      },
+      cardPlano: {
+        background: '#1A1F2E',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        border: '1px solid #2A3142'
+      },
+      cardPlanoHeader: {
+        padding: '16px',
+        cursor: 'pointer',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'start',
+        gap: '12px'
+      },
+      cardPlanoTitulo: {
+        fontSize: '15px',
+        fontWeight: '700',
+        margin: '0 0 4px 0'
+      },
+      cardPlanoDesc: {
+        fontSize: '12px',
+        color: '#8A8F99',
+        margin: '0 0 8px 0'
+      },
+      cardPlanoMeta: {
+        fontSize: '11px',
+        color: '#7A7F88',
+        display: 'flex',
+        gap: '6px',
+        flexWrap: 'wrap'
+      },
+      expandIcon: {
+        fontSize: '12px',
+        color: '#7A7F88',
+        flexShrink: 0
+      },
+      cardPlanoContent: {
+        padding: '0 16px 16px 16px',
+        borderTop: '1px solid #2A3142',
+        background: '#141822'
+      },
+      section: {
+        marginBottom: '12px',
+        paddingBottom: '12px',
+        borderBottom: '1px solid #2A3142'
+      },
+      sectionTitle: {
+        fontSize: '13px',
+        fontWeight: '600',
+        margin: '0 0 6px 0'
+      },
+      sectionAction: {
+        fontSize: '11px',
+        color: '#7A7F88',
+        margin: 0
+      },
+      btnUsar: {
+        width: '100%',
+        padding: '12px',
+        background: '#7C3AED',
+        color: '#FFF',
+        border: 'none',
+        borderRadius: '6px',
+        fontSize: '14px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        marginTop: '4px'
+      },
+      aulasList: {
+        display: 'grid',
+        gap: '12px'
+      },
+      cardAula: {
+        background: '#1A1F2E',
+        borderRadius: '8px',
+        padding: '16px',
+        border: '1px solid #2A3142'
+      },
+      cardAulaTitulo: {
+        fontSize: '15px',
+        fontWeight: '700',
+        margin: '0 0 8px 0'
+      },
+      cardAulaInfo: {
+        fontSize: '12px',
+        color: '#8A8F99',
+        margin: '0 0 12px 0'
+      },
+      botoesAula: {
+        display: 'grid',
+        gap: '8px',
+        marginBottom: '12px'
+      },
+      btnForma: {
+        padding: '10px',
+        background: '#2A3142',
+        color: '#E8EBF0',
+        border: '1px solid #3A424F',
+        borderRadius: '6px',
+        fontSize: '12px',
+        fontWeight: '500',
+        cursor: 'pointer'
+      },
+      botoesAcao: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '8px'
+      },
+      btnSecundario: {
+        padding: '10px',
+        background: '#2A3142',
+        color: '#E8EBF0',
+        border: '1px solid #3A424F',
+        borderRadius: '6px',
+        fontSize: '12px',
+        fontWeight: '500',
+        cursor: 'pointer'
+      },
+      andamentoList: {
+        display: 'grid',
+        gap: '12px'
+      },
+      cardAndamento: {
+        background: '#1A1F2E',
+        borderRadius: '8px',
+        padding: '16px',
+        border: '1px solid #2A3142'
+      },
+      cardAndamentoTitulo: {
+        fontSize: '15px',
+        fontWeight: '700',
+        margin: '0 0 12px 0'
+      },
+      stats: {
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr 1fr',
+        gap: '12px'
+      },
+      stat: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center'
+      },
+      statLabel: {
+        fontSize: '11px',
+        color: '#8A8F99',
+        marginBottom: '4px'
+      },
+      statValue: {
+        fontSize: '18px',
+        fontWeight: '700'
+      },
+      loading: {
+        padding: '40px 16px',
+        textAlign: 'center',
+        color: '#8A8F99',
+        fontSize: '14px'
+      },
+      vazio: {
+        padding: '24px 16px',
+        textAlign: 'center',
+        color: '#8A8F99',
+        fontSize: '13px'
+      }
     };
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<Nivel4App />);
+    root.render(<App />);
   </script>
 </body>
 </html>
