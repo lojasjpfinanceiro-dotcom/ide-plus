@@ -348,3 +348,133 @@ ALTER TABLE licoes ADD COLUMN IF NOT EXISTS video_url TEXT;
 ALTER TABLE licoes ADD COLUMN IF NOT EXISTS slides_arquivo_id BIGINT REFERENCES arquivos(id) ON DELETE SET NULL;
 ALTER TABLE licoes ADD COLUMN IF NOT EXISTS perguntas JSONB NOT NULL DEFAULT '[]';
 CREATE INDEX IF NOT EXISTS licoes_modulo_idx ON licoes (modulo_id, ordem);
+
+-- ============ Discipulado Nível 4: Turmas, Alunos e Acompanhamento ============
+CREATE TABLE IF NOT EXISTS turmas (
+  id BIGSERIAL PRIMARY KEY,
+  denominacao_id BIGINT NOT NULL REFERENCES denominacoes(id) ON DELETE CASCADE,
+  cidade_id BIGINT NOT NULL REFERENCES cidades(id) ON DELETE CASCADE,
+  congregacao_id BIGINT REFERENCES congregacoes(id) ON DELETE SET NULL,
+  curriculo_id BIGINT NOT NULL REFERENCES curriculos(id) ON DELETE CASCADE,
+  nome VARCHAR(160) NOT NULL,
+  descricao TEXT,
+  professor_id BIGINT NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
+  co_professor_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+  data_inicio DATE NOT NULL DEFAULT CURRENT_DATE,
+  data_fim DATE,
+  status VARCHAR(20) NOT NULL DEFAULT 'ATIVA' CHECK (status IN ('PLANEJAMENTO','ATIVA','CONCLUIDA','PAUSADA','CANCELADA')),
+  minimo_alunos INTEGER NOT NULL DEFAULT 2,
+  minimo_presenca SMALLINT NOT NULL DEFAULT 75,    -- % mínimo de presença
+  nota_minima_prova SMALLINT NOT NULL DEFAULT 70,  -- % mínimo na prova final
+  criado_por BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (denominacao_id, cidade_id, congregacao_id, curriculo_id, nome)
+);
+CREATE INDEX IF NOT EXISTS turmas_professor_idx ON turmas (professor_id, status);
+CREATE INDEX IF NOT EXISTS turmas_cidade_idx ON turmas (cidade_id, status);
+
+CREATE TABLE IF NOT EXISTS inscricoes_turma (
+  id BIGSERIAL PRIMARY KEY,
+  turma_id BIGINT NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
+  pessoa_id BIGINT NOT NULL REFERENCES pessoas(id) ON DELETE CASCADE,
+  usuario_aluno_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,  -- aluno acessa pelo app com CPF/senha
+  data_inscricao DATE NOT NULL DEFAULT CURRENT_DATE,
+  status VARCHAR(20) NOT NULL DEFAULT 'INSCRITO' CHECK (status IN ('INSCRITO','ATIVO','CONCLUIDO','DESISTENTE','TRANSFERIDO')),
+  presenca_total_aulas INTEGER NOT NULL DEFAULT 0,
+  nota_prova NUMERIC(5,2),
+  tentativas_prova SMALLINT NOT NULL DEFAULT 0,
+  prova_concluida BOOLEAN NOT NULL DEFAULT FALSE,
+  data_conclusao DATE,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (turma_id, pessoa_id)
+);
+CREATE INDEX IF NOT EXISTS inscricoes_pessoa_idx ON inscricoes_turma (pessoa_id, status);
+CREATE INDEX IF NOT EXISTS inscricoes_concluido_idx ON inscricoes_turma (turma_id, status);
+
+CREATE TABLE IF NOT EXISTS aulas_ministradas (
+  id BIGSERIAL PRIMARY KEY,
+  turma_id BIGINT NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
+  licao_id BIGINT NOT NULL REFERENCES licoes(id) ON DELETE CASCADE,
+  modulo_id BIGINT NOT NULL REFERENCES modulos(id) ON DELETE CASCADE,
+  data_aula DATE NOT NULL,
+  hora_inicio TIME,
+  hora_fim TIME,
+  tipo_aula VARCHAR(20) NOT NULL DEFAULT 'PRESENCIAL' CHECK (tipo_aula IN ('PRESENCIAL','ONLINE','HIBRIDA')),
+  local VARCHAR(200),
+  link_live TEXT,   -- URL para aula ao vivo
+  confirmada BOOLEAN NOT NULL DEFAULT FALSE,
+  professora_confirmou BOOLEAN NOT NULL DEFAULT FALSE,
+  data_confirmacao TIMESTAMPTZ,
+  observacao TEXT,
+  criado_por BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS aulas_ministradas_turma_idx ON aulas_ministradas (turma_id, data_aula);
+
+CREATE TABLE IF NOT EXISTS presenca_aulas (
+  id BIGSERIAL PRIMARY KEY,
+  aula_id BIGINT NOT NULL REFERENCES aulas_ministradas(id) ON DELETE CASCADE,
+  inscricao_id BIGINT NOT NULL REFERENCES inscricoes_turma(id) ON DELETE CASCADE,
+  presente BOOLEAN NOT NULL DEFAULT FALSE,
+  justificativa TEXT,
+  registrado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (aula_id, inscricao_id)
+);
+CREATE INDEX IF NOT EXISTS presenca_aula_idx ON presenca_aulas (aula_id);
+
+CREATE TABLE IF NOT EXISTS provas (
+  id BIGSERIAL PRIMARY KEY,
+  turma_id BIGINT NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
+  curriculo_id BIGINT NOT NULL REFERENCES curriculos(id) ON DELETE CASCADE,
+  numero_tentativa SMALLINT NOT NULL DEFAULT 1,
+  perguntas JSONB NOT NULL,  -- cópia das perguntas do currículo no momento da prova
+  tempo_limite_minutos SMALLINT,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS provas_turma_idx ON provas (turma_id);
+
+CREATE TABLE IF NOT EXISTS respostas_prova (
+  id BIGSERIAL PRIMARY KEY,
+  prova_id BIGINT NOT NULL REFERENCES provas(id) ON DELETE CASCADE,
+  inscricao_id BIGINT NOT NULL REFERENCES inscricoes_turma(id) ON DELETE CASCADE,
+  respostas JSONB NOT NULL,  -- array de índices das respostas escolhidas
+  pontuacao NUMERIC(5,2) NOT NULL DEFAULT 0,
+  percentual NUMERIC(5,2) NOT NULL DEFAULT 0,
+  aprovado BOOLEAN NOT NULL DEFAULT FALSE,
+  tempo_decorrido_minutos SMALLINT,
+  respondida_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS respostas_inscricao_idx ON respostas_prova (inscricao_id);
+
+CREATE TABLE IF NOT EXISTS diplomas (
+  id BIGSERIAL PRIMARY KEY,
+  inscricao_id BIGINT NOT NULL REFERENCES inscricoes_turma(id) ON DELETE CASCADE,
+  turma_id BIGINT NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
+  pessoa_id BIGINT NOT NULL REFERENCES pessoas(id) ON DELETE CASCADE,
+  curriculo_id BIGINT NOT NULL REFERENCES curriculos(id) ON DELETE CASCADE,
+  numero_diploma VARCHAR(40),  -- código único do diploma
+  data_emissao DATE NOT NULL DEFAULT CURRENT_DATE,
+  data_conclusao DATE NOT NULL,
+  carga_horaria_minutos INTEGER,
+  presenca_percentual NUMERIC(5,2),
+  nota_final NUMERIC(5,2),
+  arquivo_pdf BYTEA,  -- PDF gerado
+  url_diploma TEXT,   -- link público temporário para visualizar/baixar
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (numero_diploma)
+);
+CREATE INDEX IF NOT EXISTS diplomas_pessoa_idx ON diplomas (pessoa_id);
+CREATE INDEX IF NOT EXISTS diplomas_turma_idx ON diplomas (turma_id);
+
+-- Resumos de turmas para relatórios rápidos
+CREATE TABLE IF NOT EXISTS resumos_turma (
+  turma_id BIGINT PRIMARY KEY REFERENCES turmas(id) ON DELETE CASCADE,
+  total_inscricoes INTEGER NOT NULL DEFAULT 0,
+  total_ativos INTEGER NOT NULL DEFAULT 0,
+  total_concluidos INTEGER NOT NULL DEFAULT 0,
+  total_desistentes INTEGER NOT NULL DEFAULT 0,
+  aulas_ministradas INTEGER NOT NULL DEFAULT 0,
+  media_presenca NUMERIC(5,2),
+  media_nota_prova NUMERIC(5,2),
+  atualizado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
