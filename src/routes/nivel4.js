@@ -414,4 +414,60 @@ router.get('/turmas/:id/relatorio/desempenho', async (req, res) => {
   res.json({ desempenho: rows });
 });
 
+// ======================== SEED DE TESTE ========================
+router.get('/seed-test', async (req, res) => {
+  try {
+    // Criar/buscar denominação
+    let result = await db.query(
+      `INSERT INTO denominacoes (nome, status, contato_nome, contato_telefone)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (nome) DO UPDATE SET id = denominacoes.id
+       RETURNING id`,
+      ['Assembleia de Deus', 'ATIVO', 'Pr Ailton', '85987654321']
+    );
+    const denomId = result.rows[0].id;
+
+    // Criar/buscar cidade
+    result = await db.query(
+      `INSERT INTO cidades (denominacao_id, pais, estado, nome, is_sede)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (denominacao_id, nome) DO UPDATE SET id = cidades.id
+       RETURNING id`,
+      [denomId, 'Brasil', 'Ceará', 'Fortaleza', true]
+    );
+    const cidadeId = result.rows[0].id;
+
+    // Criar/buscar usuário teste (Nível 4)
+    result = await db.query(
+      `INSERT INTO usuarios (denominacao_id, nivel, nome, email, senha_hash, telefone, cidade_id, ativo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (LOWER(email)) DO UPDATE SET id = usuarios.id
+       RETURNING id`,
+      [denomId, 4, 'Pr Ailton', 'ailton@test.local', 'hash_test', '85987654321', cidadeId, true]
+    );
+    const usuarioId = result.rows[0].id;
+
+    // Criar currículos de teste
+    const curriculos = [
+      ['Novos Convertidos', 'Discipulado básico para novos convertidos', 75, 70, 2],
+      ['Crescimento Espiritual', 'Aprofundamento na fé cristã e práticas espirituais', 80, 75, 2],
+      ['Liderança Cristã', 'Treinamento para líderes e obreiros da igreja', 85, 75, 3]
+    ];
+
+    for (const [nome, desc, freq, nota, tent] of curriculos) {
+      await db.query(
+        `INSERT INTO curriculos (denominacao_id, cidade_id, nome, descricao, frequencia_minima, nota_minima, tentativas_prova, criado_por)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (denominacao_id, nome) DO NOTHING`,
+        [denomId, cidadeId, nome, desc, freq, nota, tent, usuarioId]
+      );
+    }
+
+    res.json({ ok: true, msg: 'Dados de teste criados', denom_id: denomId, cidade_id: cidadeId, usuario_id: usuarioId });
+  } catch (e) {
+    console.error('[seed-test]', e);
+    res.status(500).json({ erro: e.message });
+  }
+});
+
 module.exports = router;
