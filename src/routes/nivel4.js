@@ -4,17 +4,18 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const db = require('../db');
-const { autenticar, pode } = require('../auth');
+const { autenticar, pode, exigirNivel } = require('../auth');
+const { erro, id, transacao } = require('../acompanhamento');
 
 const SEGREDO = () => process.env.JWT_SECRET || 'dev-inseguro';
 
 // ======================== Autenticação e Acesso ========================
-router.use(autenticar);
+router.use(autenticar, exigirNivel(1,2,3,4));
 
 // Carrega turma com verificação de acesso (professor ou coordenador)
 async function carregarTurma(u, turmaId) {
   const turma = (await db.query(
-    `SELECT t.*, c.nome AS curriculo_nome, cur.nome AS congregacao_nome
+    `SELECT t.*, cur.nome AS curriculo_nome, c.nome AS congregacao_nome
        FROM turmas t
        LEFT JOIN congregacoes c ON c.id = t.congregacao_id
        LEFT JOIN curriculos cur ON cur.id = t.curriculo_id
@@ -26,7 +27,7 @@ async function carregarTurma(u, turmaId) {
   
   // Professor da turma ou Coordenador (nível 3) podem acessar
   const ehProfessor = String(turma.professor_id) === String(u.id) || String(turma.co_professor_id) === String(u.id);
-  const ehCoordenador = u.nivel === 3 && pode(u, 'discipulado.coordenacao');
+  const ehCoordenador = u.nivel <= 3 && pode(u, 'discipulado.turmas');
   
   return ehProfessor || ehCoordenador ? turma : null;
 }
@@ -56,7 +57,7 @@ router.get('/turmas', async (req, res) => {
         GROUP BY t.id, u.nome, cu.nome
         ORDER BY t.data_inicio DESC`;
   
-  const { rows } = await db.query(query, [u.denominacao_id, u.cidade_id, u.id]);
+  const { rows } = await db.query(query, u.nivel === 4 ? [u.denominacao_id, u.cidade_id, u.id] : [u.denominacao_id, u.cidade_id]);
   res.json({ turmas: rows });
 });
 
@@ -64,6 +65,7 @@ router.get('/turmas', async (req, res) => {
 router.post('/turmas', async (req, res) => {
   const u = req.usuario;
   if (u.nivel > 4) return res.status(403).json({ erro: 'Acesso restrito.' });
+  if (!pode(u,'discipulado.turmas')) throw erro(403,'Você não tem permissão para criar turmas.');
   
   const { curriculo_id, congregacao_id, nome, professor_id, co_professor_id, data_inicio, data_fim, minimo_alunos } = req.body;
   
@@ -71,6 +73,16 @@ router.post('/turmas', async (req, res) => {
   
   // Nível 4: cria turma própria. Nível 3: pode criar para qualquer professor
   const prof_id = u.nivel === 4 ? u.id : (professor_id || u.id);
+  const valido = await db.query(`SELECT 1 FROM curriculos WHERE id=$1 AND denominacao_id=$2
+    AND (cidade_id IS NULL OR cidade_id=$3)`,[curriculo_id,u.denominacao_id,u.cidade_id]);
+  if (!valido.rowCount) throw erro(400,'Currículo de outra cidade ou denominação.');
+  const professor = await db.query(`SELECT 1 FROM usuarios WHERE id=$1 AND denominacao_id=$2 AND cidade_id=$3 AND ativo`,
+    [prof_id,u.denominacao_id,u.cidade_id]);
+  if (!professor.rowCount) throw erro(400,'Professor inválido.');
+  if (co_professor_id && !(await db.query('SELECT 1 FROM usuarios WHERE id=$1 AND denominacao_id=$2 AND cidade_id=$3 AND ativo',
+    [co_professor_id,u.denominacao_id,u.cidade_id])).rowCount) throw erro(400,'Professor auxiliar inválido.');
+  if (congregacao_id && !(await db.query('SELECT 1 FROM congregacoes WHERE id=$1 AND denominacao_id=$2 AND cidade_id=$3',
+    [congregacao_id,u.denominacao_id,u.cidade_id])).rowCount) throw erro(400,'Congregação de outra cidade.');
   
   try {
     const { rows } = await db.query(
@@ -150,6 +162,9 @@ router.post('/turmas/:id/alunos', async (req, res) => {
   
   const { pessoa_id } = req.body;
   if (!pessoa_id) return res.status(400).json({ erro: 'Informe a pessoa.' });
+  if (!(await db.query(`SELECT 1 FROM pessoas WHERE id=$1 AND denominacao_id=$2 AND cidade_id=$3
+    AND ($4::bigint IS NULL OR criado_por=$4 OR responsavel_id=$4)`,
+    [pessoa_id,u.denominacao_id,u.cidade_id,u.nivel===4?u.id:null])).rowCount) throw erro(400,'Pessoa indisponível para esta turma.');
   
   try {
     const { rows } = await db.query(
@@ -258,7 +273,9 @@ router.post('/aulas/:id/presenca', async (req, res) => {
   
   const turma = await carregarTurma(u, aula.turma_id);
   if (!turma) return res.status(403).json({ erro: 'Acesso negado.' });
-  
+
+  if (!(await db.query('SELECT 1 FROM inscricoes_turma WHERE id=$1 AND turma_id=$2', [inscricao_id,turma.id])).rowCount)
+    return res.status(400).json({ erro: 'Aluno de outra turma.' });
   try {
     await db.query(
       `INSERT INTO presenca_aulas (aula_id, inscricao_id, presente)
@@ -470,4 +487,33 @@ router.get('/seed-test', async (req, res) => {
   }
 });
 
+router.get('/aulas/:id/presencas', async (req,res) => {
+  const aula = (await db.query('SELECT * FROM aulas_ministradas WHERE id=$1',[id(req.params.id)])).rows[0];
+  if (!aula || !(await carregarTurma(req.usuario,aula.turma_id))) throw erro(404,'Aula não encontrada.');
+  const alunos = (await db.query(`SELECT it.id AS inscricao_id,p.nome,COALESCE(pa.presente,FALSE) AS presente
+    FROM inscricoes_turma it JOIN pessoas p ON p.id=it.pessoa_id
+    LEFT JOIN presenca_aulas pa ON pa.inscricao_id=it.id AND pa.aula_id=$1
+    WHERE it.turma_id=$2 AND it.status IN ('INSCRITO','ATIVO') ORDER BY p.nome`,[aula.id,aula.turma_id])).rows;
+  res.json({alunos});
+});
+router.post('/aulas/:id/chamada', async (req,res) => {
+  const u=req.usuario,aulaId=id(req.params.id);
+  const aula=(await db.query('SELECT * FROM aulas_ministradas WHERE id=$1',[aulaId])).rows[0];
+  if (!aula || !(await carregarTurma(u,aula.turma_id))) throw erro(404,'Aula não encontrada.');
+  const hoje=new Date().toLocaleDateString('en-CA',{timeZone:'America/Recife'});
+  if (aula.data_aula>hoje) throw erro(400,'A chamada só pode ser registrada no dia da aula ou depois.');
+  if (u.nivel===4 && !pode(u,'acompanhamento.registrar')) throw erro(403,'Você não tem permissão para registrar a chamada.');
+  const presencas=req.body.presencas;
+  if (!Array.isArray(presencas) || !presencas.length || presencas.length>500) throw erro(400,'Chamada inválida.');
+  const ids=presencas.map(x=>id(x.inscricao_id,'Aluno'));
+  if (new Set(ids).size!==ids.length || presencas.some(x=>typeof x.presente!=='boolean')) throw erro(400,'Chamada inválida.');
+  await transacao(async client=>{
+    const alunos=await client.query(`SELECT id FROM inscricoes_turma WHERE turma_id=$1 AND id=ANY($2::bigint[]) AND status IN ('ATIVO','INSCRITO')`,[aula.turma_id,ids]);
+    if (alunos.rowCount!==ids.length) throw erro(400,'Há um aluno que não pertence a esta turma.');
+    for (const x of presencas) await client.query(`INSERT INTO presenca_aulas (aula_id,inscricao_id,presente) VALUES ($1,$2,$3)
+      ON CONFLICT (aula_id,inscricao_id) DO UPDATE SET presente=EXCLUDED.presente`,[aulaId,x.inscricao_id,x.presente]);
+    await client.query('UPDATE aulas_ministradas SET professora_confirmou=TRUE,data_confirmacao=NOW() WHERE id=$1',[aulaId]);
+  });
+  res.json({ok:true});
+});
 module.exports = router;
