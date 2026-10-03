@@ -466,6 +466,44 @@ CREATE TABLE IF NOT EXISTS diplomas (
 CREATE INDEX IF NOT EXISTS diplomas_pessoa_idx ON diplomas (pessoa_id);
 CREATE INDEX IF NOT EXISTS diplomas_turma_idx ON diplomas (turma_id);
 
+-- Campanhas e acompanhamento: migração aditiva, preserva os cadastros existentes.
+ALTER TABLE campanhas ADD COLUMN IF NOT EXISTS local VARCHAR(200);
+ALTER TABLE campanhas ADD COLUMN IF NOT EXISTS descricao TEXT;
+ALTER TABLE campanhas ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'PLANEJADA'
+  CHECK (status IN ('PLANEJADA','EM_ANDAMENTO','CONCLUIDA','CANCELADA'));
+ALTER TABLE campanhas ADD COLUMN IF NOT EXISTS responsavel_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL;
+ALTER TABLE campanhas ADD COLUMN IF NOT EXISTS recorrencia VARCHAR(20) NOT NULL DEFAULT 'UNICA'
+  CHECK (recorrencia IN ('UNICA','SEMANAL','QUINZENAL','MENSAL'));
+ALTER TABLE cidades ADD COLUMN IF NOT EXISTS prazo_contato_dias INTEGER NOT NULL DEFAULT 2
+  CHECK (prazo_contato_dias BETWEEN 1 AND 90);
+CREATE TABLE IF NOT EXISTS campanha_congregacoes (
+  campanha_id BIGINT NOT NULL REFERENCES campanhas(id) ON DELETE CASCADE,
+  congregacao_id BIGINT NOT NULL REFERENCES congregacoes(id) ON DELETE CASCADE,
+  PRIMARY KEY (campanha_id, congregacao_id)
+);
+CREATE TABLE IF NOT EXISTS campanha_pessoas (
+  campanha_id BIGINT NOT NULL REFERENCES campanhas(id) ON DELETE CASCADE,
+  pessoa_id BIGINT NOT NULL REFERENCES pessoas(id) ON DELETE CASCADE,
+  registrado_por BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+  registrado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (campanha_id, pessoa_id)
+);
+CREATE INDEX IF NOT EXISTS campanha_pessoas_pessoa_idx ON campanha_pessoas (pessoa_id);
+ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS responsavel_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL;
+ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS proxima_acao VARCHAR(200);
+ALTER TABLE pessoas ADD COLUMN IF NOT EXISTS proxima_acao_data DATE;
+CREATE INDEX IF NOT EXISTS pessoas_responsavel_idx ON pessoas (responsavel_id, proxima_acao_data);
+CREATE TABLE IF NOT EXISTS pessoa_acompanhamentos (
+  id BIGSERIAL PRIMARY KEY,
+  pessoa_id BIGINT NOT NULL REFERENCES pessoas(id) ON DELETE CASCADE,
+  usuario_id BIGINT REFERENCES usuarios(id) ON DELETE SET NULL,
+  tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('CONTATO','VISITA','AULA','OBSERVACAO','ENCAMINHAMENTO','ETAPA')),
+  data DATE NOT NULL DEFAULT CURRENT_DATE,
+  observacao TEXT NOT NULL,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS pessoa_acompanhamentos_idx ON pessoa_acompanhamentos (pessoa_id, data DESC, id DESC);
+
 -- Resumos de turmas para relatórios rápidos
 CREATE TABLE IF NOT EXISTS resumos_turma (
   turma_id BIGINT PRIMARY KEY REFERENCES turmas(id) ON DELETE CASCADE,
