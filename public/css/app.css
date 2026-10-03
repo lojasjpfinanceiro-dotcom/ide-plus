@@ -327,3 +327,31 @@ dialog.modal::backdrop { background: rgba(10, 19, 34, .55); }
   .tabela.cartoes td[data-r]::before { content: attr(data-r); display: block; font-size: .7rem; white-space: nowrap; color: var(--suave); font-weight: 600; }
   .tabela.cartoes tr.total { background: var(--fundo); border-radius: 10px; padding: 12px 8px; margin-top: 6px; }
 }
+/* Campanhas e fichas: cartões compactos e ações acessíveis no celular. */
+.operacao-kicker { display:block; margin-bottom:6px; font-size:.72rem; letter-spacing:.12em; color:var(--mut); font-weight:700; }
+.campanha-card { display:flex; flex-direction:column; gap:10px; }
+.campanha-card h2, .campanha-card p { margin:0; }
+.campanha-topo { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; }
+.campanha-topo small { color:var(--mut); }
+.campanha-card > .botao { margin-top:auto; align-self:flex-start; }
+.campanha-metricas { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:14px 0; gap:6px; }
+.campanha-metricas b { display:block; font-size:1.45rem; }
+.campanha-metricas span { display:block; color:var(--mut); font-size:.75rem; overflow-wrap:anywhere; }
+.selecao-equipe { border:1px solid var(--line); border-radius:10px; padding:12px; max-height:230px; overflow:auto; }
+.selecao-equipe legend { font-weight:600; padding:0 6px; }
+.selecao-equipe .check { margin:8px 0; }
+.alertas-acomp { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+.ficha-dados { margin:16px 0; }
+.ficha-dados dt { font-size:.8rem; color:var(--mut); margin-top:14px; }
+.ficha-dados dd { margin:3px 0 0; overflow-wrap:anywhere; }
+.historico-pessoa { list-style:none; padding:0; margin:0; }
+.historico-pessoa li { border-left:3px solid var(--line); padding:4px 0 12px 14px; margin:14px 0; }
+.historico-pessoa small { display:block; color:var(--mut); margin:6px 0; }
+.texto-historico { white-space:pre-wrap; overflow-wrap:anywhere; }
+.linha-acomp .info { min-width:0; }
+@media(max-width:600px) {
+  .campanha-metricas { grid-template-columns:repeat(2,minmax(0,1fr)); row-gap:14px; }
+  .linha-acomp { flex-wrap:wrap; }
+  .linha-acomp > .botao { margin-left:auto; }
+  .cabecalho .acoes { flex-wrap:wrap; }
+}
