@@ -47,7 +47,8 @@ const PERMISSOES = [
   ['discipulado.turmas', 'Discipulado', 'Criar e gerenciar turmas', 11],
   ['agenda.gerenciar', 'Agenda', 'Criar e alterar eventos da agenda', 12],
   ['config.gerenciar', 'Configurações', 'Alterar listas e opções do sistema', 13],
-  ['relatorios.ver', 'Relatórios', 'Ver números e fechamentos', 14]
+  ['relatorios.ver', 'Relatórios', 'Ver números e fechamentos', 14],
+  ['acompanhamento.registrar', 'Discipulado', 'Registrar contato e visita das suas pessoas', 15]
 ];
 
 module.exports = async function migrate() {
@@ -55,9 +56,6 @@ module.exports = async function migrate() {
   try {
     await c.query('BEGIN');
     await c.query('SELECT pg_advisory_xact_lock(4242001)');
-
-    // Dados da versão antiga descartados a pedido do responsável (o schema "legado" deixa de existir)
-    await c.query('DROP SCHEMA IF EXISTS legado CASCADE');
 
     await c.query(fs.readFileSync(path.join(__dirname, '..', 'db', 'schema.sql'), 'utf8'));
 
