@@ -3,6 +3,7 @@
 const router = require('express').Router();
 const db = require('../db');
 const { autenticar, exigirNivel, pode } = require('../auth');
+const { id, erro } = require('../acompanhamento');
 
 router.use(autenticar, exigirNivel(1, 2, 3, 4));
 
@@ -18,6 +19,9 @@ router.get('/tipos', (req, res) => res.json(TIPOS));
 // Itens efetivos para quem está logado
 router.get('/', async (req, res) => {
   const u = req.usuario;
+  const cidadeId = u.nivel === 1 && req.query.cidade_id ? id(req.query.cidade_id,'Cidade') : u.cidade_id;
+  if (u.nivel === 1 && req.query.cidade_id && !(await db.query('SELECT 1 FROM cidades WHERE id=$1 AND denominacao_id=$2',[cidadeId,u.denominacao_id])).rowCount)
+    throw erro(400,'Cidade inválida.');
   const tipo = TIPOS[req.query.tipo] ? req.query.tipo : null;
   const { rows } = await db.query(
     `SELECT i.id, i.tipo, i.nome, i.ativo, (i.cidade_id IS NULL) AS padrao,
@@ -28,7 +32,7 @@ router.get('/', async (req, res) => {
         AND ($3::text IS NULL OR i.tipo = $3)
         AND (i.cidade_id IS NULL OR ($4 > 1 AND i.cidade_id = $2))
       ORDER BY i.tipo, (i.cidade_id IS NULL) DESC, i.nome`,
-    [u.denominacao_id, u.cidade_id, tipo, u.nivel]);
+    [u.denominacao_id, cidadeId, tipo, u.nivel === 1 && req.query.cidade_id ? 2 : u.nivel]);
   // Para os níveis 3 e 4 (e para uso em formulários) só vale o que está ativo
   const soAtivos = req.query.ativos === '1' || u.nivel >= 3;
   res.json(soAtivos ? rows.filter(r => r.ativo && !(u.nivel > 1 && r.desativado_na_cidade)) : rows);
