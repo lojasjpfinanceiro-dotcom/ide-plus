@@ -9,7 +9,7 @@ const BASE_POR_NIVEL = {
       'discipulado.turmas', 'agenda.gerenciar', 'config.gerenciar', 'relatorios.ver'],
   3: ['usuarios.gerenciar', 'pessoas.cadastrar', 'pessoas.editar', 'campanhas.gerenciar',
       'discipulado.gerenciar', 'discipulado.turmas', 'agenda.gerenciar', 'relatorios.ver'],
-  4: ['pessoas.cadastrar']
+  4: ['pessoas.cadastrar', 'acompanhamento.registrar']
 };
 
 // Permissão vinda do cargo, respeitando o ajuste da cidade ($2 = cargo, $4 = cidade):
