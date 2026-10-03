@@ -26,6 +26,8 @@ app.use('/api/estrutura', require('./src/routes/estrutura'));
 app.use('/api/usuarios', require('./src/routes/usuarios'));
 app.use('/api/cargos', require('./src/routes/cargos'));
 app.use('/api/pessoas', require('./src/routes/pessoas'));
+app.use('/api/campanhas', require('./src/routes/campanhas'));
+app.use('/api/acompanhamento', require('./src/routes/acompanhamento'));
 app.use('/api/config', require('./src/routes/config'));
 app.use('/api/painel', require('./src/routes/painel'));
 app.use('/api/discipulado', require('./src/routes/discipulado'));
