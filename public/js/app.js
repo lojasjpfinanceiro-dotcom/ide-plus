@@ -40,6 +40,7 @@
     let r;
     try { r = await pedir(); }
     catch {
+      if (metodo !== 'GET') throw new Error('A conexão caiu durante o envio. Confira se o registro foi salvo antes de tentar novamente.');
       // Falha de rede (ex.: "Load failed" no iPhone): tenta mais uma vez antes de avisar
       await new Promise((ok) => setTimeout(ok, 1200));
       try { r = await pedir(); }
@@ -205,6 +206,10 @@
           ${c.vazio !== false ? `<option value="">${h(c.vazio || 'Selecione')}</option>` : ''}
           ${(c.opcoes || []).map(([k, t]) => `<option value="${h(k)}"${String(k) === String(val) ? ' selected' : ''}>${h(t)}</option>`).join('')}
         </select>${ajuda}</label>`;
+      case 'multiselect':
+        return `<fieldset class="campo inteira selecao-equipe"><legend>${rot}</legend>
+          ${(c.opcoes || []).map(([k,t]) => `<label class="check"><input type="checkbox" name="${c.nome}" value="${h(k)}"${(Array.isArray(val) ? val : []).map(String).includes(String(k)) ? ' checked' : ''}><span>${h(t)}</span></label>`).join('') || '<p class="ajuda">Nenhuma opção disponível nesta cidade.</p>'}
+          ${ajuda}</fieldset>`;
       case 'checkbox':
         return `<label class="check${cls} inteira"><input type="checkbox" name="${c.nome}"${val ? ' checked' : ''}><span>${h(c.rotulo)}${ajuda ? '<br>' + ajuda : ''}</span></label>`;
       case 'textarea':
@@ -284,15 +289,17 @@
         for (const c of campos) {
           const el = f.elements[c.nome];
           if (!el) continue;
-          dados[c.nome] = c.tipo === 'checkbox' ? el.checked : el.value.trim();
+          dados[c.nome] = c.tipo === 'multiselect' ? [...f.querySelectorAll(`input[name="${c.nome}"]:checked`)].map(i => i.value)
+            : c.tipo === 'checkbox' ? el.checked : el.value.trim();
           if (c.obrigatorio && !dados[c.nome] && c.tipo !== 'checkbox') { mostrarErro(`Preencha o campo obrigatório: ${c.rotulo}.`); el.focus(); el.scrollIntoView({ block: 'center' }); return; }
         }
         const btn = modal.querySelector('button[type=submit]');
         btn.disabled = true;
+        btn.textContent = 'Executando…';
         try {
           if (aoSalvar) await aoSalvar(dados);
           concluido = true; modal.close(); resolver(dados);
-        } catch (err) { mostrarErro(err.message); } finally { btn.disabled = false; }
+        } catch (err) { mostrarErro(err.message); } finally { btn.disabled = false; btn.textContent = salvar; }
       };
       function mostrarErro(m) { const p = $('#f-erro', modal); p.textContent = m; p.hidden = false; }
       modal.addEventListener('close', () => { if (!concluido) resolver(null); }, { once: true });
@@ -332,6 +339,9 @@
     planos: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M8 15h3"/>',
     guia: '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>',
     discipulado: '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20v-3"/><path d="M12 7v6M9 10h6"/>',
+    campanhas: '<path d="M4 10v4l12 5V5zM16 10h4v4h-4M6 15l2 6h3l-2-5"/>',
+    acompanhamento: '<path d="M9 11l3 3 8-8M20 12v7H4V5h10"/>',
+    'minhas-aulas': '<path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/>',
     receber: '<path d="M12 2v20M17 6.5C17 4.6 14.8 3.5 12 3.5S7 4.6 7 6.5 9 9.5 12 10s5 1.5 5 3.5-2.2 3.5-5 3.5-5-1.1-5-3"/>'
   };
   const ico = (n) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICO[n]}</svg>`;
@@ -345,6 +355,8 @@
     if (n <= 3) m.push(['usuarios', n === 3 ? 'Minha equipe' : 'Usuários', 'usuarios']);
     if (n <= 2) m.push(['cargos', 'Cargos e permissões', 'cargos']);
     m.push(['pessoas', 'Pessoas', 'pessoas']);
+    m.push(['campanhas', n === 4 ? 'Minhas Campanhas' : 'Campanhas', 'campanhas']);
+    m.push(['acompanhamento', n === 4 ? 'Minhas Pessoas' : 'Acompanhamento', 'acompanhamento']);
     if (n <= 3) m.push(['discipulado', 'Discipulado', 'discipulado']);
     if (n === 4) m.push(['minhas-aulas', 'Minhas Aulas', 'minhas-aulas']);
     if (n <= 2) m.push(['configuracoes', 'Configurações', 'config']);
@@ -798,7 +810,7 @@
         <li>${p.foto ? `<img class="avatar p" src="${h(p.foto)}" alt="">` : `<span class="avatar p" style="background:var(--trigo)">${iniciais(p.nome)}</span>`}
           <div class="info"><strong>${h(p.nome)}</strong><small>${p.congregacao ? h(p.congregacao) + ' · ' : ''}desde ${dataBR(p.data_conversao)}${p.data_batismo ? ' · batizado em ' + dataBR(p.data_batismo) : ''}${p.status === 'AFASTADO' ? ` · afastou-se em ${dataBR(p.data_afastamento)} (estava: ${STATUS[p.etapa_antes_afastar || 'CONVERTIDO'].toLowerCase()})` : ''}</small></div>
           <span class="etiqueta ${p.status}">${STATUS[p.status]}</span>
-          <div class="acoes">${temAcoes(p) ? `<button class="botao sec p" data-et="${p.id}">Etapa</button>` : ''}<button class="botao sec p" data-ab="${p.id}">${pode('pessoas.editar') ? 'Alterar' : 'Ver'}</button></div></li>`).join('')}</ul>`
+          <div class="acoes"><button class="botao sec p" data-ficha="${p.id}">Acompanhar</button>${temAcoes(p) ? `<button class="botao sec p" data-et="${p.id}">Etapa</button>` : ''}<button class="botao sec p" data-ab="${p.id}">${pode('pessoas.editar') ? 'Alterar' : 'Ver'}</button></div></li>`).join('')}</ul>`
         : `<div class="vazio">Nenhuma pessoa encontrada.${pode('pessoas.cadastrar') && !$('#busca').value ? '<br><button class="botao" id="novo2">Cadastrar o primeiro convertido</button>' : ''}</div>`;
       $('#novo2')?.addEventListener('click', () => editarPessoa(null, carregar));
     }
@@ -808,6 +820,7 @@
       const b = ev.target.closest('button'); if (!b) return;
       if (b.dataset.st !== undefined) { filtroStatus = b.dataset.st; c.querySelectorAll('.chip').forEach((x) => x.classList.toggle('ativo', x === b)); carregar(); }
       if (b.dataset.ab) editarPessoa(b.dataset.ab, carregar);
+      if (b.dataset.ficha) verFichaPessoa(c, b.dataset.ficha, () => VISTAS.pessoas(c));
       if (b.dataset.et) api('/pessoas/' + b.dataset.et).then((p) => acoesPessoa(p, carregar)).catch((e) => aviso(e.message, true));
     };
     await carregar();
@@ -815,17 +828,19 @@
 
   const pode = (cod) => eu.permissoes === null || (eu.permissoes || []).includes(cod);
 
-  async function editarPessoa(id, depois) {
-    const [p, cidades, comoChegou] = await Promise.all([
+  async function editarPessoa(id, depois, contexto = {}) {
+    const [p, cidades] = await Promise.all([
       id ? api('/pessoas/' + id) : Promise.resolve({ autoriza_dados: false }),
-      api('/estrutura/cidades'), api('/config?tipo=COMO_CHEGOU&ativos=1')
+      api('/estrutura/cidades')
     ]);
-    const minha = cidades.find((x) => String(x.id) === String(eu.cidade_id));
+    const cidadeAtual = p.cidade_id || contexto.cidade_id || eu.cidade_id;
+    const comoChegou = await api('/config?tipo=COMO_CHEGOU&ativos=1' + (cidadeAtual ? '&cidade_id=' + cidadeAtual : ''));
+    const minha = cidades.find((x) => String(x.id) === String(cidadeAtual));
     const congs = (minha?.congregacoes || []).map((g) => [g.id, g.nome]);
     const editavel = id ? pode('pessoas.editar') : pode('pessoas.cadastrar');
     const campos = [
       { nome: 'nome', rotulo: 'Nome completo', exemplo: 'João Carlos Pereira', obrigatorio: true, inteira: true },
-      { nome: 'telefone', rotulo: 'Telefone / WhatsApp', tipo: 'tel', obrigatorio: true },
+      { nome: 'telefone', rotulo: 'Telefone / WhatsApp', tipo: 'tel' },
       { nome: 'cpf', rotulo: 'CPF' },
       { nome: 'nascimento', rotulo: 'Nascimento', tipo: 'date' },
       { nome: 'data_conversao', rotulo: 'Data da conversão', tipo: 'date', padrao: new Date().toISOString().slice(0, 10), obrigatorio: true },
@@ -834,18 +849,30 @@
         ajuda: comoChegou.length ? '' : 'Cadastre as opções em Configurações → Como chegou.' },
       { nome: 'endereco', rotulo: 'Endereço', obrigatorio: true },
       { nome: 'numero', rotulo: 'Número', obrigatorio: true, ajuda: 'Sem número? Escreva S/N.' },
-      { nome: 'bairro', rotulo: 'Bairro', obrigatorio: true, inteira: true },
+      { nome: 'bairro', rotulo: 'Bairro', inteira: true },
       { nome: 'observacao', rotulo: 'Observação', tipo: 'textarea' },
       { nome: 'foto', rotulo: 'Foto', tipo: 'imagem' },
       { nome: 'autoriza_dados', rotulo: 'A pessoa autorizou o uso dos seus dados pela igreja', tipo: 'checkbox' }
     ];
+    if (!id && eu.nivel === 1 && !contexto.campanha_id) {
+      campos.unshift({ nome: 'cidade_id', rotulo: 'Cidade', tipo: 'select', opcoes: cidades.map(x => [x.id,x.nome + '/' + x.estado]), obrigatorio: true });
+      p.cidade_id = cidadeAtual;
+    }
     if (!editavel) {
       abrirModal(p.nome, `<p><span class="etiqueta ${p.status}">${STATUS[p.status]}</span></p><p>${h(p.telefone || '')}</p><p class="ajuda">Você pode ver, mas não alterar este cadastro.</p>`);
       return;
     }
     const salvo = await formulario(id ? 'Cadastro da pessoa' : 'Cadastrar convertido', campos, p, {
       salvar: id ? 'Salvar alterações' : 'Cadastrar',
-      aoSalvar: (d) => api(id ? '/pessoas/' + id : '/pessoas', { metodo: id ? 'PUT' : 'POST', corpo: d })
+      aoAbrir: f => {
+        if (f.elements.cidade_id) f.elements.cidade_id.onchange = async () => {
+          const cidade = cidades.find(x => String(x.id) === f.elements.cidade_id.value);
+          preencher(f.elements.congregacao_id,(cidade?.congregacoes || []).map(g => [g.id,g.nome]),'Selecione');
+          try { const itens=await api('/config?tipo=COMO_CHEGOU&ativos=1&cidade_id='+f.elements.cidade_id.value); preencher(f.elements.como_chegou_id,itens.map(x=>[x.id,x.nome]),'Selecione'); } catch(e) { aviso(e.message,true); }
+        };
+      },
+      aoSalvar: (d) => api(id ? '/pessoas/' + id : '/pessoas', { metodo: id ? 'PUT' : 'POST',
+        corpo: { ...d, ...(!id ? { campanha_id: contexto.campanha_id, cidade_id: d.cidade_id || cidadeAtual } : {}) } })
     });
     if (salvo) { aviso(id ? 'Cadastro atualizado.' : 'Convertido cadastrado.'); depois(); }
   }
@@ -885,6 +912,201 @@
     $('[data-excluir]', modal)?.addEventListener('click', () => excluir('/pessoas/' + p.id, p.nome, depois));
   }
 
+  // ================= Campanhas e acompanhamento =================
+  const HOJE = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Recife' });
+  const SITUACOES_CAMPANHA = { PLANEJADA: 'Planejada', EM_ANDAMENTO: 'Em andamento', CONCLUIDA: 'Concluída', CANCELADA: 'Cancelada' };
+  const RECORRENCIAS = { UNICA: 'Única', SEMANAL: 'Semanal', QUINZENAL: 'Quinzenal', MENSAL: 'Mensal' };
+  const TIPOS_REGISTRO = { CONTATO: 'Contato', VISITA: 'Visita', AULA: 'Aula individual', OBSERVACAO: 'Observação', ENCAMINHAMENTO: 'Plano de acompanhamento', ETAPA: 'Etapa' };
+  const opcoesObjeto = o => Object.entries(o);
+  const resumoCampanha = r => `<div class="campanha-metricas">
+    ${[['Alcançadas',r.alcancadas],['Contatadas',r.contatadas],['Discipulados',r.discipulados],['Batizados',r.batizados]].map(([t,n]) => `<div><b>${Number(n || 0)}</b><span>${t}</span></div>`).join('')}</div>`;
+  VISTAS.campanhas = async c => {
+    c.innerHTML = `<div class="cabecalho"><div><span class="operacao-kicker">EVANGELISMO</span><h1>${eu.nivel === 4 ? 'Minhas Campanhas' : 'Campanhas'}</h1><p>Planeje o trabalho e acompanhe as pessoas alcançadas.</p></div>
+      ${pode('campanhas.gerenciar') ? '<button class="botao" id="nova-campanha">Nova campanha</button>' : ''}</div>
+      <div class="filtros"><input type="search" id="busca-campanha" placeholder="Buscar campanha" aria-label="Buscar campanha">
+      <select id="situacao-campanha" aria-label="Situação"><option value="">Todas as situações</option>${opcoesObjeto(SITUACOES_CAMPANHA).map(([k,t]) => `<option value="${k}">${t}</option>`).join('')}</select></div>
+      <div class="grade duas" id="lista-campanhas"><p class="vazio">Carregando…</p></div>`;
+    let pedido = 0, tempo;
+    const carregar = async () => {
+      const atual = ++pedido;
+      const q = new URLSearchParams({ busca: $('#busca-campanha',c).value, status: $('#situacao-campanha',c).value });
+      const r = await api('/campanhas?' + q);
+      if (atual !== pedido || !$('#lista-campanhas',c)) return;
+      $('#lista-campanhas',c).innerHTML = r.campanhas.length ? r.campanhas.map(x => `<article class="painel campanha-card">
+        <div class="campanha-topo"><span class="etiqueta ${x.status === 'EM_ANDAMENTO' ? 'verde' : ''}">${SITUACOES_CAMPANHA[x.status]}</span><small>${h(x.cidade)}</small></div>
+        <h2>${h(x.nome)}</h2><p class="ajuda">${h(x.tipo_nome || 'Campanha')} · ${dataBR(x.inicio)}${x.fim ? ' a ' + dataBR(x.fim) : ''}</p>
+        <p>${h(x.local || 'Local a definir')}</p><p class="ajuda">${h(x.responsavel_nome || 'Sem responsável')} · ${x.total_equipe} na equipe</p>
+        ${resumoCampanha(x)}<button class="botao sec" data-campanha="${x.id}">Abrir campanha</button></article>`).join('')
+        : '<section class="painel vazio">Nenhuma campanha encontrada. Comece planejando o próximo trabalho.</section>';
+    };
+    const seguro = () => carregar().catch(e => aviso(e.message,true));
+    $('#busca-campanha',c).oninput = () => { clearTimeout(tempo); tempo = setTimeout(seguro,300); };
+    $('#situacao-campanha',c).onchange = seguro;
+    $('#nova-campanha',c)?.addEventListener('click', () => editarCampanha(null, () => VISTAS.campanhas(c)).catch(e => aviso(e.message,true)));
+    c.onclick = ev => { const b = ev.target.closest('[data-campanha]'); if (b) verCampanha(c,b.dataset.campanha).catch(e => aviso(e.message,true)); };
+    await carregar();
+  };
+  async function editarCampanha(camp, depois) {
+    const o = await api('/campanhas/opcoes' + (camp?.cidade_id ? '?cidade_id=' + camp.cidade_id : ''));
+    const valores = camp ? { ...camp, equipe_ids: camp.equipe.map(x => x.id), congregacao_ids: camp.congregacoes.map(x => x.id) }
+      : { inicio:HOJE(),status:'PLANEJADA',recorrencia:'UNICA',cidade_id:o.cidade_id,responsavel_id:eu.id,equipe_ids:[eu.id] };
+    const campos = [
+      {nome:'nome',rotulo:'Nome da campanha',obrigatorio:true,inteira:true,exemplo:'Evangelismo na praça'},
+      ...(!camp && eu.nivel === 1 ? [{nome:'cidade_id',rotulo:'Cidade',tipo:'select',opcoes:o.cidades.map(x=>[x.id,x.nome+'/'+x.estado]),obrigatorio:true}] : []),
+      {nome:'tipo_trabalho_id',rotulo:'Tipo de campanha',tipo:'select',opcoes:o.tipos.map(x=>[x.id,x.nome]),vazio:'Sem tipo definido'},
+      {nome:'inicio',rotulo:'Data de início',tipo:'date',obrigatorio:true},
+      {nome:'fim',rotulo:'Data final',tipo:'date'},
+      {nome:'local',rotulo:'Local',obrigatorio:true,inteira:true},
+      {nome:'recorrencia',rotulo:'Frequência',tipo:'select',opcoes:opcoesObjeto(RECORRENCIAS),vazio:false,
+        ajuda:'Organiza a frequência do trabalho. Os encontros são registrados pela equipe.'},
+      {nome:'status',rotulo:'Situação',tipo:'select',opcoes:opcoesObjeto(SITUACOES_CAMPANHA),vazio:false},
+      {nome:'responsavel_id',rotulo:'Coordenador responsável',tipo:'select',opcoes:o.equipe.map(x=>[x.id,x.nome]),obrigatorio:true},
+      {nome:'equipe_ids',rotulo:'Equipe participante',tipo:'multiselect',opcoes:o.equipe.map(x=>[x.id,x.nome])},
+      {nome:'congregacao_ids',rotulo:'Congregações participantes',tipo:'multiselect',opcoes:o.congregacoes.map(x=>[x.id,x.nome])},
+      {nome:'descricao',rotulo:'Planejamento e orientações',tipo:'textarea'}
+    ];
+    const salvo = await formulario(camp ? 'Alterar campanha' : 'Nova campanha',campos,valores,{
+      aoAbrir: f => {
+        if (!f.elements.cidade_id) return;
+        let versao = 0;
+        f.elements.cidade_id.onchange = async () => {
+          const atual = ++versao, cidadeId = f.elements.cidade_id.value;
+          const btn = modal.querySelector('button[type=submit]'); btn.disabled=true;
+          try {
+            const novas = await api('/campanhas/opcoes?cidade_id=' + cidadeId);
+            if (atual !== versao) return;
+            preencher(f.elements.responsavel_id,novas.equipe.map(x=>[x.id,x.nome]),'Selecione');
+            preencher(f.elements.tipo_trabalho_id,novas.tipos.map(x=>[x.id,x.nome]),'Sem tipo definido');
+            for (const [nome,itens] of [['equipe_ids',novas.equipe],['congregacao_ids',novas.congregacoes]]) {
+              const antigo = f.querySelector(`fieldset:has(input[name="${nome}"])`) || [...f.querySelectorAll('fieldset')].find(x=>x.dataset.campo===nome);
+              if (antigo) { const caixa = document.createElement('div'); caixa.innerHTML = campoHtml({...campos.find(x=>x.nome===nome),opcoes:itens.map(x=>[x.id,x.nome])},[]); antigo.replaceWith(caixa.firstElementChild); }
+            }
+          } catch (e) { aviso(e.message,true); } finally { if (atual===versao) btn.disabled=false; }
+        };
+        f.querySelectorAll('fieldset').forEach((el,i)=>el.dataset.campo=i===0?'equipe_ids':'congregacao_ids');
+      },
+      aoSalvar:d=>api(camp ? '/campanhas/'+camp.id : '/campanhas',{metodo:camp?'PUT':'POST',corpo:d})
+    });
+    if (salvo) { aviso('Campanha salva.'); await depois(); }
+  }
+  async function verCampanha(c,idCampanha) {
+    const x = await api('/campanhas/'+idCampanha);
+    c.innerHTML = `<div class="cabecalho"><div><button class="botao sec p" id="voltar-campanhas">← Campanhas</button><h1>${h(x.nome)}</h1>
+      <p>${dataBR(x.inicio)} · ${h(x.local || 'Local a definir')} · ${RECORRENCIAS[x.recorrencia]}</p></div>
+      ${x.pode_editar ? '<button class="botao sec" id="editar-campanha">Alterar campanha</button>' : ''}</div>
+      <section class="painel campanha-card"><div class="campanha-topo"><span class="etiqueta">${SITUACOES_CAMPANHA[x.status]}</span></div>${resumoCampanha(x.resultados)}
+      ${x.descricao ? `<p class="texto-historico">${h(x.descricao)}</p>` : ''}<p class="ajuda"><b>Equipe:</b> ${x.equipe.map(y=>h(y.nome)).join(', ') || 'A definir'}</p>
+      <p class="ajuda"><b>Congregações:</b> ${x.congregacoes.map(y=>h(y.nome)).join(', ') || 'A definir'}</p>
+      <p class="ajuda">Resultados das pessoas vinculadas, considerando sua evolução atual. A mesma pessoa pode participar de várias campanhas.</p></section>
+      <section class="painel" style="margin-top:16px"><div class="cabecalho"><div><h2>Pessoas alcançadas</h2><p>Abra a ficha para definir o responsável e acompanhar.</p></div>
+        ${x.pode_vincular ? '<div class="acoes"><button class="botao" id="cadastrar-campanha">Nova pessoa</button><button class="botao sec" id="vincular-pessoa">Vincular cadastro existente</button></div>' : ''}</div>
+        ${x.pessoas.length ? `<ul class="lista">${x.pessoas.map(p=>`<li><div class="info"><strong>${h(p.nome)}</strong><small>${h(p.congregacao || 'Sem congregação')} · ${h(p.responsavel_nome || 'Sem responsável')}</small>
+        <small>${p.proxima_acao ? h(p.proxima_acao)+' · '+dataBR(p.proxima_acao_data) : 'Sem próxima ação'}</small></div><span class="etiqueta ${p.status}">${STATUS[p.status]}</span><button class="botao sec p" data-ficha="${p.id}">Acompanhar</button></li>`).join('')}</ul>` : '<p class="vazio">Nenhuma pessoa vinculada ainda.</p>'}</section>`;
+    $('#voltar-campanhas',c).onclick = () => VISTAS.campanhas(c);
+    $('#editar-campanha',c)?.addEventListener('click',()=>editarCampanha(x,()=>verCampanha(c,x.id)).catch(e=>aviso(e.message,true)));
+    $('#cadastrar-campanha',c)?.addEventListener('click',()=>editarPessoa(null,()=>verCampanha(c,x.id),{campanha_id:x.id,cidade_id:x.cidade_id}).catch(e=>aviso(e.message,true)));
+    $('#vincular-pessoa',c)?.addEventListener('click',async()=>{
+      try {
+        const pessoas=await api('/pessoas?cidade_id='+x.cidade_id);
+        const vinculados=new Set(x.pessoas.map(p=>String(p.id)));
+        const disponiveis=pessoas.filter(p=>!vinculados.has(String(p.id)));
+        if (!disponiveis.length) return aviso('Nenhum cadastro disponível para vincular. Cadastre uma nova pessoa.');
+        if (await formulario('Vincular pessoa existente',[
+          {nome:'busca_pessoa',rotulo:'Buscar na lista',ajuda:'Digite parte do nome para filtrar.'},
+          {nome:'pessoa_id',rotulo:'Pessoa',tipo:'select',opcoes:disponiveis.map(p=>[p.id,p.nome+(p.telefone?' · '+p.telefone:'')]),obrigatorio:true}
+        ],{},{
+          aoAbrir:f=>{f.elements.busca_pessoa.oninput=()=>{
+            const q=f.elements.busca_pessoa.value.toLocaleLowerCase('pt-BR');
+            preencher(f.elements.pessoa_id,disponiveis.filter(p=>p.nome.toLocaleLowerCase('pt-BR').includes(q)).map(p=>[p.id,p.nome]),'Selecione');
+          };},
+          aoSalvar:d=>api('/campanhas/'+x.id+'/pessoas',{metodo:'POST',corpo:{pessoa_id:d.pessoa_id}})
+        })) {aviso('Pessoa vinculada.'); await verCampanha(c,x.id);}
+      } catch(e){aviso(e.message,true);}
+    });
+    c.querySelectorAll('[data-ficha]').forEach(b=>b.onclick=()=>verFichaPessoa(c,b.dataset.ficha,()=>verCampanha(c,x.id)).catch(e=>aviso(e.message,true)));
+  }
+  VISTAS.acompanhamento=async c=>{
+    c.innerHTML=`<div class="cabecalho"><div><span class="operacao-kicker">CUIDADO COM PESSOAS</span><h1>Acompanhamento</h1><p>Cada pessoa com um responsável e uma próxima ação.</p></div>
+      ${eu.nivel<=2 && pode('config.gerenciar')?'<button class="botao sec" id="prazo-contato">Prazo do primeiro contato</button>':''}</div>
+      <div class="filtros"><input type="search" id="busca-acomp" placeholder="Buscar pessoa" aria-label="Buscar pessoa">
+      <div class="chips">${[['PENDENTES','Precisam de atenção'],['SEM_RESPONSAVEL','Sem responsável'],['PRIMEIRO_CONTATO','Primeiro contato'],['ATRASADOS','Atrasados'],['TODOS','Todas as pessoas']].map(([k,t],i)=>`<button class="chip${i===0?' ativo':''}" data-filtro="${k}">${t}</button>`).join('')}</div></div>
+      <section class="painel" id="lista-acomp"><p class="vazio">Carregando…</p></section>`;
+    let filtro='PENDENTES',pedido=0,tempo;
+    const carregar=async()=>{
+      const atual=++pedido,q=new URLSearchParams({filtro,busca:$('#busca-acomp',c).value});
+      const r=await api('/acompanhamento?'+q);
+      if(atual!==pedido || !$('#lista-acomp',c))return;
+      $('#lista-acomp',c).innerHTML=r.pessoas.length?`<ul class="lista">${r.pessoas.map(p=>`<li class="linha-acomp"><div class="info"><strong>${h(p.nome)}</strong><small>${h(p.cidade)} · ${h(p.congregacao || 'Sem congregação')}</small>
+      <small>Responsável: ${h(p.responsavel_nome || 'A definir')}</small><small>${p.proxima_acao?h(p.proxima_acao)+' · '+dataBR(p.proxima_acao_data):'Sem próxima ação agendada'}</small>
+      <div class="alertas-acomp">${p.sem_responsavel?'<span class="etiqueta laranja">Sem responsável</span>':''}${p.aguardando_contato?`<span class="etiqueta ${p.contato_atrasado?'laranja':''}">${p.contato_atrasado?'Primeiro contato atrasado':'Aguarda primeiro contato'}</span>`:''}${p.acao_atrasada?'<span class="etiqueta laranja">Ação atrasada</span>':''}</div></div>
+      <button class="botao sec p" data-ficha="${p.id}">Abrir ficha</button></li>`).join('')}</ul>`:'<p class="vazio">Nenhuma pessoa neste filtro.</p>';
+    };
+    const seguro=()=>carregar().catch(e=>aviso(e.message,true));
+    $('#busca-acomp',c).oninput=()=>{clearTimeout(tempo);tempo=setTimeout(seguro,300);};
+    c.onclick=ev=>{
+      const b=ev.target.closest('button');if(!b)return;
+      if(b.dataset.filtro){filtro=b.dataset.filtro;c.querySelectorAll('[data-filtro]').forEach(x=>x.classList.toggle('ativo',x===b));seguro();}
+      if(b.dataset.ficha)verFichaPessoa(c,b.dataset.ficha,()=>VISTAS.acompanhamento(c)).catch(e=>aviso(e.message,true));
+    };
+    $('#prazo-contato',c)?.addEventListener('click',async()=>{
+      try{
+        const o=await api('/campanhas/opcoes');
+        const campos=[
+          {nome:'cidade_id',rotulo:'Cidade',tipo:'select',opcoes:o.cidades.map(x=>[x.id,x.nome]),obrigatorio:true},
+          {nome:'dias',rotulo:'Prazo em dias',tipo:'number',obrigatorio:true,ajuda:'De 1 a 90 dias após a data em que a pessoa foi alcançada.'}
+        ];
+        if(await formulario('Prazo do primeiro contato',campos,{cidade_id:o.cidade_id,dias:o.cidades.find(x=>String(x.id)===String(o.cidade_id))?.prazo_contato_dias || 2},{
+          aoAbrir:f=>f.elements.cidade_id.onchange=()=>{f.elements.dias.value=o.cidades.find(x=>String(x.id)===f.elements.cidade_id.value)?.prazo_contato_dias || 2;},
+          aoSalvar:d=>api('/acompanhamento/prazo',{metodo:'PUT',corpo:d})
+        })){aviso('Prazo atualizado.');await carregar();}
+      }catch(e){aviso(e.message,true);}
+    });
+    await carregar();
+  };
+  async function verFichaPessoa(c,pessoaId,voltar) {
+    const r=await api('/acompanhamento/pessoas/'+pessoaId),p=r.pessoa;
+    c.innerHTML=`<div class="cabecalho"><div><button class="botao sec p" id="voltar-ficha">← Voltar</button><h1>${h(p.nome)}</h1><p>${h(p.cidade)} · ${h(p.congregacao || 'Sem congregação')}</p></div>
+      <span class="etiqueta ${p.status}">${STATUS[p.status]}</span></div>
+      <div class="grade duas"><section class="painel"><h2>Plano de acompanhamento</h2><dl class="ficha-dados"><dt>Responsável</dt><dd>${h(p.responsavel_nome || 'A definir')}</dd>
+      <dt>Próxima ação</dt><dd>${h(p.proxima_acao || 'A definir')}${p.proxima_acao_data?' · '+dataBR(p.proxima_acao_data):''}</dd><dt>Último contato registrado</dt><dd>${dataBR(p.ultimo_contato)||'Ainda não registrado'}</dd>
+      <dt>Telefone</dt><dd>${h(p.telefone || 'Não informado')}</dd><dt>Endereço</dt><dd>${h([p.endereco,p.numero,p.bairro].filter(Boolean).join(', '))}</dd></dl>
+      ${r.pode_registrar?'<button class="botao sec" id="plano-pessoa">Definir responsável e próxima ação</button>':''}</section>
+      <section class="painel"><h2>Origem e evolução</h2><p>Alcançada em ${dataBR(p.data_conversao)}</p>
+      ${p.data_batismo?`<p>Batizada em ${dataBR(p.data_batismo)}</p>`:''}
+      <p class="ajuda">Campanhas em que participou:</p>${r.campanhas.length?`<ul class="lista">${r.campanhas.map(x=>`<li><div class="info"><strong>${h(x.nome)}</strong><small>Vinculada em ${dataBR(x.registrado_em)}</small></div></li>`).join('')}</ul>`:'<p class="ajuda">Sem campanha vinculada.</p>'}
+      ${temAcoes(p)?'<button class="botao sec" id="etapa-ficha">Atualizar etapa</button>':''}</section></div>
+      <section class="painel" style="margin-top:16px"><div class="cabecalho"><div><h2>Histórico de acompanhamento</h2><p>Contatos, visitas e atividades registradas pela equipe.</p></div>
+      ${r.pode_registrar?'<button class="botao" id="registro-pessoa">Registrar atividade</button>':''}</div>
+      ${r.historico.length?`<ol class="historico-pessoa">${r.historico.map(a=>`<li><span class="etiqueta">${TIPOS_REGISTRO[a.tipo]||h(a.tipo)}</span><small>${dataBR(a.data)} · ${h(a.usuario_nome || 'Equipe')}</small><p class="texto-historico">${h(a.observacao)}</p></li>`).join('')}</ol>`:'<p class="vazio">Nenhum acompanhamento registrado ainda.</p>'}</section>`;
+    $('#voltar-ficha',c).onclick=voltar;
+    const recarregar=()=>verFichaPessoa(c,p.id,voltar);
+    $('#etapa-ficha',c)?.addEventListener('click',()=>acoesPessoa(p,recarregar));
+    $('#plano-pessoa',c)?.addEventListener('click',async()=>{
+      try{
+        const o=r.pode_encaminhar?await api('/campanhas/opcoes?cidade_id='+p.cidade_id):null;
+        const campos=[
+          ...(o?[{nome:'responsavel_id',rotulo:'Responsável pelo acompanhamento',tipo:'select',opcoes:o.equipe.map(x=>[x.id,x.nome]),vazio:'Ainda sem responsável'}]:[]),
+          {nome:'proxima_acao',rotulo:'Próxima ação',exemplo:'Visita de acolhimento'},
+          {nome:'proxima_acao_data',rotulo:'Data da próxima ação',tipo:'date'}
+        ];
+        if(await formulario('Plano de acompanhamento',campos,p,{aoSalvar:d=>api('/acompanhamento/pessoas/'+p.id+'/plano',{metodo:'PUT',corpo:d})})){aviso('Plano atualizado.');await recarregar();}
+      }catch(e){aviso(e.message,true);}
+    });
+    $('#registro-pessoa',c)?.addEventListener('click',async()=>{
+      try{
+        const campos=[
+          {nome:'tipo',rotulo:'Atividade realizada',tipo:'select',opcoes:opcoesObjeto(TIPOS_REGISTRO).filter(([k])=>['CONTATO','VISITA','AULA','OBSERVACAO'].includes(k)),vazio:false},
+          {nome:'data',rotulo:'Data da atividade',tipo:'date',obrigatorio:true},
+          {nome:'observacao',rotulo:'Como foi o acompanhamento?',tipo:'textarea',obrigatorio:true},
+          {nome:'concluir_acao',rotulo:'Concluir a ação que estava agendada',tipo:'checkbox'},
+          {nome:'proxima_acao',rotulo:'Nova próxima ação'},
+          {nome:'proxima_acao_data',rotulo:'Data da nova ação',tipo:'date'}
+        ];
+        if(await formulario('Registrar acompanhamento',campos,{tipo:'CONTATO',data:HOJE()},{aoSalvar:d=>api('/acompanhamento/pessoas/'+p.id+'/registros',{metodo:'POST',corpo:d})})){aviso('Atividade registrada.');await recarregar();}
+      }catch(e){aviso(e.message,true);}
+    });
+  }
+
   // ================= Discipulado: currículos, módulos e lições =================
   // Perguntas de fixação em texto simples: um bloco por pergunta, primeira linha é a pergunta,
   // as linhas seguintes são as opções e a certa começa com *
@@ -907,197 +1129,33 @@
 
 
 
-  VISTAS['minhas-aulas'] = async (c) => {
-    const planos = await api('/discipulado/planos').catch(() => [
-      {
-        id: 1,
-        nome: 'Novos Convertidos',
-        nivel: 'Básico',
-        descricao: 'Do novo convertido até o batismo.',
-        modulos: [
-          {
-            nome: 'Módulo 1 – Fundamentos da fé',
-            aulas: [
-              { tema: 'A salvação', forma: 'pres', minutos: 45 },
-              { tema: 'O arrependimento', forma: 'pres', minutos: 45 },
-              { tema: 'O Evangelho', forma: 'pres', minutos: 45 }
-            ]
-          },
-          {
-            nome: 'Módulo 2 – Vida nova',
-            aulas: [
-              { tema: 'Vida cristã', forma: 'video', minutos: 40 },
-              { tema: 'Oração e leitura da Bíblia', forma: 'live', minutos: 60 },
-              { tema: 'O batismo nas águas', forma: 'pres', minutos: 45 }
-            ]
-          }
-        ],
-        configuracoes: {
-          notaMinima: 7,
-          presencaMinima: 75,
-          questoes: 3
-        }
-      }
-    ]);
-
-    const formatoIcon = { pres: '▶', video: '🎬', live: '●' };
-    const formatoLabel = { pres: 'Slide presencial', video: 'Vídeo gravado', live: 'Live online' };
-    
-    const totalAulas = (plano) => plano.modulos.reduce((sum, m) => sum + m.aulas.length, 0);
-    const totalMinutos = (plano) => plano.modulos.reduce((sum, m) => 
-      sum + m.aulas.reduce((msum, a) => msum + a.minutos, 0), 0);
-    
-    const renderPlanos = () => `
-      <h2 style="font-size: 16px; margin-bottom: 12px;">Meus planos de aula</h2>
-      ${planos.map((pl, idx) => `
-        <div class="cartao">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-            <div style="flex: 1;">
-              <h3 style="margin: 0 0 4px; font-size: 15px;">${pl.nome}</h3>
-              <span class="chip" style="--k: #2563eb; font-size: 11px; padding: 2px 8px; margin-right: 6px;">${pl.nivel}</span>
-              <span class="p" style="display: inline; font-size: 11px;">${pl.modulos.length} módulos · ${totalAulas(pl)} aulas · ${Math.floor(totalMinutos(pl) / 60)}h${totalMinutos(pl) % 60 ? String(totalMinutos(pl) % 60).padStart(2, '0') : ''}</span>
-            </div>
-            <button class="botao" style="background: #7c3aed; border: none; border-radius: 6px; padding: 8px 12px; color: white; font-weight: 600; cursor: pointer; font-size: 12px;">✓ Usar nesta turma</button>
-          </div>
-          
-          <p class="p" style="margin: 8px 0;">${pl.descricao}</p>
-          
-          <details style="margin: 10px 0 0; border-top: 1px solid var(--line); padding-top: 10px;">
-            <summary style="cursor: pointer; font-weight: 500; color: var(--ink); padding: 6px 0; display: flex; justify-content: space-between; align-items: center;">
-              <span>📚 ${pl.modulos.length} Módulos</span>
-              <span style="font-size: 12px; color: var(--mut);">clique para expandir</span>
-            </summary>
-            
-            <div style="margin-top: 10px; border-left: 2px solid #2563eb; padding-left: 12px;">
-              ${pl.modulos.map((mod, midx) => `
-                <details style="margin-bottom: 10px;">
-                  <summary style="cursor: pointer; font-weight: 500; color: var(--ink); padding: 8px 0;">
-                    ${mod.nome} <span class="chip" style="--k: #60a5fa; font-size: 10px; margin-left: 6px;">${mod.aulas.length} aulas</span>
-                  </summary>
-                  
-                  <div style="margin-top: 8px; padding-left: 8px; border-left: 1px solid #94a3b8;">
-                    ${mod.aulas.map((aula, aidx) => `
-                      <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line);">
-                        <span>
-                          <span style="font-weight: 600; display: block; margin-bottom: 2px;">Aula ${aidx + 1} – ${aula.tema}</span>
-                          <span class="p">${formatoIcon[aula.forma]} ${formatoLabel[aula.forma]} · ${aula.minutos}min</span>
-                        </span>
-                        <button class="botao" style="background: #2563eb; border: none; border-radius: 4px; padding: 6px 10px; color: white; font-size: 11px; cursor: pointer;">Editar</button>
-                      </div>
-                    `).join('')}
-                  </div>
-                </details>
-              `).join('')}
-            </div>
-          </details>
-          
-          <details style="margin: 10px 0 0; border-top: 1px solid var(--line); padding-top: 10px;">
-            <summary style="cursor: pointer; font-weight: 500; color: var(--ink); padding: 6px 0; display: flex; justify-content: space-between; align-items: center;">
-              <span>⚙️ Configurações da prova</span>
-              <span style="font-size: 12px; color: var(--mut);">clique para expandir</span>
-            </summary>
-            
-            <div style="margin-top: 10px; background: var(--in); border-radius: 8px; padding: 10px;">
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                <div>
-                  <span class="p">Nota mínima para passar</span>
-                  <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-                    <span style="font-weight: 600; font-size: 18px; color: #2563eb;">${pl.configuracoes.notaMinima}</span>
-                    <span class="p">de 10</span>
-                  </div>
-                </div>
-                <div>
-                  <span class="p">Presença mínima</span>
-                  <div style="display: flex; align-items: center; gap: 8px; margin-top: 4px;">
-                    <span style="font-weight: 600; font-size: 18px; color: #2563eb;">${pl.configuracoes.presencaMinima}%</span>
-                  </div>
-                </div>
-              </div>
-              <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);">
-                <span class="p">Questões na prova</span>
-                <span style="font-weight: 600; display: block; margin-top: 4px; color: var(--ink);">${pl.configuracoes.questoes} questões (múltipla escolha)</span>
-              </div>
-              <button class="botao" style="width: 100%; background: #7c3aed; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; margin-top: 10px;">✏️ Editar configurações</button>
-            </div>
-          </details>
-        </div>
-      `).join('')}
-    `;
-
-    const renderAula = () => `
-      <h2 style="font-size: 16px; margin-bottom: 12px;">Dar aula e fazer chamada</h2>
-      <div class="cartao">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <h3 style="margin: 0; font-size: 16px;">Turma Novos Convertidos</h3>
-          <span class="chip" style="--k: #2563eb; font-size: 11px; padding: 2px 8px;">Básico</span>
-        </div>
-        <p class="p">Cong. São Miguel · terças às 19:30 · 4 alunos</p>
-        
-        <div style="border: 2px solid #2563eb; border-radius: 10px; padding: 12px; margin: 10px 0; background: rgba(37, 99, 235, 0.05);">
-          <span style="color: #60a5fa; font-weight: 600; font-size: 12px;"><b>PRÓXIMA AULA</b> · 06/10 às 19:30</span>
-          <h4 style="margin: 4px 0 8px; font-size: 14px;">Aula 4 – Vida Cristã</h4>
-          
-          <div style="margin: 10px 0; padding: 10px 0; border-top: 1px solid rgba(37, 99, 235, 0.2); border-bottom: 1px solid rgba(37, 99, 235, 0.2);">
-            <p style="margin: 0 0 8px; font-size: 12px; color: var(--mut); font-weight: 500;">Como você vai dar esta aula?</p>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
-              <button style="background: #2563eb; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 12px;">▶ Slide</button>
-              <button style="background: #8b5cf6; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 12px;">📖 Revista</button>
-              <button style="background: #dc2626; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 12px;">● Live</button>
-            </div>
-          </div>
-          
-          <div style="display: flex; gap: 8px; margin-top: 8px;">
-            <button class="botao" style="flex: 1; background: #059669; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 13px;">✓ Confirmar</button>
-            <button class="botao" style="flex: 1; background: #7c3aed; border: none; border-radius: 6px; padding: 10px; color: white; font-weight: 600; cursor: pointer; font-size: 13px;">👁 Ver prova</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    const renderAndamento = () => `
-      <h2 style="font-size: 16px; margin-bottom: 12px;">Andamento</h2>
-      <div class="cartao">
-        <h3 style="margin: 0 0 8px; font-size: 14px;">Turma Novos Convertidos</h3>
-        <ul class="ls">
-          <li style="padding: 8px 0; border: none;">Aulas executadas <em style="font-weight: 600; color: var(--ink);">3 de 12</em></li>
-          <li style="padding: 8px 0;">Alunos com acesso <em style="font-weight: 600; color: var(--ink);">3 de 4</em></li>
-          <li style="padding: 8px 0;">Presença média <em style="font-weight: 600; color: var(--ink);">85%</em></li>
-          <li style="padding: 8px 0;">Prontos para prova <em style="font-weight: 600; color: #10b981;">2</em></li>
-        </ul>
-      </div>
-    `;
-
-    const html = `
-      <section>
-        <h1>Minhas Aulas</h1>
-        <p class="sub">Selecione o plano de aula, estruture os módulos, configure a prova e dê aulas</p>
-        
-        <div style="display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto;">
-          <button class="chip ativo" data-aba="planos" style="cursor: pointer; flex-shrink: 0;"><b>1</b> Meus planos</button>
-          <button class="chip" data-aba="dar-aula" style="cursor: pointer; flex-shrink: 0;"><b>2</b> Dar aula</button>
-          <button class="chip" data-aba="andamento" style="cursor: pointer; flex-shrink: 0;"><b>3</b> Andamento</button>
-        </div>
-        
-        <div id="conteudo-aba">
-          ${renderPlanos()}
-        </div>
-      </section>
-    `;
-    
-    c.innerHTML = html;
-    
-    c.querySelectorAll('[data-aba]').forEach(btn => {
-      btn.onclick = () => {
-        c.querySelectorAll('[data-aba]').forEach(b => b.classList.remove('ativo'));
-        btn.classList.add('ativo');
-        c.querySelector('#conteudo-aba').innerHTML = {
-          'planos': renderPlanos(),
-          'dar-aula': renderAula(),
-          'andamento': renderAndamento()
-        }[btn.dataset.aba];
-      };
-    });
+  VISTAS['minhas-aulas'] = async c => {
+    const r = await api('/nivel4/turmas');
+    c.innerHTML = `<div class="cabecalho"><div><span class="operacao-kicker">DISCIPULADO</span><h1>Minhas Aulas</h1><p>Turmas e alunos vinculados ao seu usuário.</p></div></div>
+      <div class="grade duas">${r.turmas.length ? r.turmas.map(t => `<section class="painel campanha-card"><h2>${h(t.nome)}</h2><p>${h(t.curriculo_nome)}</p>
+      <p class="ajuda">${t.total_alunos} alunos · desde ${dataBR(t.data_inicio)}</p><button class="botao" data-turma="${t.id}">Abrir turma</button></section>`).join('')
+      : '<section class="painel vazio">Você ainda não tem turmas atribuídas. A coordenação pode organizar as suas turmas.</section>'}</div>`;
+    c.querySelectorAll('[data-turma]').forEach(b => b.onclick = () => verTurmaProfessor(c,b.dataset.turma).catch(e => aviso(e.message,true)));
   };
+  async function verTurmaProfessor(c,turmaId) {
+    const [r,a] = await Promise.all([api('/nivel4/turmas/'+turmaId+'/alunos'),api('/nivel4/turmas/'+turmaId+'/aulas')]);
+    c.innerHTML = `<div class="cabecalho"><div><button class="botao sec p" id="voltar-turmas">← Minhas Aulas</button><h1>${h(r.turma.nome)}</h1><p>Aulas e presenças registradas pela equipe.</p></div></div>
+      <section class="painel"><h2>Alunos</h2>${r.alunos.length ? `<ul class="lista">${r.alunos.map(p=>`<li><div class="info"><strong>${h(p.nome)}</strong><small>${p.presencas_confirmadas} presenças em ${p.total_aulas_ministradas} aulas · ${h(p.status)}</small></div></li>`).join('')}</ul>`:'<p class="vazio">Nenhum aluno inscrito ainda.</p>'}</section>
+      <section class="painel" style="margin-top:16px"><h2>Aulas</h2>${a.aulas.length ? `<ul class="lista">${a.aulas.map(x=>`<li><div class="info"><strong>${h(x.licao_titulo)}</strong><small>${dataBR(x.data_aula)} · ${h(x.local || x.tipo_aula)} · ${x.presentes} presentes</small></div><button class="botao sec p" data-chamada="${x.id}">Fazer chamada</button></li>`).join('')}</ul>`:'<p class="vazio">Nenhuma aula programada ainda.</p>'}</section>`;
+    $('#voltar-turmas',c).onclick=()=>VISTAS['minhas-aulas'](c);
+    c.querySelectorAll('[data-chamada]').forEach(b=>b.onclick=async()=>{
+      try {
+        const aula=a.aulas.find(x=>String(x.id)===b.dataset.chamada);
+        const chamada=await api('/nivel4/aulas/'+aula.id+'/presencas');
+        const valores=Object.fromEntries(chamada.alunos.map(p=>['aluno_'+p.inscricao_id,p.presente]));
+        const campos=chamada.alunos.map(p=>({nome:'aluno_'+p.inscricao_id,rotulo:p.nome,tipo:'checkbox'}));
+        if(!campos.length)return aviso('Esta turma ainda não tem alunos.');
+        if(await formulario('Chamada — '+aula.licao_titulo,campos,valores,{aoSalvar:d=>api('/nivel4/aulas/'+aula.id+'/chamada',{
+          metodo:'POST',corpo:{presencas:chamada.alunos.map(p=>({inscricao_id:p.inscricao_id,presente:d['aluno_'+p.inscricao_id]}))}
+        })})){aviso('Chamada salva.');await verTurmaProfessor(c,turmaId);}
+      }catch(e){aviso(e.message,true);}
+    });
+  }
   async function listaCurriculos(c) {
     const { pode_criar, curriculos } = await api('/discipulado/curriculos');
     const gerencia = eu.nivel <= 2 || pode('discipulado.curriculo');
