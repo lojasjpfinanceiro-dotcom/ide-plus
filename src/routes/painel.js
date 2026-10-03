@@ -2,14 +2,16 @@
 const router = require('express').Router();
 const db = require('../db');
 const { autenticar, exigirNivel } = require('../auth');
+const { escopoPessoa } = require('../acompanhamento');
 
 router.use(autenticar, exigirNivel(1, 2, 3, 4));
 
 router.get('/resumo', async (req, res) => {
   const u = req.usuario;
   const geral = u.nivel === 1; // fechamento geral soma sede + todas as cidades
-  const params = [u.denominacao_id, geral ? null : u.cidade_id];
-  const filtro = 'p.denominacao_id = $1 AND ($2::bigint IS NULL OR p.cidade_id = $2)';
+  const e = escopoPessoa(u);
+  const params = e.valores;
+  const filtro = e.sql;
 
   // Etapa alcançada: para o afastado, vale a etapa em que ele estava quando se afastou
   const ALC = `CASE WHEN p.status = 'AFASTADO' THEN COALESCE(p.etapa_antes_afastar, 'CONVERTIDO') ELSE p.status END`;
@@ -53,7 +55,7 @@ router.get('/resumo', async (req, res) => {
                 AND g.responsavel_id IS NULL AND NOT (c.responsavel_todas AND c.responsavel_id IS NOT NULL)
                 AND NOT (c.is_sede AND g.is_sede))::int AS aguardando_responsavel,
             (SELECT COUNT(*) FROM usuarios WHERE denominacao_id = $1 AND ($2::bigint IS NULL OR cidade_id = $2))::int AS usuarios`,
-    params)).rows[0];
+    params.slice(0,2))).rows[0];
 
   res.json({ escopo: geral ? 'geral' : 'cidade', funil, porCidade, mensal, estrutura });
 });
