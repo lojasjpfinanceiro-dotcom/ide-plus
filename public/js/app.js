@@ -1526,24 +1526,56 @@
     location.replace(location.pathname);
   }
 
-  async function iniciar() {
-    if (!localToken()) { $('#tela-login').hidden = false; return; }
+  // Não deixe uma chamada de autenticação bloquear indefinidamente o acesso.
+  async function comPrazo(promise, ms = 20000) {
+    let timer;
     try {
-      await carregarEu();
+      return await Promise.race([
+        promise,
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('O servidor demorou para responder. Tente novamente.')), ms); })
+      ]);
+    } finally { clearTimeout(timer); }
+  }
+
+  async function iniciar() {
+    if (!localToken()) { $('#tela-login').hidden = false; $('#tela-app').hidden = true; return; }
+    try {
+      await comPrazo(carregarEu());
       $('#tela-login').hidden = true; $('#tela-app').hidden = false;
       if (eu.trocar_senha) return trocarSenhaObrigatoria();
       rota();
-    } catch { if (!trocandoSenha) sair(); }
+    } catch (err) {
+      if (trocandoSenha) return;
+      eu = null;
+      $('#tela-app').hidden = true;
+      $('#tela-login').hidden = false;
+      const erro = $('#erro-login');
+      erro.textContent = err?.message || 'Não foi possível carregar seu acesso. Tente novamente.';
+      erro.hidden = false;
+      // Só descarta a sessão se ela estiver realmente inválida.
+      if (/sessão expirada|não autorizado|token inválido/i.test(erro.textContent)) localToken(null);
+    }
   }
 
+  let entrando = false;
   $('#form-login').onsubmit = async (e) => {
     e.preventDefault();
+    if (entrando) return;
+    entrando = true;
     const f = e.target, erro = $('#erro-login');
+    const botao = f.querySelector('button[type="submit"]');
     erro.hidden = true;
+    botao.disabled = true;
+    botao.textContent = 'Entrando…';
     try {
-      const r = await api('/auth/login', { metodo: 'POST', corpo: { login: f.login.value, senha: f.senha.value } });
-      localToken(r.token); f.reset(); iniciar();
-    } catch (err) { erro.textContent = err.message; erro.hidden = false; }
+      const r = await comPrazo(api('/auth/login', { metodo: 'POST', corpo: { login: f.login.value, senha: f.senha.value } }));
+      if (!r?.token) throw new Error('O servidor não retornou uma sessão válida.');
+      localToken(r.token);
+      await iniciar();
+      if ($('#tela-app').hidden) return;
+      f.reset();
+    } catch (err) { erro.textContent = err?.message || 'Falha ao entrar.'; erro.hidden = false; }
+    finally { entrando = false; botao.disabled = false; botao.textContent = 'Entrar'; }
   };
   ligarCpf($('#form-login').login, true);
   $('#sair').onclick = (e) => { e.preventDefault(); sair(); };
