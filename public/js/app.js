@@ -31,15 +31,17 @@
     setTimeout(() => location.reload(), 700);
   }
 
-  async function api(caminho, { metodo = 'GET', corpo } = {}) {
+  async function api(caminho, { metodo = 'GET', corpo, signal } = {}) {
     const pedir = () => fetch('/api' + caminho, {
       method: metodo,
       headers: { 'Content-Type': 'application/json', 'X-IDE-Cliente': VERSAO_PAGINA || 'sem-versao', ...(localToken() ? { Authorization: 'Bearer ' + localToken() } : {}) },
-      body: corpo ? JSON.stringify(corpo) : undefined
+      body: corpo ? JSON.stringify(corpo) : undefined,
+      signal
     });
     let r;
     try { r = await pedir(); }
-    catch {
+    catch (err) {
+      if (signal?.aborted) throw new Error('O servidor demorou para responder. Tente novamente.');
       if (metodo !== 'GET') throw new Error('A conexão caiu durante o envio. Confira se o registro foi salvo antes de tentar novamente.');
       // Falha de rede (ex.: "Load failed" no iPhone): tenta mais uma vez antes de avisar
       await new Promise((ok) => setTimeout(ok, 1200));
@@ -1568,7 +1570,12 @@
     botao.disabled = true;
     botao.textContent = 'Entrando…';
     try {
-      const r = await comPrazo(api('/auth/login', { metodo: 'POST', corpo: { login: f.elements.namedItem('login').value, senha: f.elements.namedItem('senha').value } }));
+      const controle = new AbortController();
+      const limite = setTimeout(() => controle.abort(), 20000);
+      let r;
+      try {
+        r = await api('/auth/login', { metodo: 'POST', corpo: { login: f.elements.namedItem('login').value, senha: f.elements.namedItem('senha').value }, signal: controle.signal });
+      } finally { clearTimeout(limite); }
       if (!r?.token) throw new Error('O servidor não retornou uma sessão válida.');
       localToken(r.token);
       await iniciar();
