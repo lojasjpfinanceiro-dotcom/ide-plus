@@ -1568,7 +1568,7 @@
     botao.disabled = true;
     botao.textContent = 'Entrando…';
     try {
-      const r = await comPrazo(api('/auth/login', { metodo: 'POST', corpo: { login: f.login.value, senha: f.senha.value } }));
+      const r = await comPrazo(api('/auth/login', { metodo: 'POST', corpo: { login: f.elements.namedItem('login').value, senha: f.elements.namedItem('senha').value } }));
       if (!r?.token) throw new Error('O servidor não retornou uma sessão válida.');
       localToken(r.token);
       await iniciar();
@@ -1577,7 +1577,7 @@
     } catch (err) { erro.textContent = err?.message || 'Falha ao entrar.'; erro.hidden = false; }
     finally { entrando = false; botao.disabled = false; botao.textContent = 'Entrar'; }
   };
-  ligarCpf($('#form-login').login, true);
+  ligarCpf($('#form-login').elements.namedItem('login'), true);
   $('#sair').onclick = (e) => { e.preventDefault(); sair(); };
   $('#topo-avatar').onclick = () => (location.hash = '#perfil');
   $('#abrir-menu').onclick = () => {
